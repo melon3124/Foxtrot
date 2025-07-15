@@ -215,7 +215,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                                 "RUN": "RUN"
                             }
             
-                            column_map = {
+                           column_map = {
                                 "MALE": {
                                     "1CL": {
                                         "PUSHUPS": ("PUSH-UPS_MALE_1CL", "GRADE_MALE_PUSHUPS_1CL"),
@@ -256,8 +256,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                                         "RUN": ("RUN_FEMALE_3CL", "GRADE_FEMALE_RUN_3CL")
                                     }
                                 }
-                            }
-            
+                            }         
                             results = []
                             for key, label in exercise_map.items():
                                 raw_score = r.get(label, "")
