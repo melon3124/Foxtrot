@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from oauth2client.service_account 
+import ServiceAccountCredentials
 import os
+import json
 import re # Import regex for more robust cleaning
 
 # -------------------- CONFIG --------------------
@@ -26,9 +28,8 @@ st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=Tr
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-    import json
-    creds_dict = st.secrets["google_service_account"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+   creds_dict = st.secrets["google_service_account"]
+    creds = Credentials.from_service_account_info(dict(creds_dict))
     client = gspread.authorize(creds)
     SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
