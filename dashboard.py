@@ -28,9 +28,8 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 try:
    creds_dict = st.secrets["google_service_account"]
-    creds = Credentials.from_service_account_info(dict(creds_dict))
-    client = gspread.authorize(creds)
-    client = gspread.authorize(creds)
+   creds = Credentials.from_service_account_info(dict(creds_dict))
+   client = gspread.authorize(creds)
     SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
     st.error(f"Error connecting to Google Sheets. Please check 'service_account.json' and sheet permissions: {e}")
