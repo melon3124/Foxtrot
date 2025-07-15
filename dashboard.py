@@ -273,18 +273,17 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                                     results.append((label, score_val, "N/A", "Mapping Error"))
                                     continue
             
-                                matched_grade = "N/A"
-                                for _, row_s in scale.iterrows():
-                                    try:
-                                        key_val = str(row_s[range_col]).strip()
-                                        if key_val == "" or key_val.upper() == "N/A":
-                                            continue
+                                valid_rows = scale[[range_col, grade_col]].dropna()
+                                valid_rows = valid_rows[valid_rows[range_col].apply(lambda x: str(x).strip() not in ["", "N/A"])]
             
-                                        if float(key_val) == score_val:
-                                            matched_grade = row_s[grade_col]
-                                            break
-                                    except:
-                                        continue
+                                valid_rows[range_col] = valid_rows[range_col].astype(float)
+                                valid_rows = valid_rows.sort_values(by=range_col, ascending=False)
+            
+                                matched_grade = "N/A"
+                                for _, row_s in valid_rows.iterrows():
+                                    if score_val >= row_s[range_col]:
+                                        matched_grade = row_s[grade_col]
+                                        break
             
                                 try:
                                     numeric_grade = float(matched_grade)
