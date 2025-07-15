@@ -33,7 +33,7 @@ try:
    creds_dict = st.secrets["google_service_account"]
    creds = Credentials.from_service_account_info(
     st.secrets["google_service_account"],
-    scopes=scope
+    scopes=scope)
    client = gspread.authorize(creds)
    SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
