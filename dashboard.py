@@ -27,10 +27,9 @@ st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=Tr
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-   from google.oauth2.service_account import Credentials
-    creds_dict = st.secrets["google_service_account"]
+   creds_dict = st.secrets["google_service_account"]
     creds = Credentials.from_service_account_info(dict(creds_dict))
-
+    client = gspread.authorize(creds)
     client = gspread.authorize(creds)
     SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
