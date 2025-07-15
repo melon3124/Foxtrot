@@ -192,119 +192,108 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                     for idx, (k, v) in enumerate(details.items()):
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-            with t2:
+           with t2:
                 try:
                     pft = sheet_df(f"{cls} PFT")
                     scale = sheet_df("SCALE_PFT")
-
+            
                     if pft.empty or scale.empty:
                         st.info("PFT or SCALE_PFT data not available.")
                     else:
                         pft['NAME_CLEANED'] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                         r = pft[pft["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
-
+            
                         if not r.empty:
                             r = r.iloc[0]
                             gender = r.get("GENDER", "").upper()
                             class_level = cls
-
+            
                             exercise_map = {
-                                "PUSH-UPS": "Push-ups",
-                                "SITUPS": "Sit-ups",
-                                "PULL-UPS/ FLEX": "Pull-ups" if gender == "M" else "Flex Arm Hang",
-                                "RUN": "3.2 KM Run"
+                                "PUSHUPS": "PUSH-UPS",
+                                "SITUPS": "SITUPS",
+                                "PULLUPS_OR_FLEX": "PULL-UPS/ FLEX",
+                                "RUN": "RUN"
                             }
-
+            
                             column_map = {
                                 "MALE": {
                                     "1CL": {
-                                        "PUSH-UPS": ("PUSH-UPS_MALE_1CL", "GRADE_MALE_PUSHUPS_1CL"),
+                                        "PUSHUPS": ("PUSH-UPS_MALE_1CL", "GRADE_MALE_PUSHUPS_1CL"),
                                         "SITUPS": ("SITUPS_MALE_1CL", "GRADE_MALE_SITUPS_1CL"),
-                                        "PULL-UPS/ FLEX": ("PULLUPS_MALE_1CL", "GRADE_MALE_PULLUPS_1CL"),
+                                        "PULLUPS_OR_FLEX": ("PULLUPS_MALE_1CL", "GRADE_MALE_PULLUPS_1CL"),
                                         "RUN": ("RUN_MALE_1CL", "GRADE_MALE_RUN_1CL")
                                     },
                                     "2CL": {
-                                        "PUSH-UPS": ("PUSH-UPS_MALE_2CL", "GRADE_MALE_PUSHUPS_2CL"),
+                                        "PUSHUPS": ("PUSH-UPS_MALE_2CL", "GRADE_MALE_PUSHUPS_2CL"),
                                         "SITUPS": ("SITUPS_MALE_2CL", "GRADE_MALE_SITUPS_2CL"),
-                                        "PULL-UPS/ FLEX": ("PULLUPS_MALE_2CL", "GRADE_MALE_PULLUPS_2CL"),
+                                        "PULLUPS_OR_FLEX": ("PULLUPS_MALE_2CL", "GRADE_MALE_PULLUPS_2CL"),
                                         "RUN": ("RUN_MALE_2CL", "GRADE_MALE_RUN_2CL")
                                     },
                                     "3CL": {
-                                        "PUSH-UPS": ("PUSH-UPS_MALE_3CL", "GRADE_MALE_PUSHUPS_3CL"),
+                                        "PUSHUPS": ("PUSH-UPS_MALE_3CL", "GRADE_MALE_PUSHUPS_3CL"),
                                         "SITUPS": ("SITUPS_MALE_3CL", "GRADE_MALE_SITUPS_3CL"),
-                                        "PULL-UPS/ FLEX": ("PULLUPS_MALE_3CL", "GRADE_MALE_PULLUPS_3CL"),
+                                        "PULLUPS_OR_FLEX": ("PULLUPS_MALE_3CL", "GRADE_MALE_PULLUPS_3CL"),
                                         "RUN": ("RUN_MALE_3CL", "GRADE_MALE_RUN_3CL")
                                     }
                                 },
                                 "FEMALE": {
                                     "1CL": {
-                                        "PUSH-UPS": ("PUSH-UPS_FEMALE_1CL", "GRADE_FEMALE_PUSHUPS_1CL"),
+                                        "PUSHUPS": ("PUSH-UPS_FEMALE_1CL", "GRADE_FEMALE_PUSHUPS_1CL"),
                                         "SITUPS": ("SITUPS_FEMALE_1CL", "GRADE_FEMALE_SITUPS_1CL"),
-                                        "PULL-UPS/ FLEX": ("FLEX_FEMALE_1CL", "GRADE_FEMALE_FLEX_1CL"),
+                                        "PULLUPS_OR_FLEX": ("FLEX_FEMALE_1CL", "GRADE_FEMALE_FLEX_1CL"),
                                         "RUN": ("RUN_FEMALE_1CL", "GRADE_FEMALE_RUN_1CL")
                                     },
                                     "2CL": {
-                                        "PUSH-UPS": ("PUSH-UPS_FEMALE_2CL", "GRADE_FEMALE_PUSHUPS_2CL"),
+                                        "PUSHUPS": ("PUSH-UPS_FEMALE_2CL", "GRADE_FEMALE_PUSHUPS_2CL"),
                                         "SITUPS": ("SITUPS_FEMALE_2CL", "GRADE_FEMALE_SITUPS_2CL"),
-                                        "PULL-UPS/ FLEX": ("FLEX_FEMALE_2CL", "GRADE_FEMALE_FLEX_2CL"),
+                                        "PULLUPS_OR_FLEX": ("FLEX_FEMALE_2CL", "GRADE_FEMALE_FLEX_2CL"),
                                         "RUN": ("RUN_FEMALE_2CL", "GRADE_FEMALE_RUN_2CL")
                                     },
                                     "3CL": {
-                                        "PUSH-UPS": ("PUSH-UPS_FEMALE_3CL", "GRADE_FEMALE_PUSHUPS_3CL"),
+                                        "PUSHUPS": ("PUSH-UPS_FEMALE_3CL", "GRADE_FEMALE_PUSHUPS_3CL"),
                                         "SITUPS": ("SITUPS_FEMALE_3CL", "GRADE_FEMALE_SITUPS_3CL"),
-                                        "PULL-UPS/ FLEX": ("FLEX_FEMALE_3CL", "GRADE_FEMALE_FLEX_3CL"),
+                                        "PULLUPS_OR_FLEX": ("FLEX_FEMALE_3CL", "GRADE_FEMALE_FLEX_3CL"),
                                         "RUN": ("RUN_FEMALE_3CL", "GRADE_FEMALE_RUN_3CL")
                                     }
                                 }
                             }
-
+            
                             results = []
-                            for col, label in exercise_map.items():
-                                raw_score = r.get(col, "")
+                            for key, label in exercise_map.items():
+                                raw_score = r.get(label, "")
                                 try:
                                     score_val = float(raw_score)
                                 except:
                                     results.append((label, raw_score, "N/A", "N/A"))
                                     continue
-
+            
                                 try:
-                                    range_col, grade_col = column_map["MALE" if gender == "M" else "FEMALE"][class_level][col]
+                                    range_col, grade_col = column_map["MALE" if gender == "M" else "FEMALE"][class_level][key]
                                 except KeyError:
                                     results.append((label, score_val, "N/A", "Mapping Error"))
                                     continue
-
+            
                                 matched_grade = "N/A"
                                 for _, row_s in scale.iterrows():
                                     try:
-                                        range_expr = str(row_s[range_col]).strip()
-                                        if "-" in range_expr:
-                                            low, high = map(float, range_expr.split("-"))
-                                            if low <= score_val <= high:
-                                                matched_grade = row_s[grade_col]
-                                                break
-                                        elif ">=" in range_expr and score_val >= float(range_expr.replace(">=", "")):
-                                            matched_grade = row_s[grade_col]
-                                            break
-                                        elif "<=" in range_expr and score_val <= float(range_expr.replace("<=", "")):
-                                            matched_grade = row_s[grade_col]
-                                            break
-                                        elif ">" in range_expr and score_val > float(range_expr.replace(">", "")):
-                                            matched_grade = row_s[grade_col]
-                                            break
-                                        elif "<" in range_expr and score_val < float(range_expr.replace("<", "")):
+                                        key_val = str(row_s[range_col]).strip()
+                                        if key_val == "" or key_val.upper() == "N/A":
+                                            continue
+            
+                                        if float(key_val) == score_val:
                                             matched_grade = row_s[grade_col]
                                             break
                                     except:
                                         continue
-
+            
                                 try:
                                     numeric_grade = float(matched_grade)
                                     status = "Full Duty" if numeric_grade >= 8 else "Not Full Duty"
                                 except:
                                     status = "N/A"
-
+            
                                 results.append((label, score_val, matched_grade, status))
-
+            
                             df = pd.DataFrame(results, columns=["Exercise", "Raw Score", "Equivalent Grade", "Status"])
                             st.dataframe(df, hide_index=True)
                         else:
