@@ -224,31 +224,31 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
                         results = []
             
-                      for i in range(4):
-                            grade = grades[i]
-                            raw_score = raw_scores[i] if i < len(raw_scores) else ""
+                    for i in range(4):
+                        grade = grades[i]
+                        raw_score = raw_scores[i] if i < len(raw_scores) else ""
                         
-                            grade_clean = str(grade).strip().replace("%", "")
-                            st.write(f"{exercises[i]} → Raw: '{grade}', Cleaned: '{grade_clean}'")  # Debug
+                        grade_clean = str(grade).strip().replace("%", "")
+                        st.write(f"{exercises[i]} → Raw: '{grade}', Cleaned: '{grade_clean}'")  # Debug
                         
-                            try:
-                                grade_val = float(grade_clean)
-                                status = "Proficient" if grade_val >= 7 else "Deficient"
-                            except Exception as e:
-                                status = f"N/A (Error: {e})"
+                        try:
+                            grade_val = float(grade_clean)
+                            status = "Proficient" if grade_val >= 7 else "Deficient"
+                        except Exception as e:
+                            status = f"N/A (Error: {e})"
                         
-                            results.append({
-                                "Exercise": exercises[i],
-                                "Repetitions / Time": raw_score,
-                                "Grade": grade_clean,
-                                "Status": status
+                        results.append({
+                            "Exercise": exercises[i],
+                            "Repetitions / Time": raw_score,
+                            "Grade": grade_clean,
+                            "Status": status
                             })
 
 
             
-                        df = pd.DataFrame(results)
-                        st.markdown("### PFT Breakdown")
-                        st.dataframe(df, hide_index=True)
+                    df = pd.DataFrame(results)
+                    st.markdown("### PFT Breakdown")
+                    st.dataframe(df, hide_index=True)
             
                 except Exception as e:
                     st.error(f"PFT tab error: {e}")
