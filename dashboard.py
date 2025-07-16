@@ -7,33 +7,21 @@ import json
 import re # Import regex for more robust cleaning
 
 # -------------------- PFT GRADE SCALE (Hard‑coded from SCALE_PFT) --------------------
-scale_data = {
-    ('1CL', 'MALE',   'PUSHUPS'): {29: 0.0, 43: 7.6, 71: 10.0},
-    ('1CL', 'FEMALE', 'PUSHUPS'): {20: 0.0, 35: 7.6, 60: 10.0},
-    ('1CL', 'MALE',   'SITUPS'):  {41: 0.0, 55: 7.7, 87: 10.0},
-    ('1CL', 'FEMALE', 'SITUPS'):  {37: 0.0, 51: 7.6, 80: 10.0},
-    ('1CL', 'MALE',   'FLEX'):    {44: 0.0, 58: 8.3, 75: 10.0},
-    ('1CL', 'FEMALE', 'FLEX'):    {30: 0.0, 45: 8.2, 60: 10.0},
-    ('1CL', 'MALE',   'RUN'):     {13.0: 0.0, 12.0: 7.8, 11.0: 10.0},
-    ('1CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
-    ('2CL', 'MALE',   'PUSHUPS'): {29: 0.0, 43: 7.6, 71: 10.0},
-    ('2CL', 'FEMALE', 'PUSHUPS'): {20: 0.0, 35: 7.6, 60: 10.0},
-    ('2CL', 'MALE',   'SITUPS'):  {41: 0.0, 55: 7.7, 87: 10.0},
-    ('2CL', 'FEMALE', 'SITUPS'):  {37: 0.0, 51: 7.6, 80: 10.0},
-    ('2CL', 'MALE',   'FLEX'):    {44: 0.0, 58: 8.3, 75: 10.0},
-    ('2CL', 'FEMALE', 'FLEX'):    {30: 0.0, 45: 8.2, 60: 10.0},
-    ('2CL', 'MALE',   'RUN'):     {13.0: 0.0, 12.0: 7.8, 11.0: 10.0},
-    ('2CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
-    ('3CL', 'MALE',   'PUSHUPS'): {29: 0.0, 43: 7.6, 71: 10.0},
-    ('3CL', 'FEMALE', 'PUSHUPS'): {20: 0.0, 35: 7.6, 60: 10.0},
-    ('3CL', 'MALE',   'SITUPS'):  {41: 0.0, 55: 7.7, 87: 10.0},
-    ('3CL', 'FEMALE', 'SITUPS'):  {37: 0.0, 51: 7.6, 80: 10.0},
-    ('3CL', 'MALE',   'FLEX'):    {44: 0.0, 58: 8.3, 75: 10.0},
-    ('3CL', 'FEMALE', 'FLEX'):    {30: 0.0, 45: 8.2, 60: 10.0},
-    ('3CL', 'MALE',   'RUN'):     {13.0: 0.0, 12.0: 7.8, 11.0: 10.0},
-    ('3CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
-    # --- repeat for 2CL / 3CL events ---
-}
+scale_data = {}
+
+# Add 1CL MALE PUSHUPS data manually
+reps = list(range(53, 101))  # 53 to 100 inclusive
+grades = [
+    0, 7.7, 7.7, 7.8, 7.8, 7.9, 8, 8.1, 8.2, 8.3,
+    8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3,
+    9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10, 10, 10,
+    10, 10, 10, 10, 10, 10, 10, 10
+]
+
+# Map each rep to its grade
+event_key = ("1CL", "MALE", "PUSHUPS")
+scale_data[event_key] = {rep: grade for rep, grade in zip(reps, grades)}
+
     
 # -------------------- CONFIG --------------------
 st.set_page_config(layout="wide")
@@ -223,6 +211,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
            with t2:
                 try:
+                    grade = get_grade("1CL", "MALE", "PUSHUPS", pushups_count)
                     pft = sheet_df(f"{cls} PFT")
                     if pft.empty:
                         st.info("No PFT data available for this class.")
