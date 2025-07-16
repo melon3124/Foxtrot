@@ -193,26 +193,13 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
            with t2:
-    # -------------------- PFT GRADE SCALE (Hard-coded from SCALE_PFT) --------------------
-                scale_data = {}
-            
-                # Add 1CL MALE PUSHUPS data manually
-                reps = list(range(53, 101))  # 53 to 100 inclusive
-                grades = [
-                    0, 7.7, 7.7, 7.8, 7.8, 7.9, 8, 8.1, 8.2, 8.3,
-                    8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3,
-                    9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10, 10, 10,
-                    10, 10, 10, 10, 10, 10, 10, 10
-                ]
-                event_key = ("1CL", "MALE", "PUSHUPS")
-                scale_data[event_key] = {rep: grade for rep, grade in zip(reps, grades)}
-            
                 try:
                     pft = sheet_df(f"{cls} PFT")
-                    if pft.empty:
-                        st.info("No PFT data available for this class.")
+                    scale_df = sheet_df("SCALE_PFT")
+            
+                    if pft.empty or scale_df.empty:
+                        st.info("PFT or PFT Scale data is not available.")
                     else:
-                        # Standardize cadet name
                         pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                         record = pft[pft["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
             
@@ -220,38 +207,64 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             st.info("No PFT data for this cadet.")
                         else:
                             record = record.iloc[0]
-                            gender = row.get("GENDER", "").strip().upper() or "MALE"
+                            gender_raw = row.get("GENDER", "").strip().upper()
+                            gender = "MALE" if gender_raw.startswith("M") else "FEMALE"
             
-                            # Raw scores
-                            push_raw = record.get("PUSHUPS", "-")
-                            sit_raw  = record.get("SITUPS", "-")
-                            flex_raw = record.get("PULLUPS/FLEX ARM HANG", "-")
-                            run_raw  = record.get("3.2KM", "-")  # assume time in minutes
+                            def get_event_grade(event_raw_score, event_name):
+                                if pd.isna(event_raw_score) or event_raw_score == "":
+                                    return "-", "N/A"
+                                
+                                try:
+                                    raw = str(event_raw_score).strip()
+                                    col_name = None
+                                    # Determine event key and expected column
+                                    if event_name == "PUSHUPS":
+                                        col_name = f"GRADE_{gender}_PUSH-UPS_{cls}"
+                                    elif event_name == "SITUPS":
+                                        col_name = f"GRADE_{gender}_SITUPS_{cls}"
+                                    elif event_name == "PULLUPS/FLEX ARM HANG":
+                                        if gender == "MALE":
+                                            col_name = f"GRADE_MALE_PULLUPS_{cls}"
+                                        else:
+                                            col_name = f"GRADE_FEMALE_FLEX_{cls}"
+                                    elif event_name == "3.2KM":
+                                        col_name = f"GRADE_{gender}_RUN_{cls}"
             
-                            # Convert raw input if possible, else None
-                            push_grade = get_grade(cls, gender, "PUSHUPS", push_raw)
-                            sit_grade  = get_grade(cls, gender, "SITUPS", sit_raw)
-                            flex_grade = get_grade(cls, gender, "FLEX", flex_raw)
-                            run_grade  = get_grade(cls, gender, "RUN", run_raw)
+                                    if col_name not in scale_df.columns:
+                                        return raw, "Scale Missing"
             
-                            # Build DataFrame
-                            table = pd.DataFrame([
-                                {"Event": "Pushups", "Raw": push_raw, "Grade": push_grade,
-                                 "Interpretation": interpret_grade(push_grade)},
-                                {"Event": "Situps", "Raw": sit_raw, "Grade": sit_grade,
-                                 "Interpretation": interpret_grade(sit_grade)},
-                                {"Event": "Flex / Pull‑ups", "Raw": flex_raw, "Grade": flex_grade,
-                                 "Interpretation": interpret_grade(flex_grade)},
-                                {"Event": "3.2 km Run (min)", "Raw": run_raw, "Grade": run_grade,
-                                 "Interpretation": interpret_grade(run_grade)},
+                                    # Attempt numeric matching
+                                    scale_df['RAW'] = scale_df['RAW'].astype(str).str.strip()
+                                    raw = raw.strip()
+            
+                                    matched_grade = scale_df[scale_df['RAW'] == raw][col_name]
+            
+                                    if not matched_grade.empty:
+                                        grade = matched_grade.values[0]
+                                        return raw, interpret_grade(grade)
+                                    else:
+                                        return raw, "Not in scale"
+            
+                                except Exception as e:
+                                    return raw, f"Error: {e}"
+            
+                            push_raw, push_result = get_event_grade(record.get("PUSHUPS", ""), "PUSHUPS")
+                            sit_raw, sit_result = get_event_grade(record.get("SITUPS", ""), "SITUPS")
+                            flex_raw, flex_result = get_event_grade(record.get("PULLUPS/FLEX ARM HANG", ""), "PULLUPS/FLEX ARM HANG")
+                            run_raw, run_result = get_event_grade(record.get("3.2KM", ""), "3.2KM")
+            
+                            df = pd.DataFrame([
+                                {"Event": "Pushups", "Raw": push_raw, "Interpretation": push_result},
+                                {"Event": "Situps", "Raw": sit_raw, "Interpretation": sit_result},
+                                {"Event": "Flex / Pull‑ups", "Raw": flex_raw, "Interpretation": flex_result},
+                                {"Event": "3.2 km Run (min)", "Raw": run_raw, "Interpretation": run_result},
                             ])
             
                             st.markdown("### PFT Breakdown")
-                            st.dataframe(table, hide_index=True)
+                            st.dataframe(df, hide_index=True)
                 except Exception as e:
-                    st.error(f"PFT load error: {e}")
+                    st.error(f"PFT tab error: {e}")
 
-                 
             with t3: # Academics tab - main focus of the fix
                 try:
                     acad_sheet_map = {
