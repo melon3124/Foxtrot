@@ -6,23 +6,6 @@ import os
 import json
 import re # Import regex for more robust cleaning
 
-# -------------------- PFT GRADE SCALE (Hard‑coded from SCALE_PFT) --------------------
-scale_data = {}
-
-# Add 1CL MALE PUSHUPS data manually
-reps = list(range(53, 101))  # 53 to 100 inclusive
-grades = [
-    0, 7.7, 7.7, 7.8, 7.8, 7.9, 8, 8.1, 8.2, 8.3,
-    8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3,
-    9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10, 10, 10,
-    10, 10, 10, 10, 10, 10, 10, 10
-]
-
-# Map each rep to its grade
-event_key = ("1CL", "MALE", "PUSHUPS")
-scale_data[event_key] = {rep: grade for rep, grade in zip(reps, grades)}
-
-    
 # -------------------- CONFIG --------------------
 st.set_page_config(layout="wide")
 
@@ -210,6 +193,21 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
            with t2:
+                               # -------------------- PFT GRADE SCALE (Hard‑coded from SCALE_PFT) --------------------
+                scale_data = {}
+                
+                # Add 1CL MALE PUSHUPS data manually
+                reps = list(range(53, 101))  # 53 to 100 inclusive
+                grades = [
+                    0, 7.7, 7.7, 7.8, 7.8, 7.9, 8, 8.1, 8.2, 8.3,
+                    8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3,
+                    9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10, 10, 10,
+                    10, 10, 10, 10, 10, 10, 10, 10
+                ]
+                
+                # Map each rep to its grade
+                event_key = ("1CL", "MALE", "PUSHUPS")
+                scale_data[event_key] = {rep: grade for rep, grade in zip(reps, grades)}
                 try:
                     pft = sheet_df(f"{cls} PFT")
                     if pft.empty:
