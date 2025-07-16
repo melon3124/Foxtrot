@@ -166,31 +166,37 @@ if st.session_state.mode == "class" and cls:
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
         with t2:
-            pft_df = sheet_df(f"{cls} PFT")
-            if not pft_df.empty:
-                pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                cadet_row = pft_df[pft_df["NAME_CLEANED"] == name_clean]
-                if not cadet_row.empty:
-                    cadet = cadet_row.iloc[0]
-                    exercises = [
-                        ("Push-ups", "PUSH-UPS", "PUSHUPS_GRADE"),
-                        ("Sit-ups", "SITUPS", "SITUPS_GRADE"),
-                        ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULL-UPS/ FLEX_GRADE"),
-                        ("3.2km Run", "RUN", "RAN_GRADE")
-                    ]
-                    results = []
-                    for label, raw_col, grade_col in exercises:
-                        raw = cadet.get(raw_col, "")
-                        grade = clean_grade(cadet.get(grade_col, ""))
-                        try:
-                            status = "Proficient" if float(grade) >= 7 else "Deficient"
-                        except:
-                            status = "N/A"
-                        results.append({"Exercise": label, "Repetitions / Time": raw, "Grade": grade, "Status": status})
-                    st.markdown("### PFT Breakdown")
-                    st.dataframe(pd.DataFrame(results), hide_index=True)
+                try:
+                    pft_df = sheet_df(f"{cls} PFT")  # Use the class-specific PFT sheet
+                    if pft_df.empty:
+                        st.info("No PFT data available for this class.")
+                    else:
+                        target_name_col = "NAME"
+            
+                        if target_name_col not in pft_df.columns:
+                            st.error(f"Error: Expected column '{target_name_col}' not found in the PFT sheet.")
+                            st.write(f"Available columns in '{cls} PFT': {pft_df.columns.tolist()}")
+                        else:
+                            pft_df["NAME_CLEANED"] = pft_df[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+            
+                            match = pft_df[pft_df["NAME_CLEANED"] == name_clean]
+                            if not match.empty:
+                                r = match.iloc[0]
+                                df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
+                                
+                                df = pd.DataFrame({"Metric": df_data.index, "Value": df_data.values})
+            
+                                # Try to convert any grade columns to numeric and assess pass/fail
+                                df["Numeric"] = pd.to_numeric(df["Value"], errors='coerce')
+                                df["Status"] = df["Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+            
+                                st.markdown("### PFT Details")
+                                st.dataframe(df[["Metric", "Value", "Status"]], hide_index=True)
+                            else:
+                                st.warning(f"No PFT record found for {name_disp}.")
+                except Exception as e:
+                    st.error(f"PFT tab error: {e}")
 
-        # Tabs t3 (Academics), t4 (Military), t5 (Conduct) unchanged from original; you may paste similarly with normalize_column_name applied
         
             with t3: # Academics tab - main focus of the fix
                 try:
