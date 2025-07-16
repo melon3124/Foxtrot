@@ -34,36 +34,6 @@ scale_data = {
     ('3CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
     # --- repeat for 2CL / 3CL events ---
 }
-
-def get_grade(level: str, gender: str, event: str, raw):
-    """
-    Look up the closest grade for a given raw score (or run time) from scale_data.
-    For PUSHUPS / SITUPS / FLEX  : we take the highest RAW ≤ raw
-    For RUN (time in minutes)    : we take the lowest RAW ≥ raw  (faster = better)
-    """
-    key = (level, gender.upper(), event.upper())
-    if key not in scale_data or raw is None or raw == "-":
-        return None
-
-    mapping = scale_data[key]
-    # Numeric events
-    if event.upper() in ("RUN", "3.2KM", "3.2 KM"):
-        try:
-            raw_val = float(raw)
-        except ValueError:
-            return None
-        possibles = [r for r in mapping if r >= raw_val]
-        return mapping[min(possibles)] if possibles else None
-    else:
-        try:
-            raw_val = int(raw)
-        except ValueError:
-            return None
-        possibles = [r for r in mapping if r <= raw_val]
-        return mapping[max(possibles)] if possibles else None
-
-def interpret_grade(grade):
-    return "✅ Full Duty" if (grade is not None and grade >= 8) else "❌ Not Full Duty"
     
 # -------------------- CONFIG --------------------
 st.set_page_config(layout="wide")
