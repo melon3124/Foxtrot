@@ -211,79 +211,79 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
            with t2:
-                try:
-                    worksheet = SS.worksheet(f"{cls} PFT")
-                    all_rows = worksheet.get_all_values()
+    try:
+        worksheet = SS.worksheet(f"{cls} PFT")
+        all_rows = worksheet.get_all_values()
 
-                    if not all_rows or len(all_rows) < 2:
-                        st.info("No data found in PFT sheet.")
-                        st.stop()
+        if not all_rows or len(all_rows) < 2:
+            st.info("No data found in PFT sheet.")
+            st.stop()
 
-                    headers = all_rows[0]
-                    data = all_rows[1:]
+        headers = all_rows[0]
+        data = all_rows[1:]
 
-                        # Extract NAME and grade columns by fixed index (A, H–K)
-                    names = [row[0] for row in data]
-                    push_grades = [row[7] if len(row) > 7 else "" for row in data]   # H
-                    situp_grades = [row[8] if len(row) > 8 else "" for row in data]  # I
-                    pullup_grades = [row[9] if len(row) > 9 else "" for row in data] # J
-                    run_grades = [row[10] if len(row) > 10 else "" for row in data]  # K
+        # Extract NAME and grade columns by fixed index (A, H–K)
+        names = [row[0] for row in data]
+        push_grades = [row[7] if len(row) > 7 else "" for row in data]   # H
+        situp_grades = [row[8] if len(row) > 8 else "" for row in data]  # I
+        pullup_grades = [row[9] if len(row) > 9 else "" for row in data] # J
+        run_grades = [row[10] if len(row) > 10 else "" for row in data]  # K
 
-                    cleaned_names = [clean_cadet_name_for_comparison(n) for n in names]
+        cleaned_names = [clean_cadet_name_for_comparison(n) for n in names]
 
-                    if current_selected_cadet_cleaned_name not in cleaned_names:
-                        st.info("Cadet not found in the PFT sheet.")
-                        st.write("Available names:", cleaned_names)
-                    else:
-                        idx = cleaned_names.index(current_selected_cadet_cleaned_name)
-                        cadet_row = data[idx]
+        if current_selected_cadet_cleaned_name not in cleaned_names:
+            st.info("Cadet not found in the PFT sheet.")
+            st.write("Available names:", cleaned_names)
+        else:
+            idx = cleaned_names.index(current_selected_cadet_cleaned_name)
+            cadet_row = data[idx]
 
-                    # Raw scores from B-E (index 1–4)
-                    raw_scores = [
-                    cadet_row[1] if len(cadet_row) > 1 else "",
-                    cadet_row[2] if len(cadet_row) > 2 else "",
-                    cadet_row[3] if len(cadet_row) > 3 else "",
-                    cadet_row[4] if len(cadet_row) > 4 else ""
+            # Raw scores from B–E (index 1–4)
+            raw_scores = [
+                cadet_row[1] if len(cadet_row) > 1 else "",
+                cadet_row[2] if len(cadet_row) > 2 else "",
+                cadet_row[3] if len(cadet_row) > 3 else "",
+                cadet_row[4] if len(cadet_row) > 4 else ""
             ]    
 
-                    # Grades from columns H-K
-                    grades = [
-                    push_grades[idx],
-                    situp_grades[idx],
-                    pullup_grades[idx],
-                    run_grades[idx]
+            # Grades from columns H–K
+            grades = [
+                push_grades[idx],
+                situp_grades[idx],
+                pullup_grades[idx],
+                run_grades[idx]
             ]
 
-                    exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
-                    results = []
+            exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
+            results = []
 
-                    for i in range(4):
-                        grade = grades[i]
-                        raw_score = raw_scores[i]
+            for i in range(4):
+                grade = grades[i]
+                raw_score = raw_scores[i]
 
-                        grade_clean = clean_grade(grade)
-                        st.write(f"Debug – {exercises[i]} → Raw Grade: '{grade}', Cleaned Grade: '{grade_clean}'")
+                grade_clean = clean_grade(grade)
+                st.write(f"Debug – {exercises[i]} → Raw Grade: '{grade}', Cleaned Grade: '{grade_clean}'")
 
-                         try:
-                            grade_val = float(grade_clean)
-                            status = "Proficient" if grade_val >= 7 else "Deficient"
-                            except ValueError:
-                                status = "N/A"
-                                st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
+                try:
+                    grade_val = float(grade_clean)
+                    status = "Proficient" if grade_val >= 7 else "Deficient"
+                except ValueError:
+                    status = "N/A"
+                    st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
 
-                            results.append({
-                            "Exercise": exercises[i],
-                            "Repetitions / Time": raw_score,
-                            "Grade": grade_clean,
-                             "Status": status
-    })
+                results.append({
+                    "Exercise": exercises[i],
+                    "Repetitions / Time": raw_score,
+                    "Grade": grade_clean,
+                    "Status": status
+                })
 
-                df = pd.DataFrame(results)
-                st.markdown("### PFT Breakdown")
-                st.dataframe(df, hide_index=True)
+            df = pd.DataFrame(results)
+            st.markdown("### PFT Breakdown")
+            st.dataframe(df, hide_index=True)
 
-                except Exception as e:
-                    st.error(f"PFT tab error: {e}")
+    except Exception as e:
+        st.error(f"PFT tab error: {e}")
 
         
             with t3: # Academics tab - main focus of the fix
