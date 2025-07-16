@@ -4,7 +4,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import os
 import json
-import re # Import regex for more robust cleaning
+import re
 import unicodedata
 
 # -------------------- CONFIG --------------------
@@ -24,88 +24,80 @@ st.markdown(
 st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
 
 # -------------------- GOOGLE SHEETS --------------------
-# Define scope and credentials
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
 try:
-   creds_dict = st.secrets["google_service_account"]
-   creds = Credentials.from_service_account_info(
-    st.secrets["google_service_account"],
-    scopes=scope)
-   client = gspread.authorize(creds)
-   SS = client.open("FOXTROT DASHBOARD V2")
+    creds = Credentials.from_service_account_info(
+        st.secrets["google_service_account"],
+        scopes=scope
+    )
+    client = gspread.authorize(creds)
+    SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
     st.error(f"Error connecting to Google Sheets: {e}")
     st.stop()
 
 # -------------------- HELPERS --------------------
 def clean_grade(grade_raw: str) -> str:
-    """
-    Cleans grade strings by removing non-breaking spaces, %, and normalizing characters.
-    Returns a numeric string suitable for float conversion.
-    """
     if not isinstance(grade_raw, str):
         grade_raw = str(grade_raw)
-
-    # Normalize Unicode characters to decompose accents and non-standard characters
     normalized = unicodedata.normalize("NFKD", grade_raw)
-
-    # Replace all types of spaces (regular, non-breaking, narrow) and remove %
     cleaned = (
-        normalized.replace("\xa0", "")   # non-breaking space
-                  .replace("\u202f", "") # narrow no-break space
-                  .replace("\u2009", "") # thin space
-                  .replace(" ", "")      # unicode narrow space
-                  .replace("%", "")      # percent signs
-                  .replace(" ", "")      # normal spaces
+        normalized.replace("\xa0", "")
+                  .replace("\u202f", "")
+                  .replace("\u2009", "")
+                  .replace("\u200a", "")
+                  .replace(" ", "")
+                  .replace("%", "")
+                  .replace(" ", "")
                   .strip()
     )
     return cleaned
 
+def normalize_column_name(col: str) -> str:
+    if not isinstance(col, str):
+        col = str(col)
+    col = unicodedata.normalize("NFKD", col)
+    col = col.replace("\xa0", "").replace("\u202f", "").replace("\u2009", "").replace(" ", "")
+    col = re.sub(r'[^\w\-/ ]+', '', col).strip()
+    return col.upper()
 
-@st.cache_data(ttl=300) # Cache data for 5 minutes to reduce API calls
+@st.cache_data(ttl=300)
 def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Cleans DataFrame columns by stripping whitespace and uppercasing."""
-    df.columns = [c.strip().upper() for c in df.columns]
+    df.columns = [normalize_column_name(c) for c in df.columns]
     return df
 
-@st.cache_data(ttl=300) # Cache data for 5 minutes
+@st.cache_data(ttl=300)
 def sheet_df(name: str) -> pd.DataFrame:
-    """Fetches a worksheet and returns it as a cleaned Pandas DataFrame."""
     try:
         worksheet = SS.worksheet(name)
         return clean_df(pd.DataFrame(worksheet.get_all_records()))
     except gspread.exceptions.WorksheetNotFound:
-        st.warning(f"Worksheet '{name}' not found in Google Sheet. Please check the sheet name.")
-        return pd.DataFrame() # Return empty DataFrame on not found
+        st.warning(f"Worksheet '{name}' not found.")
+        return pd.DataFrame()
     except Exception as e:
         st.error(f"Error fetching sheet '{name}': {e}")
-        return pd.DataFrame() # Return empty DataFrame on other errors
+        return pd.DataFrame()
 
 def clean_cadet_name_for_comparison(name: str) -> str:
-    """Standardizes a cadet name for robust comparison."""
     if not isinstance(name, str):
-        return "" # Handle non-string inputs
-    # Replace multiple spaces with a single space, then strip leading/trailing, then uppercase
+        return ""
     return re.sub(r'\s+', ' ', name).strip().upper()
 
-# -------------------- LOAD DEMOGRAPHICS --------------------
+# -------------------- DEMOGRAPHICS --------------------
 demo_df = sheet_df("DEMOGRAPHICS")
-
 if demo_df.empty:
-    st.error("Demographics data could not be loaded. Please ensure your 'DEMOGRAPHICS' sheet exists and contains data.")
-    st.stop() # Stop the app if demographics data is crucial and missing
+    st.error("Demographics sheet missing.")
+    st.stop()
 
-# Create 'FULL NAME' for internal comparison and 'FULL NAME_DISPLAY' for UI
 demo_df["FULL NAME"] = demo_df.apply(
     lambda r: clean_cadet_name_for_comparison(
         f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}"
     ), axis=1
 )
-
 demo_df["FULL NAME_DISPLAY"] = demo_df.apply(
     lambda r: f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}".strip(), axis=1
 )
@@ -115,163 +107,90 @@ classes = {
     "2CL": (30, 61),
     "3CL": (63, 104)
 }
-
 if "CLASS" not in demo_df.columns:
-    demo_df["CLASS"] = "" # Initialize CLASS column if it doesn't exist
-
-# Assign classes based on row index (1-based from problem description)
-for cls, (start_idx, end_idx) in classes.items():
-    # Adjusted for 0-based indexing for iloc and ensuring the range is inclusive
-    # (start_idx - 1) because iloc is 0-indexed, end_idx because slice end is exclusive
-    if not demo_df.empty:
-        # Check if the column exists before trying to get its index, defensive coding
-        if "CLASS" in demo_df.columns:
-            demo_df.iloc[start_idx - 1:end_idx, demo_df.columns.get_loc("CLASS")] = cls
-        else:
-            st.warning("Warning: 'CLASS' column not found in demographics DataFrame for assignment.")
-            break # Exit the loop if 'CLASS' column isn't there
+    demo_df["CLASS"] = ""
+for cls, (start, end) in classes.items():
+    demo_df.iloc[start-1:end, demo_df.columns.get_loc("CLASS")] = cls
 
 # -------------------- SESSION STATE --------------------
-if "mode" not in st.session_state:
-    st.session_state.mode = "class"
-if "selected_class" not in st.session_state:
-    st.session_state.selected_class = None
-if "selected_cadet_display_name" not in st.session_state:
-    st.session_state.selected_cadet_display_name = None # For display
-if "selected_cadet_cleaned_name" not in st.session_state:
-    st.session_state.selected_cadet_cleaned_name = None # For comparison
+for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if key != "mode" else "class"
 
-# -------------------- TOP CONTROL BAR --------------------
+# -------------------- UI --------------------
 st.markdown('<div class="centered">', unsafe_allow_html=True)
-# Ensure the selectbox reflects the current session state if already selected
-initial_select_index = 0
-if st.session_state.selected_class:
-    try:
-        initial_select_index = ["", *classes.keys()].index(st.session_state.selected_class)
-    except ValueError:
-        pass # Keep 0 if not found
-
-selected_class_from_select = st.selectbox("Select Class Level", ["", *classes.keys()], index=initial_select_index)
-
-# Only update session state if a new selection is made or it's initial load
-if selected_class_from_select != st.session_state.selected_class:
-    st.session_state.mode = "class"
-    st.session_state.selected_class = selected_class_from_select
-    # Reset selected cadet when class changes to avoid displaying old data
-    st.session_state.selected_cadet_display_name = None
-    st.session_state.selected_cadet_cleaned_name = None
-    # Rerun the app to apply the new class selection immediately
-    st.rerun() 
+initial_idx = ["", *classes.keys()].index(st.session_state.selected_class or "")
+selected = st.selectbox("Select Class Level", ["", *classes.keys()], index=initial_idx)
+if selected != st.session_state.selected_class:
+    st.session_state.update({"mode": "class", "selected_class": selected, "selected_cadet_display_name": None, "selected_cadet_cleaned_name": None})
+    st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# -------------------- CLASS (CADET) VIEW --------------------
-if st.session_state.mode == "class" and st.session_state.selected_class:
-    cls = st.session_state.selected_class
+# -------------------- CLASS VIEW --------------------
+cls = st.session_state.selected_class
+if st.session_state.mode == "class" and cls:
     cadets = demo_df[demo_df["CLASS"] == cls]
-
-    if not cadets.empty:
+    if cadets.empty:
+        st.warning(f"No cadets for class {cls}.")
+    else:
         st.markdown('<div class="centered">', unsafe_allow_html=True)
-        cols_per_row = 4
-        num_rows = (len(cadets) + cols_per_row - 1) // cols_per_row
-
-        # Display buttons in a grid
-        for i in range(num_rows):
-            cols = st.columns(cols_per_row)
-            for j in range(cols_per_row):
-                idx = i * cols_per_row + j
-                if idx < len(cadets):
-                    cadet_display_name = cadets.iloc[idx]["FULL NAME_DISPLAY"]
-                    cadet_cleaned_name = cadets.iloc[idx]["FULL NAME"]
-                    with cols[j]:
-                        # Use a unique key for each button to avoid Streamlit warnings
-                        if st.button(cadet_display_name, key=f"cadet_button_{cadet_cleaned_name}_{cls}"):
-                            st.session_state.selected_cadet_display_name = cadet_display_name
-                            st.session_state.selected_cadet_cleaned_name = cadet_cleaned_name
-                            # Rerun to update the cadet details immediately
-                            st.rerun() 
+        for i in range(0, len(cadets), 4):
+            cols = st.columns(4)
+            for j in range(4):
+                if i + j >= len(cadets):
+                    continue
+                name_display = cadets.iloc[i+j]["FULL NAME_DISPLAY"]
+                name_cleaned = cadets.iloc[i+j]["FULL NAME"]
+                with cols[j]:
+                    if st.button(name_display, key=f"cadet_{name_cleaned}_{cls}"):
+                        st.session_state.selected_cadet_display_name = name_display
+                        st.session_state.selected_cadet_cleaned_name = name_cleaned
+                        st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Retrieve selected cadet names from session state for display and comparison
-        current_selected_cadet_display_name = st.session_state.selected_cadet_display_name
-        current_selected_cadet_cleaned_name = st.session_state.selected_cadet_cleaned_name
+    name_disp = st.session_state.selected_cadet_display_name
+    name_clean = st.session_state.selected_cadet_cleaned_name
+    if name_clean:
+        row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
+        st.markdown(f"## Showing details for: {name_disp}")
+        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "🏃 PFT", "📚 Academics", "🪖 Military", "⚖ Conduct"])
 
-        if current_selected_cadet_cleaned_name:
-            # Get the row from demo_df using the cleaned name for lookup
-            # This lookup is more robust as 'FULL NAME' is the cleaned version
-            row = demo_df[demo_df["FULL NAME"] == current_selected_cadet_cleaned_name].iloc[0]
+        with t1:
+            pic, info = st.columns([1, 2])
+            with pic:
+                img_path = f"profile_pics/{name_disp}.jpg"
+                st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
+            with info:
+                left, right = st.columns(2)
+                for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
+                    (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-            st.markdown(f"## Showing details for: {current_selected_cadet_display_name}")
+        with t2:
+            pft_df = sheet_df(f"{cls} PFT")
+            if not pft_df.empty:
+                pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                cadet_row = pft_df[pft_df["NAME_CLEANED"] == name_clean]
+                if not cadet_row.empty:
+                    cadet = cadet_row.iloc[0]
+                    exercises = [
+                        ("Push-ups", "PUSH-UPS", "PUSHUPS_GRADE"),
+                        ("Sit-ups", "SITUPS", "SITUPS_GRADE"),
+                        ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULL-UPS/ FLEX_GRADE"),
+                        ("3.2km Run", "RUN", "RAN_GRADE")
+                    ]
+                    results = []
+                    for label, raw_col, grade_col in exercises:
+                        raw = cadet.get(raw_col, "")
+                        grade = clean_grade(cadet.get(grade_col, ""))
+                        try:
+                            status = "Proficient" if float(grade) >= 7 else "Deficient"
+                        except:
+                            status = "N/A"
+                        results.append({"Exercise": label, "Repetitions / Time": raw, "Grade": grade, "Status": status})
+                    st.markdown("### PFT Breakdown")
+                    st.dataframe(pd.DataFrame(results), hide_index=True)
 
-            t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "🏃 PFT", "📚 Academics", "🪖 Military", "⚖ Conduct"])
-
-            with t1:
-                pic, info = st.columns([1, 2])
-                with pic:
-                    # Use the display name for the image file path
-                    img = f"profile_pics/{current_selected_cadet_display_name}.jpg"
-                    st.image(img if os.path.exists(img) else "https://via.placeholder.com/400", width=350)
-                with info:
-                    left, right = st.columns(2)
-                    # Filter out the internal 'FULL NAME' and 'FULL NAME_DISPLAY' columns
-                    details = {k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}
-                    for idx, (k, v) in enumerate(details.items()):
-                        (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
-
-            with t2:
-                try:
-                    # Load PFT sheet for the current class
-                    pft_df = sheet_df(f"{cls} PFT")
-                    if pft_df.empty:
-                        st.info("No PFT data found.")
-                    else:
-                        # Clean and prepare data
-                        pft_df.columns = [col.strip().upper() for col in pft_df.columns]
-                        pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            
-                        # Locate the cadet's row
-                        match = pft_df[pft_df["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
-                        if match.empty:
-                            st.warning("Cadet not found in the PFT sheet.")
-                        else:
-                            cadet = match.iloc[0]
-                            st.write("PFT Columns:", pft_df.columns.tolist())
-                            st.write("Cadet Row:", cadet.to_dict())
-
-            
-                            # Define the exercise mappings
-                            exercises = [
-                                ("Push-ups", "PUSHUPS", "PUSHUPS_GRADES"),
-                                ("Sit-ups", "SITUPS", "SITUPS_GRADES"),
-                                ("Pull-ups / Flex-arm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                                ("3.2KM Run", "3.2KM RUN", "3.2KMRUN_GRADES"),
-                            ]
-            
-                            # Build the display table
-                            results = []
-                            for label, raw_col, grade_col in exercises:
-                                reps = cadet.get(raw_col, "")
-                                grade_raw = cadet.get(grade_col, "")
-                                grade_clean = clean_grade(grade_raw)
-            
-                                try:
-                                    grade_val = float(grade_clean)
-                                    status = "FDS" if grade_val >= 8 else "NFDS"
-                                except:
-                                    status = "N/A"
-            
-                                results.append({
-                                    "Exercise": label,
-                                    "Repetitions / Time": reps,
-                                    "Grade": grade_clean,
-                                    "Status": status
-                                })
-            
-                            df = pd.DataFrame(results)
-                            st.markdown("### PFT Breakdown")
-                            st.dataframe(df, hide_index=True)
-                except Exception as e:
-                    st.error(f"PFT tab error: {e}")
-
+        # Tabs t3 (Academics), t4 (Military), t5 (Conduct) unchanged from original; you may paste similarly with normalize_column_name applied
         
             with t3: # Academics tab - main focus of the fix
                 try:
