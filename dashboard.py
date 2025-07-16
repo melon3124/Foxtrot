@@ -264,19 +264,21 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             grade_clean = clean_grade(grade)
                             st.write(f"Debug – {exercises[i]} → Raw Grade: '{grade}', Cleaned Grade: '{grade_clean}'")
 
-                            try:
-                                grade_val = float(grade_clean)
-                                status = "Proficient" if grade_val >= 7 else "Deficient"
-                            except ValueError:
-                                status = "N/A"
-                                st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
+                        try:
+                            grade_val = float(grade_clean)
+                            status = "Proficient" if grade_val >= 7 else "Deficient"
+                        except ValueError:
+                            grade_val = None
+                            status = "N/A"
+                            st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
 
+                            # ✅ Ensure this is OUTSIDE the except block
                         results.append({
                         "Exercise": exercises[i],
                         "Repetitions / Time": raw_score,
                         "Grade": grade_clean,
                         "Status": status
-                            })
+                    })
 
                         df = pd.DataFrame(results)
                         st.markdown("### PFT Breakdown")
