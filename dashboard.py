@@ -238,7 +238,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             exercises = [
                                 ("Push-ups", "PUSH-UPS", "PUSHUPS_GRADE"),
                                 ("Sit-ups", "SITUPS", "SITUPS_GRADE"),
-                                ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULLUPS/FLEX_GRADE"),
+                                ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULL-UPS/FLEX_GRADE"),
                                 ("3.2 km Run", "RUN", "RAN_GRADE")
                 ]
 
