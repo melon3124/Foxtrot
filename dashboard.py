@@ -238,8 +238,8 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             exercises = [
                                 ("Push-ups", "PUSH-UPS", "PUSHUPS_GRADE"),
                                 ("Sit-ups", "SITUPS", "SITUPS_GRADE"),
-                                ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULLUPS_GRADE"),
-                                ("3.2 km Run", "RUN", "RUN_GRADE")
+                                ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULLUPS/FLEX_GRADE"),
+                                ("3.2 km Run", "RUN", "RAN_GRADE")
                 ]
 
                             results = []
@@ -264,8 +264,8 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                     df = pd.DataFrame(results)
                     st.markdown("### PFT Breakdown")
                     st.dataframe(df, hide_index=True)
-        except Exception as e:
-            st.error(f"PFT tab error: {e}")
+            except Exception as e:
+                st.error(f"PFT tab error: {e}")
 
         
             with t3: # Academics tab - main focus of the fix
