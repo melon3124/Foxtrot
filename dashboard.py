@@ -234,6 +234,9 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             st.warning("Cadet not found in the PFT sheet.")
                         else:
                             cadet = match.iloc[0]
+                            st.write("PFT Columns:", pft_df.columns.tolist())
+                            st.write("Cadet Row:", cadet.to_dict())
+
             
                             # Define the exercise mappings
                             exercises = [
