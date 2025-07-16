@@ -219,53 +219,55 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
             with t2:
                 try:
-                    # Load PFT DataFrame directly
+                    # Load PFT sheet for the current class
                     pft_df = sheet_df(f"{cls} PFT")
                     if pft_df.empty:
-                        st.info("No data found in PFT sheet.")
+                        st.info("No PFT data found.")
                     else:
-                        # Clean column names
+                        # Clean and prepare data
                         pft_df.columns = [col.strip().upper() for col in pft_df.columns]
                         pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-
-                        # Match cadet
+            
+                        # Locate the cadet's row
                         match = pft_df[pft_df["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
                         if match.empty:
                             st.warning("Cadet not found in the PFT sheet.")
                         else:
                             cadet = match.iloc[0]
-
+            
+                            # Define the exercise mappings
                             exercises = [
-                                ("Push-ups", "PUSH-UPS", "PUSHUPS_GRADE"),
-                                ("Sit-ups", "SITUPS", "SITUPS_GRADE"),
-                                ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULL-UPS/FLEX_GRADE"),
-                                ("3.2 km Run", "RUN", "RAN_GRADE")
-                ]
-
+                                ("Push-ups", "PUSHUPS", "PUSHUPS_GRADES"),
+                                ("Sit-ups", "SITUPS", "SITUPS_GRADES"),
+                                ("Pull-ups / Flex-arm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                                ("3.2KM Run", "3.2KM RUN", "3.2KMRUN_GRADES"),
+                            ]
+            
+                            # Build the display table
                             results = []
                             for label, raw_col, grade_col in exercises:
-                                raw = cadet.get(raw_col, "")
+                                reps = cadet.get(raw_col, "")
                                 grade_raw = cadet.get(grade_col, "")
                                 grade_clean = clean_grade(grade_raw)
-
+            
                                 try:
                                     grade_val = float(grade_clean)
-                                    status = "Proficient" if grade_val >= 7 else "Deficient"
+                                    status = "FDS" if grade_val >= 8 else "NFDS"
                                 except:
                                     status = "N/A"
-
+            
                                 results.append({
                                     "Exercise": label,
-                                    "Repetitions / Time": raw,
+                                    "Repetitions / Time": reps,
                                     "Grade": grade_clean,
                                     "Status": status
-                    })
-
-                    df = pd.DataFrame(results)
-                    st.markdown("### PFT Breakdown")
-                    st.dataframe(df, hide_index=True)
-            except Exception as e:
-                st.error(f"PFT tab error: {e}")
+                                })
+            
+                            df = pd.DataFrame(results)
+                            st.markdown("### PFT Breakdown")
+                            st.dataframe(df, hide_index=True)
+                except Exception as e:
+                    st.error(f"PFT tab error: {e}")
 
         
             with t3: # Academics tab - main focus of the fix
