@@ -217,7 +217,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                     for idx, (k, v) in enumerate(details.items()):
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-           with t2:
+            with t2:
                 try:
                     # Load PFT DataFrame directly
                     pft_df = sheet_df(f"{cls} PFT")
