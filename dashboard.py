@@ -21,7 +21,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🥊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
 
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
@@ -39,24 +39,7 @@ try:
 except Exception as e:
     st.error(f"Error connecting to Google Sheets: {e}")
     st.stop()
-
-# -------------------- HELPERS --------------------
-def clean_grade(grade_raw: str) -> str:
-    if not isinstance(grade_raw, str):
-        grade_raw = str(grade_raw)
-    normalized = unicodedata.normalize("NFKD", grade_raw)
-    cleaned = (
-        normalized.replace("\xa0", "")
-                  .replace("\u202f", "")
-                  .replace("\u2009", "")
-                  .replace("\u200a", "")
-                  .replace(" ", "")
-                  .replace("%", "")
-                  .replace(" ", "")
-                  .strip()
-    )
-    return cleaned
-
+    
 def normalize_column_name(col: str) -> str:
     if not isinstance(col, str):
         col = str(col)
@@ -153,7 +136,7 @@ if st.session_state.mode == "class" and cls:
     if name_clean:
         row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
         st.markdown(f"## Showing details for: {name_disp}")
-        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "🏃 PFT", "📚 Academics", "🪖 Military", "⚖ Conduct"])
+        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
         with t1:
             pic, info = st.columns([1, 2])
@@ -165,123 +148,37 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-        with t2:
-                try:
-                    pft_df = sheet_df(f"{cls} PFT")  # Use the class-specific PFT sheet
-                    if pft_df.empty:
-                        st.info("No PFT data available for this class.")
+        with t2:  # Academics tab
+            try:
+                acad_sheet_map = {
+                    "1CL": "1CL ACAD",
+                    "2CL": "2CL ACAD",
+                    "3CL": "3CL ACAD"
+                }
+                acad = sheet_df(acad_sheet_map[cls])
+
+                if acad.empty:
+                    st.info("No Academic data available for this class.")
+                else:
+                    target_name_col = "NAME"
+                    if target_name_col not in acad.columns:
+                        st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet '{acad_sheet_map[cls]}'.")
+                        st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
                     else:
-                        target_name_col = "NAME"
-            
-                        if target_name_col not in pft_df.columns:
-                            st.error(f"Error: Expected column '{target_name_col}' not found in the PFT sheet.")
-                            st.write(f"Available columns in '{cls} PFT': {pft_df.columns.tolist()}")
-                        else:
-                            pft_df["NAME_CLEANED"] = pft_df[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-            
-                            match = pft_df[pft_df["NAME_CLEANED"] == name_clean]
-                            if not match.empty:
-                                r = match.iloc[0]
-                                df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
-                                
-                                df = pd.DataFrame({"Metric": df_data.index, "Value": df_data.values})
-            
-                                # Try to convert any grade columns to numeric and assess pass/fail
-                                df["Numeric"] = pd.to_numeric(df["Value"], errors='coerce')
-                                df["Status"] = df["Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-            
-                                st.markdown("### PFT Details")
-                                st.dataframe(df[["Metric", "Value", "Status"]], hide_index=True)
-                            else:
-                                st.warning(f"No PFT record found for {name_disp}.")
-                except Exception as e:
-                    st.error(f"PFT tab error: {e}")
+                        acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
 
-        
-            with t3: # Academics tab - main focus of the fix
-                try:
-                    acad_sheet_map = {
-                        "1CL": "1CL ACAD",
-                        "2CL": "2CL ACAD",
-                        "3CL": "3CL ACAD"
-                    }
-                    acad = sheet_df(acad_sheet_map[cls]) # Already cleaned by sheet_df
-
-                    if acad.empty:
-                        st.info("No Academic data available for this class.")
-                    else:
-                        # Consistently look for "NAME" column in academic sheets
-                        target_name_col = "NAME" 
-
-                        if target_name_col not in acad.columns:
-                            st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet '{acad_sheet_map[cls]}'.")
-                            st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
-                            # No return here, just display error and skip remaining logic for this tab
-                        else: # Only proceed if the target_name_col exists
-                            # Apply robust cleaning to the academic sheet's name column
-                            acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-
-                            r = acad[acad["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
-
-                            if not r.empty:
-                                r = r.iloc[0]
-                                # Drop the original name column and the cleaned name column before displaying
-                                # Ensure 'NAME' is dropped if it's the target column for consistency
-                                df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
-                                
-                                df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
-                                
-                                df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
-                                df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-                                
-                                st.dataframe(df[['Subject', 'Grade', 'Status']], hide_index=True)
-                            else:
-                                st.warning(f"No academic record found for {current_selected_cadet_display_name}.")
-                                # Optional: For debugging, uncomment to see available cleaned names
-                                # st.write("Available names in sheet (cleaned):", acad['NAME_CLEANED'].tolist())
-                except Exception as e:
-                    st.error(f"Academic load error: {e}")
-                    # import traceback
-                    # st.error(traceback.format_exc()) # Uncomment for full traceback
-
-            with t4:
-                try:
-                    mil = sheet_df(f"{cls} MIL")
-                    if mil.empty:
-                        st.info("No Military data available for this class.")
-                    else:
-                        mil['NAME_CLEANED'] = mil["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        r = mil[mil["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
+                        r = acad[acad["NAME_CLEANED"] == name_clean]
 
                         if not r.empty:
-                            # Drop 'NAME' and 'NAME_CLEANED' from items before iterating
-                            for subj, grade in r.iloc[0].drop(['NAME', 'NAME_CLEANED'], errors='ignore').items():
-                                st.write(f"**{subj}:** {grade}")
-                        else:
-                            st.info("No Military data available for this cadet.")
-                except Exception as e:
-                    st.error(f"Military load error: {e}")
-                    # import traceback
-                    # st.error(traceback.format_exc())
+                            r = r.iloc[0]
+                            df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
 
-            with t5:
-                try:
-                    cond = sheet_df("CONDUCT")
-                    if cond.empty:
-                        st.info("No Conduct data available.")
-                    else:
-                        cond['NAME_CLEANED'] = cond["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        r = cond[cond["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
+                            df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
+                            df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
+                            df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
 
-                        if not r.empty:
-                            # Drop 'NAME' and 'NAME_CLEANED' from items before iterating
-                            for subj, val in r.iloc[0].drop(['NAME', 'NAME_CLEANED'], errors='ignore').items():
-                                st.write(f"**{subj}:** {val}")
+                            st.dataframe(df[['Subject', 'Grade', 'Status']], hide_index=True)
                         else:
-                            st.info("No Conduct data available for this cadet.")
-                except Exception as e:
-                    st.error(f"Conduct load error: {e}")
-                    # import traceback
-                    # st.error(traceback.format_exc())
-    else:
-        st.warning(f"No cadets found for class {cls}.")
+                            st.warning(f"No academic record found for {name_disp}.")
+            except Exception as e:
+                st.error(f"Academic load error: {e}")
