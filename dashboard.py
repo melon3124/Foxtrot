@@ -194,7 +194,40 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
            with t2:
                 try:
-                    pft = sheet_df(f"{cls} PFT")
+                    @st.cache_data(ttl=300)
+                    def sheet_df(name: str) -> pd.DataFrame:
+                        """Fetches a worksheet and returns it as a cleaned Pandas DataFrame with safe headers."""
+                        try:
+                            worksheet = SS.worksheet(name)
+                            raw_data = worksheet.get_all_values()
+                    
+                            if not raw_data:
+                                return pd.DataFrame()
+                    
+                            headers = raw_data[0]
+                            seen = {}
+                            unique_headers = []
+                    
+                            # Make headers unique
+                            for h in headers:
+                                h_clean = h.strip().upper()
+                                if h_clean in seen:
+                                    seen[h_clean] += 1
+                                    h_clean = f"{h_clean}_{seen[h_clean]}"
+                                else:
+                                    seen[h_clean] = 1
+                                unique_headers.append(h_clean)
+                    
+                            df = pd.DataFrame(raw_data[1:], columns=unique_headers)
+                            return clean_df(df)
+                    
+                        except gspread.exceptions.WorksheetNotFound:
+                            st.warning(f"Worksheet '{name}' not found.")
+                            return pd.DataFrame()
+                        except Exception as e:
+                            st.error(f"Error fetching sheet '{name}': {e}")
+                            return pd.DataFrame()
+
             
                     if pft.empty:
                         st.info("PFT data is not available.")
