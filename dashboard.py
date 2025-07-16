@@ -193,9 +193,9 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
            with t2:
-                               # -------------------- PFT GRADE SCALE (Hard‑coded from SCALE_PFT) --------------------
+    # -------------------- PFT GRADE SCALE (Hard-coded from SCALE_PFT) --------------------
                 scale_data = {}
-                
+            
                 # Add 1CL MALE PUSHUPS data manually
                 reps = list(range(53, 101))  # 53 to 100 inclusive
                 grades = [
@@ -204,16 +204,15 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                     9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10, 10, 10,
                     10, 10, 10, 10, 10, 10, 10, 10
                 ]
-                
-                # Map each rep to its grade
                 event_key = ("1CL", "MALE", "PUSHUPS")
                 scale_data[event_key] = {rep: grade for rep, grade in zip(reps, grades)}
+            
                 try:
                     pft = sheet_df(f"{cls} PFT")
                     if pft.empty:
                         st.info("No PFT data available for this class.")
                     else:
-                        # standardise names
+                        # Standardize cadet name
                         pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                         record = pft[pft["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
             
@@ -221,32 +220,36 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             st.info("No PFT data for this cadet.")
                         else:
                             record = record.iloc[0]
-                            gender = row.get("GENDER", "").strip().upper() or "MALE"  # fallback
-                            
+                            gender = row.get("GENDER", "").strip().upper() or "MALE"
+            
                             # Raw scores
                             push_raw = record.get("PUSHUPS", "-")
                             sit_raw  = record.get("SITUPS", "-")
                             flex_raw = record.get("PULLUPS/FLEX ARM HANG", "-")
-                            run_raw  = record.get("3.2KM", "-")  # assume minutes (e.g., 12.5)
+                            run_raw  = record.get("3.2KM", "-")  # assume time in minutes
             
-                            # Equivalent grades
-                            grade = get_grade("1CL", "MALE", "PUSHUPS", pushups_count)
+                            # Convert raw input if possible, else None
+                            push_grade = get_grade(cls, gender, "PUSHUPS", push_raw)
+                            sit_grade  = get_grade(cls, gender, "SITUPS", sit_raw)
+                            flex_grade = get_grade(cls, gender, "FLEX", flex_raw)
+                            run_grade  = get_grade(cls, gender, "RUN", run_raw)
             
+                            # Build DataFrame
                             table = pd.DataFrame([
                                 {"Event": "Pushups", "Raw": push_raw, "Grade": push_grade,
                                  "Interpretation": interpret_grade(push_grade)},
-                                {"Event": "Situps",  "Raw": sit_raw,  "Grade": sit_grade,
+                                {"Event": "Situps", "Raw": sit_raw, "Grade": sit_grade,
                                  "Interpretation": interpret_grade(sit_grade)},
                                 {"Event": "Flex / Pull‑ups", "Raw": flex_raw, "Grade": flex_grade,
                                  "Interpretation": interpret_grade(flex_grade)},
                                 {"Event": "3.2 km Run (min)", "Raw": run_raw, "Grade": run_grade,
-                                 "Interpretation": interpret_grade(run_grade)}
+                                 "Interpretation": interpret_grade(run_grade)},
                             ])
             
                             st.markdown("### PFT Breakdown")
                             st.dataframe(table, hide_index=True)
                 except Exception as e:
-                    st.error(f\"PFT load error: {e}\")
+                    st.error(f"PFT load error: {e}")
 
                  
             with t3: # Academics tab - main focus of the fix
