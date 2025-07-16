@@ -6,6 +6,65 @@ import os
 import json
 import re # Import regex for more robust cleaning
 
+# -------------------- PFT GRADE SCALE (Hard‑coded from SCALE_PFT) --------------------
+scale_data = {
+    ('1CL', 'MALE',   'PUSHUPS'): {29: 0.0, 43: 7.6, 71: 10.0},
+    ('1CL', 'FEMALE', 'PUSHUPS'): {20: 0.0, 35: 7.6, 60: 10.0},
+    ('1CL', 'MALE',   'SITUPS'):  {41: 0.0, 55: 7.7, 87: 10.0},
+    ('1CL', 'FEMALE', 'SITUPS'):  {37: 0.0, 51: 7.6, 80: 10.0},
+    ('1CL', 'MALE',   'FLEX'):    {44: 0.0, 58: 8.3, 75: 10.0},
+    ('1CL', 'FEMALE', 'FLEX'):    {30: 0.0, 45: 8.2, 60: 10.0},
+    ('1CL', 'MALE',   'RUN'):     {13.0: 0.0, 12.0: 7.8, 11.0: 10.0},
+    ('1CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
+    ('2CL', 'MALE',   'PUSHUPS'): {29: 0.0, 43: 7.6, 71: 10.0},
+    ('2CL', 'FEMALE', 'PUSHUPS'): {20: 0.0, 35: 7.6, 60: 10.0},
+    ('2CL', 'MALE',   'SITUPS'):  {41: 0.0, 55: 7.7, 87: 10.0},
+    ('2CL', 'FEMALE', 'SITUPS'):  {37: 0.0, 51: 7.6, 80: 10.0},
+    ('2CL', 'MALE',   'FLEX'):    {44: 0.0, 58: 8.3, 75: 10.0},
+    ('2CL', 'FEMALE', 'FLEX'):    {30: 0.0, 45: 8.2, 60: 10.0},
+    ('2CL', 'MALE',   'RUN'):     {13.0: 0.0, 12.0: 7.8, 11.0: 10.0},
+    ('2CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
+    ('3CL', 'MALE',   'PUSHUPS'): {29: 0.0, 43: 7.6, 71: 10.0},
+    ('3CL', 'FEMALE', 'PUSHUPS'): {20: 0.0, 35: 7.6, 60: 10.0},
+    ('3CL', 'MALE',   'SITUPS'):  {41: 0.0, 55: 7.7, 87: 10.0},
+    ('3CL', 'FEMALE', 'SITUPS'):  {37: 0.0, 51: 7.6, 80: 10.0},
+    ('3CL', 'MALE',   'FLEX'):    {44: 0.0, 58: 8.3, 75: 10.0},
+    ('3CL', 'FEMALE', 'FLEX'):    {30: 0.0, 45: 8.2, 60: 10.0},
+    ('3CL', 'MALE',   'RUN'):     {13.0: 0.0, 12.0: 7.8, 11.0: 10.0},
+    ('3CL', 'FEMALE', 'RUN'):     {15.0: 0.0, 14.0: 7.8, 13.0: 10.0},
+    # --- repeat for 2CL / 3CL events ---
+}
+
+def get_grade(level: str, gender: str, event: str, raw):
+    """
+    Look up the closest grade for a given raw score (or run time) from scale_data.
+    For PUSHUPS / SITUPS / FLEX  : we take the highest RAW ≤ raw
+    For RUN (time in minutes)    : we take the lowest RAW ≥ raw  (faster = better)
+    """
+    key = (level, gender.upper(), event.upper())
+    if key not in scale_data or raw is None or raw == "-":
+        return None
+
+    mapping = scale_data[key]
+    # Numeric events
+    if event.upper() in ("RUN", "3.2KM", "3.2 KM"):
+        try:
+            raw_val = float(raw)
+        except ValueError:
+            return None
+        possibles = [r for r in mapping if r >= raw_val]
+        return mapping[min(possibles)] if possibles else None
+    else:
+        try:
+            raw_val = int(raw)
+        except ValueError:
+            return None
+        possibles = [r for r in mapping if r <= raw_val]
+        return mapping[max(possibles)] if possibles else None
+
+def interpret_grade(grade):
+    return "✅ Full Duty" if (grade is not None and grade >= 8) else "❌ Not Full Duty"
+    
 # -------------------- CONFIG --------------------
 st.set_page_config(layout="wide")
 
@@ -195,111 +254,51 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
            with t2:
                 try:
                     pft = sheet_df(f"{cls} PFT")
-                    scale = sheet_df("SCALE_PFT")
-            
-                    if pft.empty or scale.empty:
-                        st.info("PFT or SCALE_PFT data not available.")
+                    if pft.empty:
+                        st.info("No PFT data available for this class.")
                     else:
-                        pft['NAME_CLEANED'] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        r = pft[pft["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
+                        # standardise names
+                        pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                        record = pft[pft["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
             
-                        if not r.empty:
-                            r = r.iloc[0]
-                            gender = r.get("GENDER", "").upper()
-                            class_level = cls
-            
-                            exercise_map = {
-                                "PUSHUPS": "PUSH-UPS",
-                                "SITUPS": "SITUPS",
-                                "PULLUPS_OR_FLEX": "PULL-UPS/ FLEX",
-                                "RUN": "RUN"
-                            }
-            
-                           column_map = {
-                                "MALE": {
-                                    "1CL": {
-                                        "PUSHUPS": ("PUSH-UPS_MALE_1CL", "GRADE_MALE_PUSHUPS_1CL"),
-                                        "SITUPS": ("SITUPS_MALE_1CL", "GRADE_MALE_SITUPS_1CL"),
-                                        "PULLUPS_OR_FLEX": ("PULLUPS_MALE_1CL", "GRADE_MALE_PULLUPS_1CL"),
-                                        "RUN": ("RUN_MALE_1CL", "GRADE_MALE_RUN_1CL")
-                                    },
-                                    "2CL": {
-                                        "PUSHUPS": ("PUSH-UPS_MALE_2CL", "GRADE_MALE_PUSHUPS_2CL"),
-                                        "SITUPS": ("SITUPS_MALE_2CL", "GRADE_MALE_SITUPS_2CL"),
-                                        "PULLUPS_OR_FLEX": ("PULLUPS_MALE_2CL", "GRADE_MALE_PULLUPS_2CL"),
-                                        "RUN": ("RUN_MALE_2CL", "GRADE_MALE_RUN_2CL")
-                                    },
-                                    "3CL": {
-                                        "PUSHUPS": ("PUSH-UPS_MALE_3CL", "GRADE_MALE_PUSHUPS_3CL"),
-                                        "SITUPS": ("SITUPS_MALE_3CL", "GRADE_MALE_SITUPS_3CL"),
-                                        "PULLUPS_OR_FLEX": ("PULLUPS_MALE_3CL", "GRADE_MALE_PULLUPS_3CL"),
-                                        "RUN": ("RUN_MALE_3CL", "GRADE_MALE_RUN_3CL")
-                                    }
-                                },
-                                "FEMALE": {
-                                    "1CL": {
-                                        "PUSHUPS": ("PUSH-UPS_FEMALE_1CL", "GRADE_FEMALE_PUSHUPS_1CL"),
-                                        "SITUPS": ("SITUPS_FEMALE_1CL", "GRADE_FEMALE_SITUPS_1CL"),
-                                        "PULLUPS_OR_FLEX": ("FLEX_FEMALE_1CL", "GRADE_FEMALE_FLEX_1CL"),
-                                        "RUN": ("RUN_FEMALE_1CL", "GRADE_FEMALE_RUN_1CL")
-                                    },
-                                    "2CL": {
-                                        "PUSHUPS": ("PUSH-UPS_FEMALE_2CL", "GRADE_FEMALE_PUSHUPS_2CL"),
-                                        "SITUPS": ("SITUPS_FEMALE_2CL", "GRADE_FEMALE_SITUPS_2CL"),
-                                        "PULLUPS_OR_FLEX": ("FLEX_FEMALE_2CL", "GRADE_FEMALE_FLEX_2CL"),
-                                        "RUN": ("RUN_FEMALE_2CL", "GRADE_FEMALE_RUN_2CL")
-                                    },
-                                    "3CL": {
-                                        "PUSHUPS": ("PUSH-UPS_FEMALE_3CL", "GRADE_FEMALE_PUSHUPS_3CL"),
-                                        "SITUPS": ("SITUPS_FEMALE_3CL", "GRADE_FEMALE_SITUPS_3CL"),
-                                        "PULLUPS_OR_FLEX": ("FLEX_FEMALE_3CL", "GRADE_FEMALE_FLEX_3CL"),
-                                        "RUN": ("RUN_FEMALE_3CL", "GRADE_FEMALE_RUN_3CL")
-                                    }
-                                }
-                            }         
-                            results = []
-                            for key, label in exercise_map.items():
-                                raw_score = r.get(label, "")
-                                try:
-                                    score_val = float(raw_score)
-                                except:
-                                    results.append((label, raw_score, "N/A", "N/A"))
-                                    continue
-            
-                                try:
-                                    range_col, grade_col = column_map["MALE" if gender == "M" else "FEMALE"][class_level][key]
-                                except KeyError:
-                                    results.append((label, score_val, "N/A", "Mapping Error"))
-                                    continue
-            
-                                valid_rows = scale[[range_col, grade_col]].dropna()
-                                valid_rows = valid_rows[valid_rows[range_col].apply(lambda x: str(x).strip() not in ["", "N/A"])]
-            
-                                valid_rows[range_col] = valid_rows[range_col].astype(float)
-                                valid_rows = valid_rows.sort_values(by=range_col, ascending=False)
-            
-                                matched_grade = "N/A"
-                                for _, row_s in valid_rows.iterrows():
-                                    if score_val >= row_s[range_col]:
-                                        matched_grade = row_s[grade_col]
-                                        break
-            
-                                try:
-                                    numeric_grade = float(matched_grade)
-                                    status = "Full Duty" if numeric_grade >= 8 else "Not Full Duty"
-                                except:
-                                    status = "N/A"
-            
-                                results.append((label, score_val, matched_grade, status))
-            
-                            df = pd.DataFrame(results, columns=["Exercise", "Raw Score", "Equivalent Grade", "Status"])
-                            st.dataframe(df, hide_index=True)
+                        if record.empty:
+                            st.info("No PFT data for this cadet.")
                         else:
-                            st.warning(f"No PFT record found for {current_selected_cadet_display_name}.")
+                            record = record.iloc[0]
+                            gender = row.get("GENDER", "").strip().upper() or "MALE"  # fallback
+                            color  = "red" if gender == "FEMALE" else "black"
+                            st.markdown(f"<h3 style='color:{color}'>{current_selected_cadet_display_name}</h3>",
+                                        unsafe_allow_html=True)
+            
+                            # Raw scores
+                            push_raw = record.get("PUSHUPS", "-")
+                            sit_raw  = record.get("SITUPS", "-")
+                            flex_raw = record.get("PULLUPS/FLEX ARM HANG", "-")
+                            run_raw  = record.get("3.2KM", "-")  # assume minutes (e.g., 12.5)
+            
+                            # Equivalent grades
+                            push_grade = get_grade(cls, gender, "PUSHUPS", push_raw)
+                            sit_grade  = get_grade(cls, gender, "SITUPS", sit_raw)
+                            flex_grade = get_grade(cls, gender, "FLEX", flex_raw)
+                            run_grade  = get_grade(cls, gender, "RUN", run_raw)
+            
+                            table = pd.DataFrame([
+                                {"Event": "Pushups", "Raw": push_raw, "Grade": push_grade,
+                                 "Interpretation": interpret_grade(push_grade)},
+                                {"Event": "Situps",  "Raw": sit_raw,  "Grade": sit_grade,
+                                 "Interpretation": interpret_grade(sit_grade)},
+                                {"Event": "Flex / Pull‑ups", "Raw": flex_raw, "Grade": flex_grade,
+                                 "Interpretation": interpret_grade(flex_grade)},
+                                {"Event": "3.2 km Run (min)", "Raw": run_raw, "Grade": run_grade,
+                                 "Interpretation": interpret_grade(run_grade)}
+                            ])
+            
+                            st.markdown("### PFT Breakdown")
+                            st.dataframe(table, hide_index=True)
                 except Exception as e:
-                    st.error(f"PFT load error: {e}")
+                    st.error(f\"PFT load error: {e}\")
 
-
+                 
             with t3: # Academics tab - main focus of the fix
                 try:
                     acad_sheet_map = {
