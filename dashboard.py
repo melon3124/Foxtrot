@@ -211,7 +211,6 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
            with t2:
                 try:
-                    grade = get_grade("1CL", "MALE", "PUSHUPS", pushups_count)
                     pft = sheet_df(f"{cls} PFT")
                     if pft.empty:
                         st.info("No PFT data available for this class.")
@@ -225,10 +224,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         else:
                             record = record.iloc[0]
                             gender = row.get("GENDER", "").strip().upper() or "MALE"  # fallback
-                            color  = "red" if gender == "FEMALE" else "black"
-                            st.markdown(f"<h3 style='color:{color}'>{current_selected_cadet_display_name}</h3>",
-                                        unsafe_allow_html=True)
-            
+                            
                             # Raw scores
                             push_raw = record.get("PUSHUPS", "-")
                             sit_raw  = record.get("SITUPS", "-")
@@ -236,10 +232,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                             run_raw  = record.get("3.2KM", "-")  # assume minutes (e.g., 12.5)
             
                             # Equivalent grades
-                            push_grade = get_grade(cls, gender, "PUSHUPS", push_raw)
-                            sit_grade  = get_grade(cls, gender, "SITUPS", sit_raw)
-                            flex_grade = get_grade(cls, gender, "FLEX", flex_raw)
-                            run_grade  = get_grade(cls, gender, "RUN", run_raw)
+                            grade = get_grade("1CL", "MALE", "PUSHUPS", pushups_count)
             
                             table = pd.DataFrame([
                                 {"Event": "Pushups", "Raw": push_raw, "Grade": push_grade,
