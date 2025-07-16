@@ -207,44 +207,36 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         else:
                             record = record.iloc[0]
             
-                            # Resolve RUN grade column name if duplicate
-                            run_cols = [col for col in pft.columns if col.upper().startswith("RUN")]
-                            if len(run_cols) >= 2:
-                                run_raw_col, run_grade_col = run_cols[0], run_cols[1]
-                            else:
-                                run_raw_col, run_grade_col = "RUN", "RUN"  # fallback
-            
-                            # Build display table
+                            # Display structured data table
                             exercises = [
                                 {
                                     "Exercise": "Push-ups",
-                                    "Raw": record.get("PUSH-UPS", ""),
+                                    "Repetitions / Time": record.get("PUSH-UPS", ""),
                                     "Grade": record.get("PUSHUPS_GRADE", "")
                                 },
                                 {
                                     "Exercise": "Sit-ups",
-                                    "Raw": record.get("SITUPS", ""),
+                                    "Repetitions / Time": record.get("SITUPS", ""),
                                     "Grade": record.get("SITUPS_GRADE", "")
                                 },
                                 {
                                     "Exercise": "Pull-ups / Flex Arm Hang",
-                                    "Raw": record.get("PULL-UPS/ FLEX", ""),
+                                    "Repetitions / Time": record.get("PULL-UPS/ FLEX", ""),
                                     "Grade": record.get("PULL-UPS/ FLEX_GRADE", "")
                                 },
                                 {
                                     "Exercise": "3.2 km Run",
-                                    "Raw": record.get(run_raw_col, ""),
-                                    "Grade": record.get(run_grade_col, "")
+                                    "Repetitions / Time": record.get("RUN", ""),
+                                    "Grade": record.get("RUN_GRADE", "")
                                 },
                             ]
             
-                            # Add Status based on Grade
-                            for ex in exercises:
+                            for e in exercises:
                                 try:
-                                    grade_val = float(ex["Grade"])
-                                    ex["Status"] = "Proficient" if grade_val >= 7 else "Deficient"
+                                    grade = float(e["Grade"])
+                                    e["Status"] = "Proficient" if grade >= 7 else "Deficient"
                                 except:
-                                    ex["Status"] = "N/A"
+                                    e["Status"] = "N/A"
             
                             df = pd.DataFrame(exercises)
                             st.markdown("### PFT Breakdown")
