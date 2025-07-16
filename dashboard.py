@@ -226,20 +226,24 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
             
                       for i in range(4):
                             grade = grades[i]
+                            raw_score = raw_scores[i] if i < len(raw_scores) else ""
+                        
                             grade_clean = str(grade).strip().replace("%", "")
+                            st.write(f"{exercises[i]} → Raw: '{grade}', Cleaned: '{grade_clean}'")  # Debug
                         
                             try:
                                 grade_val = float(grade_clean)
                                 status = "Proficient" if grade_val >= 7 else "Deficient"
-                            except:
-                                status = "N/A"
+                            except Exception as e:
+                                status = f"N/A (Error: {e})"
                         
                             results.append({
                                 "Exercise": exercises[i],
-                                "Repetitions / Time": raw_scores[i] if i < len(raw_scores) else "",
-                                "Grade": grade,
+                                "Repetitions / Time": raw_score,
+                                "Grade": grade_clean,
                                 "Status": status
                             })
+
 
             
                         df = pd.DataFrame(results)
