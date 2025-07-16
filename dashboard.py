@@ -224,20 +224,23 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
                         results = []
             
-                        for i in range(4):
+                      for i in range(4):
                             grade = grades[i]
+                            grade_clean = str(grade).strip().replace("%", "")
+                        
                             try:
-                                grade_val = float(grade)
+                                grade_val = float(grade_clean)
                                 status = "Proficient" if grade_val >= 7 else "Deficient"
                             except:
                                 status = "N/A"
-            
+                        
                             results.append({
                                 "Exercise": exercises[i],
                                 "Repetitions / Time": raw_scores[i] if i < len(raw_scores) else "",
                                 "Grade": grade,
                                 "Status": status
                             })
+
             
                         df = pd.DataFrame(results)
                         st.markdown("### PFT Breakdown")
