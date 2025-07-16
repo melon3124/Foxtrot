@@ -195,30 +195,45 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
            with t2:
     try:
         worksheet = SS.worksheet(f"{cls} PFT")
-        names = worksheet.col_values(1)[1:28]  # A2:A28
-        push_grades = worksheet.col_values(8)[1:28]  # H2:H28
-        situp_grades = worksheet.col_values(9)[1:28]  # I2:I28
-        pullup_grades = worksheet.col_values(10)[1:28]  # J2:J28
-        run_grades = worksheet.col_values(11)[1:28]  # K2:K28
+        all_rows = worksheet.get_all_values()
 
-        # Clean names for matching
-        cleaned_names = [clean_cadet_name_for_comparison(name) for name in names]
+        if not all_rows or len(all_rows) < 2:
+            st.info("No data found in PFT sheet.")
+            st.stop()
+
+        headers = all_rows[0]
+        data = all_rows[1:]
+
+        # Extract NAME and grade columns by fixed index (A, H–K)
+        names = [row[0] for row in data]
+        push_grades = [row[7] if len(row) > 7 else "" for row in data]   # H
+        situp_grades = [row[8] if len(row) > 8 else "" for row in data]  # I
+        pullup_grades = [row[9] if len(row) > 9 else "" for row in data] # J
+        run_grades = [row[10] if len(row) > 10 else "" for row in data]  # K
+
+        cleaned_names = [clean_cadet_name_for_comparison(n) for n in names]
 
         if current_selected_cadet_cleaned_name not in cleaned_names:
-            st.info("No PFT record found for this cadet.")
+            st.info("Cadet not found in the PFT sheet.")
+            st.write("Available names:", cleaned_names)
         else:
             idx = cleaned_names.index(current_selected_cadet_cleaned_name)
+            cadet_row = data[idx]
 
-            # Fetch raw scores from full worksheet rows
-            raw_data = worksheet.get_all_values()[1:28]  # Rows 2–28
-            cadet_row = raw_data[idx]
-            raw_scores = cadet_row[1:5]  # Columns B–E: PUSHUPS, SITUPS, PULLUPS, RUN
+            # Raw scores from B-E (index 1–4)
+            raw_scores = [
+                cadet_row[1] if len(cadet_row) > 1 else "",
+                cadet_row[2] if len(cadet_row) > 2 else "",
+                cadet_row[3] if len(cadet_row) > 3 else "",
+                cadet_row[4] if len(cadet_row) > 4 else ""
+            ]
 
+            # Grades from columns H-K
             grades = [
-                push_grades[idx] if idx < len(push_grades) else "",
-                situp_grades[idx] if idx < len(situp_grades) else "",
-                pullup_grades[idx] if idx < len(pullup_grades) else "",
-                run_grades[idx] if idx < len(run_grades) else ""
+                push_grades[idx],
+                situp_grades[idx],
+                pullup_grades[idx],
+                run_grades[idx]
             ]
 
             exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
@@ -226,16 +241,14 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
             for i in range(4):
                 grade = grades[i]
-                raw_score = raw_scores[i] if i < len(raw_scores) else ""
+                raw_score = raw_scores[i]
 
                 grade_clean = str(grade).strip().replace("%", "")
-                st.write(f"{exercises[i]} → Raw: '{grade}', Cleaned: '{grade_clean}'")  # Debug
-
                 try:
                     grade_val = float(grade_clean)
                     status = "Proficient" if grade_val >= 7 else "Deficient"
-                except Exception as e:
-                    status = f"N/A (Error: {e})"
+                except:
+                    status = "N/A"
 
                 results.append({
                     "Exercise": exercises[i],
@@ -251,6 +264,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
     except Exception as e:
         st.error(f"PFT tab error: {e}")
 
+        
             with t3: # Academics tab - main focus of the fix
                 try:
                     acad_sheet_map = {
