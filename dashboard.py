@@ -5,6 +5,7 @@ from google.oauth2.service_account import Credentials
 import os
 import json
 import re # Import regex for more robust cleaning
+import unicodedata
 
 # -------------------- CONFIG --------------------
 st.set_page_config(layout="wide")
@@ -41,6 +42,23 @@ except Exception as e:
     st.stop()
 
 # -------------------- HELPERS --------------------
+def clean_grade(grade_raw: str) -> str:
+    """
+    Cleans grade strings by removing non-breaking spaces, %, and normalizing characters.
+    Returns a numeric string suitable for float conversion.
+    """
+    if not isinstance(grade_raw, str):
+        grade_raw = str(grade_raw)
+
+    # Normalize Unicode characters (e.g. non-breaking space to regular space)
+    normalized = unicodedata.normalize("NFKD", grade_raw)
+
+    # Remove % signs, spaces, and other extra formatting
+    cleaned = normalized.replace("%", "").replace("\u202f", "").replace(" ", "").strip()
+
+    return cleaned
+
+
 @st.cache_data(ttl=300) # Cache data for 5 minutes to reduce API calls
 def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     """Cleans DataFrame columns by stripping whitespace and uppercasing."""
@@ -206,10 +224,10 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
                         # Extract NAME and grade columns by fixed index (A, H–K)
                     names = [row[0] for row in data]
-                    push_grades = [row[8] if len(row) > 8 else "" for row in data]   # H
-                    situp_grades = [row[9] if len(row) > 9 else "" for row in data]  # I
-                    pullup_grades = [row[10] if len(row) > 10 else "" for row in data] # J
-                    run_grades = [row[11] if len(row) > 11 else "" for row in data]  # K
+                    push_grades = [row[7] if len(row) > 7 else "" for row in data]   # H
+                    situp_grades = [row[8] if len(row) > 8 else "" for row in data]  # I
+                    pullup_grades = [row[9] if len(row) > 9 else "" for row in data] # J
+                    run_grades = [row[10] if len(row) > 10 else "" for row in data]  # K
 
                     cleaned_names = [clean_cadet_name_for_comparison(n) for n in names]
 
@@ -218,7 +236,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         st.write("Available names:", cleaned_names)
                     else:
                         idx = cleaned_names.index(current_selected_cadet_cleaned_name)
-                         cadet_row = data[idx]
+                        cadet_row = data[idx]
 
                     # Raw scores from B-E (index 1–4)
                     raw_scores = [
@@ -243,21 +261,21 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                         grade = grades[i]
                         raw_score = raw_scores[i]
 
-                        grade_clean = str(grade).strip().replace("%", "").replace(" ", "").replace(" ", "")  # Handle non-breaking spaces
+                        grade_clean = clean_grade(grade)
                         st.write(f"Debug – {exercises[i]} → Raw Grade: '{grade}', Cleaned Grade: '{grade_clean}'")
 
-                        try:
-                            grade_val = float(grade_clean)
-                            status = "Proficient" if grade_val >= 7 else "Deficient"
+                     try:
+                        grade_val = float(grade_clean)
+                        status = "Proficient" if grade_val >= 7 else "Deficient"
                         except ValueError:
                             status = "N/A"
                             st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
-    
+
                         results.append({
                         "Exercise": exercises[i],
                         "Repetitions / Time": raw_score,
                         "Grade": grade_clean,
-                        "Status": status
+                         "Status": status
     })
 
                 df = pd.DataFrame(results)
