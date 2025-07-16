@@ -271,11 +271,11 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
                                 status = "N/A"
                                 st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
 
-                            results.append({
-                            "Exercise": exercises[i],
-                            "Repetitions / Time": raw_score,
-                            "Grade": grade_clean,
-                            "Status": status
+                        results.append({
+                        "Exercise": exercises[i],
+                        "Repetitions / Time": raw_score,
+                        "Grade": grade_clean,
+                        "Status": status
                             })
 
                         df = pd.DataFrame(results)
