@@ -195,7 +195,7 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
            with t2:
                 try:
                     worksheet = SS.worksheet(f"{cls} PFT")
-                    names = worksheet.col_values(3)[1:28]  # A2:A28
+                    names = worksheet.col_values(1)[1:28]  # A2:A28
                     push_grades = worksheet.col_values(8)[1:28]  # H2:H28
                     situp_grades = worksheet.col_values(9)[1:28]  # I2:I28
                     pullup_grades = worksheet.col_values(10)[1:28]  # J2:J28
