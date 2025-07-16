@@ -50,12 +50,19 @@ def clean_grade(grade_raw: str) -> str:
     if not isinstance(grade_raw, str):
         grade_raw = str(grade_raw)
 
-    # Normalize Unicode characters (e.g. non-breaking space to regular space)
+    # Normalize Unicode characters to decompose accents and non-standard characters
     normalized = unicodedata.normalize("NFKD", grade_raw)
 
-    # Remove % signs, spaces, and other extra formatting
-    cleaned = normalized.replace("%", "").replace("\u202f", "").replace(" ", "").strip()
-
+    # Replace all types of spaces (regular, non-breaking, narrow) and remove %
+    cleaned = (
+        normalized.replace("\xa0", "")   # non-breaking space
+                  .replace("\u202f", "") # narrow no-break space
+                  .replace("\u2009", "") # thin space
+                  .replace(" ", "")      # unicode narrow space
+                  .replace("%", "")      # percent signs
+                  .replace(" ", "")      # normal spaces
+                  .strip()
+    )
     return cleaned
 
 
