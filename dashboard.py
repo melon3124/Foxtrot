@@ -195,63 +195,56 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
            with t2:
                 try:
                     worksheet = SS.worksheet(f"{cls} PFT")
-                    raw_data = worksheet.get_all_values()
+                    names = worksheet.col_values(1)[1:28]  # A2:A28
+                    push_grades = worksheet.col_values(8)[1:28]  # H2:H28
+                    situp_grades = worksheet.col_values(9)[1:28]  # I2:I28
+                    pullup_grades = worksheet.col_values(10)[1:28]  # J2:J28
+                    run_grades = worksheet.col_values(11)[1:28]  # K2:K28
             
-                    # Ensure headers and data are present
-                    if len(raw_data) < 2:
-                        st.info("PFT data is not available.")
+                    # Clean names for matching
+                    cleaned_names = [clean_cadet_name_for_comparison(name) for name in names]
+            
+                    if current_selected_cadet_cleaned_name not in cleaned_names:
+                        st.info("No PFT record found for this cadet.")
                     else:
-                        headers = raw_data[0]
-                        data_rows = raw_data[1:]
+                        idx = cleaned_names.index(current_selected_cadet_cleaned_name)
             
-                        # Find cadet row by name
-                        name_index = headers.index("NAME") if "NAME" in headers else None
-                        if name_index is None:
-                            st.error("NAME column not found.")
-                        else:
-                            matched_row = None
-                            for row in data_rows:
-                                if len(row) <= name_index:
-                                    continue
-                                name_clean = clean_cadet_name_for_comparison(row[name_index])
-                                if name_clean == current_selected_cadet_cleaned_name:
-                                    matched_row = row
-                                    break
+                        # Fetch raw scores from full worksheet rows
+                        raw_data = worksheet.get_all_values()[1:28]  # Rows 2–28
+                        cadet_row = raw_data[idx]
+                        raw_scores = cadet_row[1:5]  # Columns B–E: PUSHUPS, SITUPS, PULLUPS, RUN
             
-                            if not matched_row:
-                                st.info("No PFT record found for this cadet.")
-                            else:
-                                # Extract raw scores from columns B–E (indexes 1–4)
-                                # Extract grades from columns H–K (indexes 7–10)
-                                raw_scores = matched_row[1:5]
-                                grades = matched_row[7:11]
+                        grades = [
+                            push_grades[idx] if idx < len(push_grades) else "",
+                            situp_grades[idx] if idx < len(situp_grades) else "",
+                            pullup_grades[idx] if idx < len(pullup_grades) else "",
+                            run_grades[idx] if idx < len(run_grades) else ""
+                        ]
             
-                                exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
-                                results = []
+                        exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
+                        results = []
             
-                                for i in range(4):
-                                    grade = grades[i] if i < len(grades) else ""
-                                    try:
-                                        grade_val = float(grade)
-                                        status = "Proficient" if grade_val >= 7 else "Deficient"
-                                    except:
-                                        status = "N/A"
+                        for i in range(4):
+                            grade = grades[i]
+                            try:
+                                grade_val = float(grade)
+                                status = "Proficient" if grade_val >= 7 else "Deficient"
+                            except:
+                                status = "N/A"
             
-                                    results.append({
-                                        "Exercise": exercises[i],
-                                        "Repetitions / Time": raw_scores[i] if i < len(raw_scores) else "",
-                                        "Grade": grade,
-                                        "Status": status
-                                    })
+                            results.append({
+                                "Exercise": exercises[i],
+                                "Repetitions / Time": raw_scores[i] if i < len(raw_scores) else "",
+                                "Grade": grade,
+                                "Status": status
+                            })
             
-                                df = pd.DataFrame(results)
-                                st.markdown("### PFT Breakdown")
-                                st.dataframe(df, hide_index=True)
+                        df = pd.DataFrame(results)
+                        st.markdown("### PFT Breakdown")
+                        st.dataframe(df, hide_index=True)
             
                 except Exception as e:
                     st.error(f"PFT tab error: {e}")
-
-
 
             with t3: # Academics tab - main focus of the fix
                 try:
