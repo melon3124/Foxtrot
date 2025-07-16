@@ -219,80 +219,53 @@ if st.session_state.mode == "class" and st.session_state.selected_class:
 
            with t2:
                 try:
-                    worksheet = SS.worksheet(f"{cls} PFT")
-                    all_rows = worksheet.get_all_values()
-
-                    if not all_rows or len(all_rows) < 2:
+                    # Load PFT DataFrame directly
+                    pft_df = sheet_df(f"{cls} PFT")
+                    if pft_df.empty:
                         st.info("No data found in PFT sheet.")
-                        st.stop()
-
-                    headers = all_rows[0]
-                    data = all_rows[1:]
-
-                    # Extract NAME and grade columns by fixed index (A, H–K)
-                    names = [row[0] for row in data]
-                    push_grades = [row[7] if len(row) > 7 else "" for row in data]   # H
-                    situp_grades = [row[8] if len(row) > 8 else "" for row in data]  # I
-                    pullup_grades = [row[9] if len(row) > 9 else "" for row in data] # J
-                    run_grades = [row[10] if len(row) > 10 else "" for row in data]  # K
-
-                    cleaned_names = [clean_cadet_name_for_comparison(n) for n in names]
-
-                    if current_selected_cadet_cleaned_name not in cleaned_names:
-                        st.info("Cadet not found in the PFT sheet.")
-                        st.write("Available names:", cleaned_names)
                     else:
-                        idx = cleaned_names.index(current_selected_cadet_cleaned_name)
-                        cadet_row = data[idx]
+                        # Clean column names
+                        pft_df.columns = [col.strip().upper() for col in pft_df.columns]
+                        pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
 
-                    # Raw scores from B–E (index 1–4)
-                        raw_scores = [
-                            cadet_row[1] if len(cadet_row) > 1 else "",
-                            cadet_row[2] if len(cadet_row) > 2 else "",
-                            cadet_row[3] if len(cadet_row) > 3 else "",
-                            cadet_row[4] if len(cadet_row) > 4 else ""
-                        ]    
+                        # Match cadet
+                        match = pft_df[pft_df["NAME_CLEANED"] == current_selected_cadet_cleaned_name]
+                        if match.empty:
+                            st.warning("Cadet not found in the PFT sheet.")
+                        else:
+                            cadet = match.iloc[0]
 
-                        # Grades from columns H–K
-                        grades = [
-                            push_grades[idx],
-                            situp_grades[idx],
-                            pullup_grades[idx],
-                            run_grades[idx]
-                        ]
+                            exercises = [
+                                ("Push-ups", "PUSH-UPS", "PUSHUPS_GRADE"),
+                                ("Sit-ups", "SITUPS", "SITUPS_GRADE"),
+                                ("Pull-ups / Flex", "PULL-UPS/ FLEX", "PULLUPS_GRADE"),
+                                ("3.2 km Run", "RUN", "RUN_GRADE")
+                ]
 
-                        exercises = ["Push-ups", "Sit-ups", "Pull-ups / Flex", "3.2 km Run"]
-                        results = []
+                            results = []
+                            for label, raw_col, grade_col in exercises:
+                                raw = cadet.get(raw_col, "")
+                                grade_raw = cadet.get(grade_col, "")
+                                grade_clean = clean_grade(grade_raw)
 
-                        for i in range(4):
-                            grade = grades[i]
-                            raw_score = raw_scores[i]
+                                try:
+                                    grade_val = float(grade_clean)
+                                    status = "Proficient" if grade_val >= 7 else "Deficient"
+                                except:
+                                    status = "N/A"
 
-                            grade_clean = clean_grade(grade)
-                            st.write(f"Debug – {exercises[i]} → Raw Grade: '{grade}', Cleaned Grade: '{grade_clean}'")
-
-                            try:
-                                grade_val = float(grade_clean)
-                                status = "Proficient" if grade_val >= 7 else "Deficient"
-                            except ValueError:
-                                grade_val = None
-                                status = "N/A"
-                                st.write(f"⚠ Could not convert grade '{grade_clean}' to float.")
-
-                            # ✅ Ensure this is OUTSIDE the except block
-                            results.append({
-                            "Exercise": exercises[i],
-                            "Repetitions / Time": raw_score,
-                            "Grade": grade_clean,
-                            "Status": status
+                                results.append({
+                                    "Exercise": label,
+                                    "Repetitions / Time": raw,
+                                    "Grade": grade_clean,
+                                    "Status": status
                     })
 
-                        df = pd.DataFrame(results)
-                        st.markdown("### PFT Breakdown")
-                        st.dataframe(df, hide_index=True)
-
-    except Exception as e:
-        st.error(f"PFT tab error: {e}")
+                    df = pd.DataFrame(results)
+                    st.markdown("### PFT Breakdown")
+                    st.dataframe(df, hide_index=True)
+        except Exception as e:
+            st.error(f"PFT tab error: {e}")
 
         
             with t3: # Academics tab - main focus of the fix
