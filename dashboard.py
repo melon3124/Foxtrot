@@ -238,3 +238,87 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"PFT load error: {e}")
 
+        with t4:
+            try:
+                mil_sheet_map = {
+                    "1CL": "1CL MIL",
+                    "2CL": "2CL MIL",
+                    "3CL": "3CL MIL"
+                }
+                sheet_name = mil_sheet_map.get(cls)
+                if not sheet_name:
+                    st.warning("Select a class to view military grades.")
+                else:
+                    mil = sheet_df(sheet_name)
+                    if mil.empty:
+                        st.info(f"No military data found in '{sheet_name}'.")
+                    else:
+                        # Normalize column names
+                        mil.columns = [c.strip().upper() for c in mil.columns]
+        
+                        name_col = "NAME"
+                        if name_col not in mil.columns:
+                            st.error(f"Expected column '{name_col}' not found in '{sheet_name}'. Available: {mil.columns.tolist()}")
+                        else:
+                            mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet = mil[mil["NAME_CLEANED"] == name_clean]
+        
+                            if cadet.empty:
+                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                            else:
+                                cadet = cadet.iloc[0]
+        
+                                # 1CL: BOS, GRADE
+                                if cls == "1CL":
+                                    bos = cadet.get("BOS", "N/A")
+                                    grade = cadet.get("GRADE", "N/A")
+                                    status = (
+                                        "Passed" if str(grade).strip().isdigit() and int(grade) >= 3 else
+                                        "Failed" if str(grade).strip().isdigit() else
+                                        "N/A"
+                                    )
+                                    df = pd.DataFrame([{
+                                        "Name": name_disp,
+                                        "BOS": bos,
+                                        "Grade": grade,
+                                        "Status": status
+                                    }])
+        
+                                # 2CL: SUBJECT, GRADE
+                                elif cls == "2CL":
+                                    rows = []
+                                    for col in mil.columns:
+                                        if col not in [name_col, "NAME_CLEANED"]:
+                                            grade = cadet.get(col, "N/A")
+                                            status = (
+                                                "Passed" if str(grade).strip().isdigit() and int(grade) >= 3 else
+                                                "Failed" if str(grade).strip().isdigit() else
+                                                "N/A"
+                                            )
+                                            rows.append({
+                                                "Name": name_disp,
+                                                "Subject": col,
+                                                "Grade": grade,
+                                                "Status": status
+                                            })
+                                    df = pd.DataFrame(rows)
+        
+                                # 3CL: GRADE only
+                                elif cls == "3CL":
+                                    grade = cadet.get("GRADE", "N/A")
+                                    status = (
+                                        "Passed" if str(grade).strip().isdigit() and int(grade) >= 3 else
+                                        "Failed" if str(grade).strip().isdigit() else
+                                        "N/A"
+                                    )
+                                    df = pd.DataFrame([{
+                                        "Name": name_disp,
+                                        "Grade": grade,
+                                        "Status": status
+                                    }])
+        
+                                st.dataframe(df, hide_index=True)
+            except Exception as e:
+                st.error(f"Military tab load error: {e}")
+
+
