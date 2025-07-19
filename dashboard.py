@@ -182,3 +182,45 @@ if st.session_state.mode == "class" and cls:
                             st.warning(f"No academic record found for {name_disp}.")
             except Exception as e:
                 st.error(f"Academic load error: {e}")
+
+        with t3:
+            try:
+                pft = sheet_df("1CL PFT")  # Only use 1CL PFT regardless of selected class
+        
+                if pft.empty:
+                    st.info("No PFT data available in '1CL PFT'.")
+                else:
+                    name_col = "NAME"
+                    pft["NAME_CLEANED"] = pft[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+        
+                    cadet = pft[pft["NAME_CLEANED"] == name_clean]
+        
+                    if cadet.empty:
+                        st.warning(f"No PFT record found for {name_disp} in '1CL PFT'.")
+                    else:
+                        cadet = cadet.iloc[0]
+        
+                        exercises = [
+                            ("PUSHUPS", "PUSHUPS_GRADES"),
+                            ("SITUPS", "SITUPS_GRADES"),
+                            ("PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                            ("3.2KM RUN", "3.2KMRUN_GRADES")
+                        ]
+        
+                        table = []
+                        for ex, grade_col in exercises:
+                            grade = cadet.get(grade_col, "N/A")
+                            status = (
+                                "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                                else "Failed" if str(grade).strip().isdigit()
+                                else "N/A"
+                            )
+                            table.append({
+                                "Exercise": ex.title(),
+                                "Grade": grade,
+                                "Status": status
+                            })
+        
+                        st.dataframe(pd.DataFrame(table), hide_index=True)
+            except Exception as e:
+                st.error(f"PFT load error: {e}")
