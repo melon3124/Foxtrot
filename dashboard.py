@@ -204,7 +204,7 @@ if st.session_state.mode == "class" and cls:
                             ("PUSHUPS", "PUSHUPS_GRADES"),
                             ("SITUPS", "SITUPS_GRADES"),
                             ("PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                            ("3.2KM RUN", "3.2KMRUN_GRADES")
+                            ("RUN", "RUN_GRADES")
                         ]
         
                         table = []
