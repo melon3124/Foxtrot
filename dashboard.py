@@ -8,8 +8,11 @@ import re
 import unicodedata
 
 # -------------------- CONFIG --------------------
-st.set_page_config(layout="wide")
-
+st.set_page_config(
+    page_title="Foxtrot CIS Dashboard",
+    page_icon="🦊",  # Fox emoji icon
+    layout="wide"
+)
 st.markdown(
     """
     <style>
@@ -21,7 +24,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.markdown("<h1>🥊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
