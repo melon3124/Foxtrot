@@ -15,9 +15,11 @@ if not st.session_state.auth_ok:
     pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
     if pw == "C00L$kill$":
         st.session_state.auth_ok = True
+        st.experimental_rerun()  # <--- This is needed to refresh the app
     elif pw:
         st.error("Incorrect password.")
     st.stop()
+
 
 
 # -------------------- CONFIG --------------------
