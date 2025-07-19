@@ -304,4 +304,13 @@ if st.session_state.mode == "class" and cls:
                                         grade_val = float(grade)
                                         status = "Proficient" if grade_val >= 7 else "DEFICIENT"
                                     except:
-                                        status
+                                        status = "N/A"
+                                    df = pd.DataFrame([{
+                                        "Name": name_disp,
+                                        "Grade": grade,
+                                        "Status": status
+                                    }])
+        
+                                st.dataframe(df, hide_index=True)
+            except Exception as e:
+                st.error(f"Military tab error: {e}")
