@@ -26,7 +26,7 @@ if not st.session_state.auth_ok:
 
     USER_CREDENTIALS = {
         "admin": {
-            "password": "Adm1n$ecure",
+            "password": "admin",
             "role": "admin"
         },
         "cadet": {
