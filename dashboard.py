@@ -8,21 +8,20 @@ import re
 import unicodedata
 
 # -------------------- CONFIG --------------------
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Foxtrot CIS Dashboard",
+    page_icon="🦊",
+    layout="wide"
+)
 
 st.markdown(
     """
-    <style>
-        body, .stApp { background: #1e0000; color: white; }
-        .centered { display:flex; justify-content:center; gap:40px; margin-bottom:20px; }
-        .stSelectbox, .stButton>button { width:300px !important; margin:auto; }
-        h1 { text-align:center; }
-    </style>
+    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
+        <img src="https://media.giphy.com/media/l4FGGafcOHmrlQxG0/giphy.gif" width="100" height="100" />
+    </div>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
-st.markdown("<h1>🥊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
-
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
