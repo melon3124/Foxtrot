@@ -253,12 +253,11 @@ if st.session_state.mode == "class" and cls:
                     if mil.empty:
                         st.info(f"No military data found in '{sheet_name}'.")
                     else:
-                        # Normalize column names
                         mil.columns = [c.strip().upper() for c in mil.columns]
         
                         name_col = "NAME"
                         if name_col not in mil.columns:
-                            st.error(f"Expected column '{name_col}' not found in '{sheet_name}'. Available: {mil.columns.tolist()}")
+                            st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
                         else:
                             mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
                             cadet = mil[mil["NAME_CLEANED"] == name_clean]
@@ -268,7 +267,6 @@ if st.session_state.mode == "class" and cls:
                             else:
                                 cadet = cadet.iloc[0]
         
-                                # 1CL: BOS, GRADE
                                 if cls == "1CL":
                                     bos = cadet.get("BOS", "N/A")
                                     grade = cadet.get("GRADE", "N/A")
@@ -284,28 +282,25 @@ if st.session_state.mode == "class" and cls:
                                         "Status": status
                                     }])
         
-                                # 2CL: SUBJECT, GRADE
                                 elif cls == "2CL":
                                     rows = []
-                                    for col in mil.columns:
-                                        if col not in [name_col, "NAME_CLEANED"]:
-                                            grade = cadet.get(col, "N/A")
-                                            status = (
-                                                "Passed" if str(grade).strip().isdigit() and int(grade) >= 3 else
-                                                "Failed" if str(grade).strip().isdigit() else
-                                                "N/A"
-                                            )
-                                            rows.append({
-                                                "Name": name_disp,
-                                                "Subject": col,
-                                                "Grade": grade,
-                                                "Status": status
-                                            })
+                                    for subj in ["AS", "NS", "AFS"]:
+                                        grade = cadet.get(subj, "N/A")
+                                        status = (
+                                            "Passed" if str(grade).strip().isdigit() and int(grade) >= 3 else
+                                            "Failed" if str(grade).strip().isdigit() else
+                                            "N/A"
+                                        )
+                                        rows.append({
+                                            "Name": name_disp,
+                                            "Subject": subj,
+                                            "Grade": grade,
+                                            "Status": status
+                                        })
                                     df = pd.DataFrame(rows)
         
-                                # 3CL: GRADE only
                                 elif cls == "3CL":
-                                    grade = cadet.get("GRADE", "N/A")
+                                    grade = cadet.get("MS231", "N/A")
                                     status = (
                                         "Passed" if str(grade).strip().isdigit() and int(grade) >= 3 else
                                         "Failed" if str(grade).strip().isdigit() else
@@ -319,6 +314,6 @@ if st.session_state.mode == "class" and cls:
         
                                 st.dataframe(df, hide_index=True)
             except Exception as e:
-                st.error(f"Military tab load error: {e}")
-
-
+                st.error(f"Military tab error: {e}")
+        
+        
