@@ -185,44 +185,56 @@ if st.session_state.mode == "class" and cls:
 
         with t3:
             try:
-                pft = sheet_df("1CL PFT")  # Only use 1CL PFT
+                pft_sheet_map = {
+                    "1CL": "1CL PFT",
+                    "2CL": "2CL PFT",
+                    "3CL": "3CL PFT"
+                }
         
-                if pft.empty:
-                    st.info("No PFT data available in '1CL PFT'.")
+                sheet_name = pft_sheet_map.get(cls, None)
+                if not sheet_name:
+                    st.warning("No PFT sheet mapped for selected class.")
                 else:
-                    name_col = "NAME"
-                    pft["NAME_CLEANED"] = pft[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                    pft = sheet_df(sheet_name)
         
-                    cadet = pft[pft["NAME_CLEANED"] == name_clean]
-        
-                    if cadet.empty:
-                        st.warning(f"No PFT record found for {name_disp} in '1CL PFT'.")
+                    if pft.empty:
+                        st.info(f"No PFT data available in '{sheet_name}'.")
                     else:
-                        cadet = cadet.iloc[0]
+                        # Normalize columns (strip spaces)
+                        pft.columns = [c.strip().upper() for c in pft.columns]
+                        pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
         
-                        exercises = [
-                            ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                            ("Situps", "SITUPS", "SITUPS_GRADES"),
-                            ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                            ("3.2KM Run", "RUN", "RUN_GRADES")
-                        ]
+                        cadet = pft[pft["NAME_CLEANED"] == name_clean]
         
-                        table = []
-                        for label, raw_col, grade_col in exercises:
-                            reps = cadet.get(raw_col, "")
-                            grade = cadet.get(grade_col, "N/A")
-                            status = (
-                                "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                                else "Failed" if str(grade).strip().isdigit()
-                                else "N/A"
-                            )
-                            table.append({
-                                "Exercise": label,
-                                "Repetitions": reps,
-                                "Grade": grade,
-                                "Status": status
-                            })
+                        if cadet.empty:
+                            st.warning(f"No PFT record found for {name_disp} in '{sheet_name}'.")
+                        else:
+                            cadet = cadet.iloc[0]
         
-                        st.dataframe(pd.DataFrame(table), hide_index=True)
+                            exercises = [
+                                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                                ("Situps", "SITUPS", "SITUPS_GRADES"),
+                                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                                ("3.2KM Run", "RUN", "RUN_GRADES")
+                            ]
+        
+                            table = []
+                            for label, raw_col, grade_col in exercises:
+                                reps = cadet.get(raw_col, "")
+                                grade = cadet.get(grade_col, "N/A")
+                                status = (
+                                    "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                                    else "Failed" if str(grade).strip().isdigit()
+                                    else "N/A"
+                                )
+                                table.append({
+                                    "Exercise": label,
+                                    "Repetitions": reps,
+                                    "Grade": grade,
+                                    "Status": status
+                                })
+        
+                            st.dataframe(pd.DataFrame(table), hide_index=True)
             except Exception as e:
                 st.error(f"PFT load error: {e}")
+
