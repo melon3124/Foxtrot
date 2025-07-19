@@ -7,6 +7,20 @@ import json
 import re
 import unicodedata
 
+# -------------------- SIMPLE AUTH --------------------
+if "auth_ok" not in st.session_state:
+    st.session_state.auth_ok = False
+
+if not st.session_state.auth_ok:
+    pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="C00L$Kill$")
+    if pw == st.secrets["auth"]["password"]:
+        st.session_state.auth_ok = True
+        st.experimental_rerun()
+    elif pw:
+        st.error("Incorrect password.")
+    st.stop()
+
+
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
