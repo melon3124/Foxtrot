@@ -237,75 +237,74 @@ if st.session_state.mode == "class" and cls:
                             st.dataframe(pd.DataFrame(table), hide_index=True)
             except Exception as e:
                 st.error(f"PFT load error: {e}")
-
-            with t4:
-                try:
-                    mil_sheet_map = {
-                        "1CL": "1CL MIL",
-                        "2CL": "2CL MIL",
-                        "3CL": "3CL MIL"
-                    }
-                    sheet_name = mil_sheet_map.get(cls)
-                    if not sheet_name:
-                        st.warning("Select a class to view military grades.")
+        with t4:
+            try:
+                mil_sheet_map = {
+                    "1CL": "1CL MIL",
+                    "2CL": "2CL MIL",
+                    "3CL": "3CL MIL"
+                }
+                sheet_name = mil_sheet_map.get(cls)
+                if not sheet_name:
+                    st.warning("Select a class to view military grades.")
+                else:
+                    mil = sheet_df(sheet_name)
+                    if mil.empty:
+                        st.info(f"No military data found in '{sheet_name}'.")
                     else:
-                        mil = sheet_df(sheet_name)
-                        if mil.empty:
-                            st.info(f"No military data found in '{sheet_name}'.")
+                        mil.columns = [c.strip().upper() for c in mil.columns]
+        
+                        name_col = "NAME"
+                        if name_col not in mil.columns:
+                            st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
                         else:
-                            mil.columns = [c.strip().upper() for c in mil.columns]
-            
-                            name_col = "NAME"
-                            if name_col not in mil.columns:
-                                st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
+                            mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet = mil[mil["NAME_CLEANED"] == name_clean]
+        
+                            if cadet.empty:
+                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
                             else:
-                                mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                                cadet = mil[mil["NAME_CLEANED"] == name_clean]
-            
-                                if cadet.empty:
-                                    st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
-                                else:
-                                    cadet = cadet.iloc[0]
-            
-                                    if cls == "1CL":
-                                        bos = cadet.get("BOS", "N/A")
-                                        grade = cadet.get("GRADE", "N/A")
+                                cadet = cadet.iloc[0]
+        
+                                if cls == "1CL":
+                                    bos = cadet.get("BOS", "N/A")
+                                    grade = cadet.get("GRADE", "N/A")
+                                    try:
+                                        grade_val = float(grade)
+                                        status = "Proficient" if grade_val >= 7 else "DEFICIENT"
+                                    except:
+                                        status = "N/A"
+                                    df = pd.DataFrame([{
+                                        "Name": name_disp,
+                                        "BOS": bos,
+                                        "Grade": grade,
+                                        "Status": status
+                                    }])
+        
+                                elif cls == "2CL":
+                                    rows = []
+                                    for subj in ["AS", "NS", "AFS"]:
+                                        grade = cadet.get(subj, "N/A")
                                         try:
                                             grade_val = float(grade)
                                             status = "Proficient" if grade_val >= 7 else "DEFICIENT"
                                         except:
                                             status = "N/A"
-                                        df = pd.DataFrame([{
+                                        rows.append({
                                             "Name": name_disp,
-                                            "BOS": bos,
+                                            "Subject": subj,
                                             "Grade": grade,
                                             "Status": status
-                                        }])
-            
-                                    elif cls == "2CL":
-                                        rows = []
-                                        for subj in ["AS", "NS", "AFS"]:
-                                            grade = cadet.get(subj, "N/A")
-                                            try:
-                                                grade_val = float(grade)
-                                                status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                            except:
-                                                status = "N/A"
-                                            rows.append({
-                                                "Name": name_disp,
-                                                "Subject": subj,
-                                                "Grade": grade,
-                                                "Status": status
-                                            })
-                                        df = pd.DataFrame(rows)
-            
-                                    elif cls == "3CL":
-                                        grade = cadet.get("MS231", "N/A")
-                                        try:
-                                            grade_val = float(grade)
-                                            status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                        except:
-                                            status
+                                        })
+                                    df = pd.DataFrame(rows)
+        
+                                elif cls == "3CL":
+                                    grade = cadet.get("MS231", "N/A")
+                                    try:
+                                        grade_val = float(grade)
+                                        status = "Proficient" if grade_val >= 7 else "DEFICIENT"
+                                    except:
+                                        status
 
         
         
