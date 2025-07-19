@@ -316,3 +316,52 @@ if st.session_state.mode == "class" and cls:
                                 st.dataframe(df, hide_index=True)
             except Exception as e:
                 st.error(f"Military tab error: {e}")
+                
+        with t5:
+            try:
+                conduct_sheet_map = {
+                    "1CL": "1CL CONDUCT",
+                    "2CL": "2CL CONDUCT",
+                    "3CL": "3CL CONDUCT"
+                }
+                sheet_name = conduct_sheet_map.get(cls)
+        
+                if not sheet_name:
+                    st.warning("Please select a valid class to view conduct data.")
+                else:
+                    conduct = sheet_df(sheet_name)
+                    if conduct.empty:
+                        st.info(f"No conduct data found for {sheet_name}.")
+                    else:
+                        conduct.columns = [c.strip().upper() for c in conduct.columns]
+                        if "NAME" not in conduct.columns or "MERITS" not in conduct.columns:
+                            st.error(f"Missing expected columns in {sheet_name}. Found: {conduct.columns.tolist()}")
+                        else:
+                            conduct["NAME_CLEANED"] = conduct["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean]
+        
+                            if cadet_data.empty:
+                                st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
+                            else:
+                                cadet_data = cadet_data.copy()
+        
+                                # First table: Merits and status
+                                total_merits = cadet_data["MERITS"].astype(float).sum()
+                                status = "Failed" if total_merits < 0 else "Passed"
+                                merit_table = pd.DataFrame([{
+                                    "Name": name_disp,
+                                    "Merits": total_merits,
+                                    "Status": status
+                                }])
+                                st.subheader("Merits Summary")
+                                st.dataframe(merit_table, hide_index=True)
+        
+                                # Second table: Reports with Date and Class
+                                report_table = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
+                                report_table.columns = ["Reports", "Date of Report", "Class"]
+                                st.subheader("Conduct Reports")
+                                st.dataframe(report_table, hide_index=True)
+        
+            except Exception as e:
+                st.error(f"Conduct tab error: {e}")
+
