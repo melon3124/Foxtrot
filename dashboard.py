@@ -208,33 +208,70 @@ if st.session_state.mode == "class" and cls:
                     "3CL": "3CL ACAD"
                 }
                 acad = sheet_df(acad_sheet_map[cls])
-
+            
                 if acad.empty:
                     st.info("No Academic data available for this class.")
                 else:
                     target_name_col = "NAME"
                     if target_name_col not in acad.columns:
                         st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet '{acad_sheet_map[cls]}'.")
-                        st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
+                        st.write(f"Available columns: {acad.columns.tolist()}")
                     else:
                         acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-
                         r = acad[acad["NAME_CLEANED"] == name_clean]
-
+            
                         if not r.empty:
                             r = r.iloc[0]
                             df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
-
+            
                             df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
                             df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
                             df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-
+            
+                            st.subheader("📘 Previous Grades")
                             st.dataframe(df[['Subject', 'Grade', 'Status']], hide_index=True)
+            
+                            with st.expander("✏️ UPDATE GRADES"):
+                                updated_grades = {}
+                                for subj, row in df.iterrows():
+                                    new_val = st.text_input(f"{row['Subject']}", value=str(row["Grade"]), key=f"{row['Subject']}_update")
+                                    updated_grades[row["Subject"]] = new_val
+            
+                                if st.button("✅ Submit New Grades"):
+                                    updated_df = pd.DataFrame({
+                                        "Subject": list(updated_grades.keys()),
+                                        "New_Grade": list(updated_grades.values())
+                                    })
+                                    updated_df["New_Grade_Numeric"] = pd.to_numeric(updated_df["New_Grade"], errors="coerce")
+                                    updated_df = updated_df.merge(df[["Subject", "Grade_Numeric"]], on="Subject", how="left")
+                                    updated_df["Change"] = updated_df.apply(
+                                        lambda row: "⬆️ Increased" if row["New_Grade_Numeric"] > row["Grade_Numeric"]
+                                        else "⬇️ Decreased" if row["New_Grade_Numeric"] < row["Grade_Numeric"]
+                                        else "➖ No Change", axis=1
+                                    )
+            
+                                    # Display updated grades
+                                    st.subheader("📈 Updated Grades")
+                                    st.dataframe(updated_df[["Subject", "New_Grade", "Change"]], hide_index=True)
+            
+                                    # Save to history sheet
+                                    history_sheet = f"{cls} ACAD HISTORY"
+                                    history_data = {
+                                        "Timestamp": [pd.Timestamp.now()] * len(updated_df),
+                                        "Name": [name_disp] * len(updated_df),
+                                        "Subject": updated_df["Subject"],
+                                        "Old Grade": updated_df["Grade_Numeric"],
+                                        "New Grade": updated_df["New_Grade_Numeric"],
+                                        "Change": updated_df["Change"]
+                                    }
+                                    history_df = pd.DataFrame(history_data)
+            
+                                    append_to_gsheet(history_sheet, history_df)
+                                    st.success("Grades updated and logged successfully!")
                         else:
                             st.warning(f"No academic record found for {name_disp}.")
             except Exception as e:
                 st.error(f"Academic load error: {e}")
-
                 
         with t3:
             try:
