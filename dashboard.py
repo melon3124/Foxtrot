@@ -22,6 +22,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
