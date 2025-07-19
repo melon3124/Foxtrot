@@ -13,7 +13,7 @@ if "auth_ok" not in st.session_state:
 
 if not st.session_state.auth_ok:
     pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
-    if pw == st.secrets["auth"]["password"]:
+    if pw == "C00L$kill$":
         st.session_state.auth_ok = True
         st.experimental_rerun()
     elif pw:
