@@ -1,35 +1,17 @@
+# --- Foxtrot CIS Streamlit Modular Inline Editor Dashboard ---
 import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import os
-import json
-import re
-import unicodedata
 
-# -------------------- CONFIG --------------------
-st.set_page_config(
-    page_title="Foxtrot CIS Dashboard",
-    page_icon="🦊",  # Fox emoji icon
-    layout="wide"
-)
-st.markdown(
-    """
-    <style>
-        body, .stApp { background: #1e0000; color: white; }
-        .centered { display:flex; justify-content:center; gap:40px; margin-bottom:20px; }
-        .stSelectbox, .stButton>button { width:300px !important; margin:auto; }
-        h1 { text-align:center; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
-# -------------------- GOOGLE SHEETS --------------------
-scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
+# --- Google Sheets Setup ---
+creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=["https://www.googleapis.com/auth/spreadsheets"])
+client = gspread.authorize(creds)
+SS = client.open_by_key("1hWS_Chzs33Cp0yOV5woXZEw7inHiVxVeSE2TYcrDdc8")
+
+# --- Page Config ---
+st.set_page_config(layout="wide")
+st.title("🦊 Foxtrot CIS Dashboard")
 
 # --- Helper Functions ---
 def sheet_df(sheet_name):
