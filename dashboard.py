@@ -8,9 +8,7 @@ import re
 import unicodedata
 st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
-import streamlit as st
 
-# ✅ Initialize session state variables
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 if "just_logged_in" not in st.session_state:
