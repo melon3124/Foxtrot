@@ -27,18 +27,7 @@ if not st.session_state.auth_ok:
             st.error("❌ Incorrect password.")
     st.stop()  # 🚨 Stop all code below from running
 
-# ------------------ DASHBOARD ------------------
-if st.session_state.just_logged_in:
-    st.success("✅ Logged in successfully!")
 
-st.title("🦊 Foxtrot CIS Dashboard")
-
-# Now safe to load the rest of your app
-# ... your tabs, sheets, editors, etc.
-
-# 🚀 Main app content goes here
-st.title("🦊 Foxtrot CIS Dashboard")
-# your main Streamlit code here...
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
