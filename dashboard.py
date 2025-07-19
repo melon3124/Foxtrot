@@ -6,7 +6,7 @@ import os
 import json
 import re
 import unicodedata
-
+st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
 # Initialize auth session state
 if "auth_ok" not in st.session_state:
