@@ -32,10 +32,6 @@ if st.session_state.auth_ok and st.session_state.just_logged_in:
     st.success("✅ Logged in! Loading dashboard...")
     st.session_state.just_logged_in = False
 
-# 🚀 Main app content goes here
-st.title("🦊 Foxtrot CIS Dashboard")
-# your main Streamlit code here...
-
 
 # -------------------- CONFIG --------------------
 st.set_page_config(
