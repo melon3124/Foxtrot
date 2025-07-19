@@ -305,6 +305,3 @@ if st.session_state.mode == "class" and cls:
                                         status = "Proficient" if grade_val >= 7 else "DEFICIENT"
                                     except:
                                         status
-
-        
-        
