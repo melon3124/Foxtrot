@@ -9,19 +9,21 @@ import unicodedata
 st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
 # Initialize auth session state
+import streamlit as st
+
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 
-# Password prompt
 if not st.session_state.auth_ok:
     pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
+    login_btn = st.button("Login")
 
-    if pw == "C00L$kill$":
-        st.session_state.auth_ok = True
-        st.query_params["auth"] = "1"  # <- update the query params to force rerun
-        st.experimental_rerun()  # this line requires Streamlit 1.25+
-    elif pw:
-        st.error("Incorrect password.")
+    if login_btn:
+        if pw == "C00L$kill$":
+            st.session_state.auth_ok = True
+            st.success("Logged in successfully! Please click anywhere or reload.")
+        else:
+            st.error("Incorrect password.")
     st.stop()
 
 # -------------------- CONFIG --------------------
