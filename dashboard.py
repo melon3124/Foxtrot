@@ -30,7 +30,7 @@ if not st.session_state.auth_ok:
             "role": "admin"
         },
         "cadet": {
-            "password": "CadetV13wer",
+            "password": "cadet",
             "role": "cadet"
         }
     }
