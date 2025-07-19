@@ -5,7 +5,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # --- Google Sheets Setup ---
-creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=["https://www.googleapis.com/auth/spreadsheets"])
+creds = Credentials.from_service_account_info(st.secrets["my-project-52318-465707"], scopes=["https://www.googleapis.com/auth/spreadsheets"])
 client = gspread.authorize(creds)
 SS = client.open_by_key("1hWS_Chzs33Cp0yOV5woXZEw7inHiVxVeSE2TYcrDdc8")
 
