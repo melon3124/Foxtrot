@@ -10,17 +10,8 @@ import unicodedata
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
-    page_icon="🦊",
+    page_icon="🦊",  # Fox emoji icon
     layout="wide"
-)
-
-st.markdown(
-    """
-    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
-        <img src="https://media.giphy.com/media/l4FGGafcOHmrlQxG0/giphy.gif" width="100" height="100" />
-    </div>
-    """,
-    unsafe_allow_html=True
 )
 
 # -------------------- GOOGLE SHEETS --------------------
