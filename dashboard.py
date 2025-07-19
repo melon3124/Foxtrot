@@ -8,12 +8,20 @@ import re
 import unicodedata
 
 # -------------------- CONFIG --------------------
-st.set_page_config(
-    page_title="Foxtrot CIS Dashboard",
-    page_icon="🦊",  # Fox emoji icon
-    layout="wide"
-)
+st.set_page_config(layout="wide")
 
+st.markdown(
+    """
+    <style>
+        body, .stApp { background: #1e0000; color: white; }
+        .centered { display:flex; justify-content:center; gap:40px; margin-bottom:20px; }
+        .stSelectbox, .stButton>button { width:300px !important; margin:auto; }
+        h1 { text-align:center; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+st.markdown("<h1>🥊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
