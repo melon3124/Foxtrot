@@ -8,23 +8,21 @@ import re
 import unicodedata
 
 # -------------------- SIMPLE AUTH --------------------
+# Initialize auth session state
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 
-pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
-
+# Password prompt
 if not st.session_state.auth_ok:
+    pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
+
     if pw == "C00L$kill$":
         st.session_state.auth_ok = True
-        st.experimental_set_query_params(authed="1")  # hacky way to force rerun
-        st.stop()
+        st.query_params["auth"] = "1"  # <- update the query params to force rerun
+        st.experimental_rerun()  # this line requires Streamlit 1.25+
     elif pw:
         st.error("Incorrect password.")
-        st.stop()
-
-# rest of your app goes here
-
-
+    st.stop()
 
 # -------------------- CONFIG --------------------
 st.set_page_config(
