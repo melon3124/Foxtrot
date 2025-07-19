@@ -185,7 +185,7 @@ if st.session_state.mode == "class" and cls:
 
         with t3:
             try:
-                pft = sheet_df("1CL PFT")  # Only use 1CL PFT regardless of selected class
+                pft = sheet_df("1CL PFT")  # Only use 1CL PFT
         
                 if pft.empty:
                     st.info("No PFT data available in '1CL PFT'.")
@@ -201,14 +201,15 @@ if st.session_state.mode == "class" and cls:
                         cadet = cadet.iloc[0]
         
                         exercises = [
-                            ("PUSHUPS", "PUSHUPS_GRADES"),
-                            ("SITUPS", "SITUPS_GRADES"),
-                            ("PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                            ("RUN", "RUN_GRADES")
+                            ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                            ("Situps", "SITUPS", "SITUPS_GRADES"),
+                            ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                            ("3.2KM Run", "3.2KM RUN", "3.2KMRUN_GRADES")
                         ]
         
                         table = []
-                        for ex, grade_col in exercises:
+                        for label, raw_col, grade_col in exercises:
+                            reps = cadet.get(raw_col, "")
                             grade = cadet.get(grade_col, "N/A")
                             status = (
                                 "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
@@ -216,7 +217,8 @@ if st.session_state.mode == "class" and cls:
                                 else "N/A"
                             )
                             table.append({
-                                "Exercise": ex.title(),
+                                "Exercise": label,
+                                "Repetitions": reps,
                                 "Grade": grade,
                                 "Status": status
                             })
