@@ -8,25 +8,54 @@ import re
 import unicodedata
 st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
+# --- Session State Initialization ---
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
-if "just_logged_in" not in st.session_state:
-    st.session_state.just_logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = None
+if "username" not in st.session_state:
+    st.session_state.username = None
 
+# --- Login Logic ---
 if not st.session_state.auth_ok:
     st.title("🦊 Foxtrot CIS Login")
-    pw = st.text_input("🔐 Enter password to access", type="password")
+
+    username = st.text_input("Username")
+    pw = st.text_input("Password", type="password")
     login_btn = st.button("Login")
 
-    if login_btn:
-        if pw == "C00L$kill$":
-            st.session_state.auth_ok = True
-            st.session_state.just_logged_in = True
-            st.rerun()  # Use st.rerun in 1.47 instead of experimental_rerun
-        else:
-            st.error("❌ Incorrect password.")
-    st.stop()  # 🚨 Stop all code below from running
+    USER_CREDENTIALS = {
+        "admin": {
+            "password": "Adm1n$ecure",
+            "role": "admin"
+        },
+        "cadet": {
+            "password": "CadetV13wer",
+            "role": "cadet"
+        }
+    }
 
+    if login_btn:
+        user = USER_CREDENTIALS.get(username)
+        if user and user["password"] == pw:
+            st.session_state.auth_ok = True
+            st.session_state.role = user["role"]
+            st.session_state.username = username
+            st.success(f"✅ Logged in as {username.upper()} ({user['role'].upper()})")
+            st.rerun()
+        else:
+            st.error("❌ Invalid username or password.")
+    st.stop()
+
+# --- Logged In ---
+st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
+
+# Optional logout
+if st.sidebar.button("🔓 Logout"):
+    st.session_state.auth_ok = False
+    st.session_state.role = None
+    st.session_state.username = None
+    st.rerun()
 
 # -------------------- CONFIG --------------------
 st.set_page_config(
