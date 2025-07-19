@@ -8,11 +8,9 @@ import re
 import unicodedata
 st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
-# Initialize auth session state
-import streamlit as st
-
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
+    st.session_state.just_logged_in = False
 
 if not st.session_state.auth_ok:
     pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
@@ -21,10 +19,20 @@ if not st.session_state.auth_ok:
     if login_btn:
         if pw == "C00L$kill$":
             st.session_state.auth_ok = True
-            st.success("Logged in successfully! Please click anywhere or reload.")
+            st.session_state.just_logged_in = True
         else:
             st.error("Incorrect password.")
-    st.stop()
+            st.stop()
+
+# Optional welcome message after login
+if st.session_state.auth_ok and st.session_state.just_logged_in:
+    st.success("✅ Logged in! Loading dashboard...")
+    st.session_state.just_logged_in = False
+
+# 🔓 Place rest of dashboard code below
+st.title("🦊 Foxtrot CIS Dashboard")
+# Add tabs, data, etc.
+
 
 # -------------------- CONFIG --------------------
 st.set_page_config(
