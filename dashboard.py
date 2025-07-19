@@ -8,31 +8,37 @@ import re
 import unicodedata
 st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
-
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 if "just_logged_in" not in st.session_state:
     st.session_state.just_logged_in = False
 
-# 🔐 Password check
 if not st.session_state.auth_ok:
-    pw = st.text_input("🔐 Enter password to access Foxtrot CIS", type="password")
+    st.title("🦊 Foxtrot CIS Login")
+    pw = st.text_input("🔐 Enter password to access", type="password")
     login_btn = st.button("Login")
 
     if login_btn:
         if pw == "C00L$kill$":
             st.session_state.auth_ok = True
             st.session_state.just_logged_in = True
+            st.rerun()  # Use st.rerun in 1.47 instead of experimental_rerun
         else:
-            st.error("Incorrect password.")
-        st.stop()
+            st.error("❌ Incorrect password.")
+    st.stop()  # 🚨 Stop all code below from running
 
-# ✅ Optional: show success once
-if st.session_state.auth_ok and st.session_state.just_logged_in:
-    st.success("✅ Logged in! Loading dashboard...")
-    st.session_state.just_logged_in = False
+# ------------------ DASHBOARD ------------------
+if st.session_state.just_logged_in:
+    st.success("✅ Logged in successfully!")
 
+st.title("🦊 Foxtrot CIS Dashboard")
 
+# Now safe to load the rest of your app
+# ... your tabs, sheets, editors, etc.
+
+# 🚀 Main app content goes here
+st.title("🦊 Foxtrot CIS Dashboard")
+# your main Streamlit code here...
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
