@@ -202,70 +202,70 @@ if st.session_state.mode == "class" and cls:
 
         with t2:  # Academics tab
             acad_sheet_map = {
-                    "1CL": "1CL ACAD",
-                    "2CL": "2CL ACAD",
-                    "3CL": "3CL ACAD"
-                }
-                
-                acad_df = sheet_df(acad_sheet_map[cls])  # use your existing sheet_df function
-                st.dataframe(acad_df, use_container_width=True)
-                
-                # Only proceed if logged-in user is cadet
-                if st.session_state.role == "cadet":
-                    if st.button("✏️ UPDATE GRADES"):
-                        cadet_name = st.session_state.get("cadet_name", "Unknown Cadet")
-                
-                        with st.form("update_acad_form", clear_on_submit=True):
-                            st.write("📤 Submit Updated Grades")
-                
-                            # Get academic subjects (all columns except NAME and CLASS)
-                            subjects = [col for col in acad_df.columns if col not in ["NAME", "CLASS"]]
-                            new_data = {}
-                            for subj in subjects:
-                                new_data[subj] = st.text_input(f"{subj}", value="")
-                
-                            submitted = st.form_submit_button("Submit")
-                            if submitted:
-                                updated_row = {"NAME": cadet_name}
-                                updated_row.update(new_data)
-                                append_to_sheet("1CL ACAD HISTORY", updated_row)
-                                st.success("📌 Grades updated. See change summary below.")
-                
-                # 📊 Grade Change Comparison
-                try:
-                    history_df = load_sheet("1CL ACAD HISTORY")
+                "1CL": "1CL ACAD",
+                "2CL": "2CL ACAD",
+                "3CL": "3CL ACAD"
+            }
+            
+            acad_df = sheet_df(acad_sheet_map[cls])  # use your existing sheet_df function
+            st.dataframe(acad_df, use_container_width=True)
+            
+            # Only proceed if logged-in user is cadet
+            if st.session_state.role == "cadet":
+                if st.button("✏️ UPDATE GRADES"):
                     cadet_name = st.session_state.get("cadet_name", "Unknown Cadet")
-                    latest = history_df[history_df["NAME"] == cadet_name].iloc[-1:]
-                    original = acad_df[acad_df["NAME"] == cadet_name]
-                
-                    if not latest.empty and not original.empty:
+            
+                    with st.form("update_acad_form", clear_on_submit=True):
+                        st.write("📤 Submit Updated Grades")
+            
+                        # Get academic subjects (all columns except NAME and CLASS)
                         subjects = [col for col in acad_df.columns if col not in ["NAME", "CLASS"]]
-                        comparison = []
-                
+                        new_data = {}
                         for subj in subjects:
-                            try:
-                                old = float(original[subj].values[0])
-                                new = float(latest[subj].values[0])
-                                if new > old:
-                                    change = "⬆️ Increased"
-                                elif new < old:
-                                    change = "⬇️ Decreased"
-                                else:
-                                    change = "➖ No Change"
-                            except:
-                                old = original[subj].values[0]
-                                new = latest[subj].values[0]
-                                change = "⚠️ Invalid Format"
+                            new_data[subj] = st.text_input(f"{subj}", value="")
+            
+                        submitted = st.form_submit_button("Submit")
+                        if submitted:
+                            updated_row = {"NAME": cadet_name}
+                            updated_row.update(new_data)
+                            append_to_sheet("1CL ACAD HISTORY", updated_row)
+                            st.success("📌 Grades updated. See change summary below.")
+            
+            # 📊 Grade Change Comparison
+            try:
+                history_df = load_sheet("1CL ACAD HISTORY")
+                cadet_name = st.session_state.get("cadet_name", "Unknown Cadet")
+                latest = history_df[history_df["NAME"] == cadet_name].iloc[-1:]
+                original = acad_df[acad_df["NAME"] == cadet_name]
+            
+                if not latest.empty and not original.empty:
+                    subjects = [col for col in acad_df.columns if col not in ["NAME", "CLASS"]]
+                    comparison = []
+            
+                    for subj in subjects:
+                        try:
+                            old = float(original[subj].values[0])
+                            new = float(latest[subj].values[0])
+                            if new > old:
+                                change = "⬆️ Increased"
+                            elif new < old:
+                                change = "⬇️ Decreased"
+                            else:
+                                change = "➖ No Change"
+                        except:
+                            old = original[subj].values[0]
+                            new = latest[subj].values[0]
+                            change = "⚠️ Invalid Format"
+            
+                        comparison.append((subj, old, new, change))
+            
+                    compare_df = pd.DataFrame(comparison, columns=["Subject", "Previous", "Updated", "Change"])
+                    st.subheader("📊 Grade Change Summary")
+                    st.dataframe(compare_df, use_container_width=True)
+            
+            except Exception as e:
+                st.warning(f"Could not load grade history: {e}")
                 
-                            comparison.append((subj, old, new, change))
-                
-                        compare_df = pd.DataFrame(comparison, columns=["Subject", "Previous", "Updated", "Change"])
-                        st.subheader("📊 Grade Change Summary")
-                        st.dataframe(compare_df, use_container_width=True)
-                
-                except Exception as e:
-                    st.warning(f"Could not load grade history: {e}")
-
         with t3:
             try:
                 pft_sheet_map = {
