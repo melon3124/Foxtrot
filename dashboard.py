@@ -1,367 +1,106 @@
+# --- Foxtrot CIS Streamlit Modular Inline Editor Dashboard ---
 import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import os
-import json
-import re
-import unicodedata
 
-# -------------------- CONFIG --------------------
-st.set_page_config(
-    page_title="Foxtrot CIS Dashboard",
-    page_icon="🦊",  # Fox emoji icon
-    layout="wide"
-)
-st.markdown(
-    """
-    <style>
-        body, .stApp { background: #1e0000; color: white; }
-        .centered { display:flex; justify-content:center; gap:40px; margin-bottom:20px; }
-        .stSelectbox, .stButton>button { width:300px !important; margin:auto; }
-        h1 { text-align:center; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
-# -------------------- GOOGLE SHEETS --------------------
-scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
+# --- Google Sheets Setup ---
+creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=["https://www.googleapis.com/auth/spreadsheets"])
+client = gspread.authorize(creds)
+SS = client.open_by_key("1hWS_Chzs33Cp0yOV5woXZEw7inHiVxVeSE2TYcrDdc8")
 
-try:
-    creds = Credentials.from_service_account_info(
-        st.secrets["google_service_account"],
-        scopes=scope
-    )
-    client = gspread.authorize(creds)
-    SS = client.open("FOXTROT DASHBOARD V2")
-except Exception as e:
-    st.error(f"Error connecting to Google Sheets: {e}")
-    st.stop()
-    
-def normalize_column_name(col: str) -> str:
-    if not isinstance(col, str):
-        col = str(col)
-    col = unicodedata.normalize("NFKD", col)
-    col = col.replace("\xa0", "").replace("\u202f", "").replace("\u2009", "").replace(" ", "")
-    col = re.sub(r'[^\w\-/ ]+', '', col).strip()
-    return col.upper()
+# --- Page Config ---
+st.set_page_config(layout="wide")
+st.title("🦊 Foxtrot CIS Dashboard")
 
-@st.cache_data(ttl=300)
-def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-    df.columns = [normalize_column_name(c) for c in df.columns]
+# --- Helper Functions ---
+def sheet_df(sheet_name):
+    ws = SS.worksheet(sheet_name)
+    df = pd.DataFrame(ws.get_all_records())
     return df
 
-@st.cache_data(ttl=300)
-def sheet_df(name: str) -> pd.DataFrame:
+def save_df_to_sheet(sheet_name, df):
     try:
-        worksheet = SS.worksheet(name)
-        return clean_df(pd.DataFrame(worksheet.get_all_records()))
-    except gspread.exceptions.WorksheetNotFound:
-        st.warning(f"Worksheet '{name}' not found.")
-        return pd.DataFrame()
+        worksheet = SS.worksheet(sheet_name)
+        worksheet.clear()
+        worksheet.update([df.columns.tolist()] + df.values.tolist())
+        return True, "Saved successfully."
     except Exception as e:
-        st.error(f"Error fetching sheet '{name}': {e}")
-        return pd.DataFrame()
+        return False, f"Error saving to {sheet_name}: {e}"
 
-def clean_cadet_name_for_comparison(name: str) -> str:
-    if not isinstance(name, str):
-        return ""
-    return re.sub(r'\s+', ' ', name).strip().upper()
-
-# -------------------- DEMOGRAPHICS --------------------
-demo_df = sheet_df("DEMOGRAPHICS")
-if demo_df.empty:
-    st.error("Demographics sheet missing.")
-    st.stop()
-
-demo_df["FULL NAME"] = demo_df.apply(
-    lambda r: clean_cadet_name_for_comparison(
-        f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}"
-    ), axis=1
-)
-demo_df["FULL NAME_DISPLAY"] = demo_df.apply(
-    lambda r: f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}".strip(), axis=1
-)
-
-classes = {
-    "1CL": (2, 27),
-    "2CL": (30, 61),
-    "3CL": (63, 104)
-}
-if "CLASS" not in demo_df.columns:
-    demo_df["CLASS"] = ""
-for cls, (start, end) in classes.items():
-    demo_df.iloc[start-1:end, demo_df.columns.get_loc("CLASS")] = cls
-
-# -------------------- SESSION STATE --------------------
-for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
-    if key not in st.session_state:
-        st.session_state[key] = None if key != "mode" else "class"
-
-# -------------------- UI --------------------
-st.markdown('<div class="centered">', unsafe_allow_html=True)
-initial_idx = ["", *classes.keys()].index(st.session_state.selected_class or "")
-selected = st.selectbox("Select Class Level", ["", *classes.keys()], index=initial_idx)
-if selected != st.session_state.selected_class:
-    st.session_state.update({"mode": "class", "selected_class": selected, "selected_cadet_display_name": None, "selected_cadet_cleaned_name": None})
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
-
-# -------------------- CLASS VIEW --------------------
-cls = st.session_state.selected_class
-if st.session_state.mode == "class" and cls:
-    cadets = demo_df[demo_df["CLASS"] == cls]
-    if cadets.empty:
-        st.warning(f"No cadets for class {cls}.")
+def render_editable_table(df, sheet_name, edit_key, label="Data"):
+    edit_mode = st.checkbox(f"✏️ Edit Mode - {label}", key=f"{edit_key}_edit")
+    if edit_mode:
+        edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, key=f"{edit_key}_editor")
+        if st.button("💾 Save Changes", key=f"{edit_key}_save"):
+            success, msg = save_df_to_sheet(sheet_name, edited_df)
+            if success:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
     else:
-        st.markdown('<div class="centered">', unsafe_allow_html=True)
-        for i in range(0, len(cadets), 4):
-            cols = st.columns(4)
-            for j in range(4):
-                if i + j >= len(cadets):
-                    continue
-                name_display = cadets.iloc[i+j]["FULL NAME_DISPLAY"]
-                name_cleaned = cadets.iloc[i+j]["FULL NAME"]
-                with cols[j]:
-                    if st.button(name_display, key=f"cadet_{name_cleaned}_{cls}"):
-                        st.session_state.selected_cadet_display_name = name_display
-                        st.session_state.selected_cadet_cleaned_name = name_cleaned
-                        st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.dataframe(df, use_container_width=True)
 
-    name_disp = st.session_state.selected_cadet_display_name
-    name_clean = st.session_state.selected_cadet_cleaned_name
-    if name_clean:
-        row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
-        st.markdown(f"## Showing details for: {name_disp}")
-        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
+# --- Tabs ---
+t1, t2, t3, t4, t5 = st.tabs(["📊 PFT", "🎓 Academics", "🪖 Military", "📜 Conduct", "⚙️ Admin"])
 
-        with t1:
-            pic, info = st.columns([1, 2])
-            with pic:
-                img_path = f"profile_pics/{name_disp}.jpg"
-                st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
-            with info:
-                left, right = st.columns(2)
-                for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
-                    (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
+# --- T1: PFT ---
+with t1:
+    st.header("📊 Physical Fitness Test")
+    for cls in ["1CL", "2CL", "3CL"]:
+        sheet_name = f"{cls} PFT"
+        try:
+            df = sheet_df(sheet_name)
+            st.subheader(f"{cls} PFT")
+            render_editable_table(df, sheet_name, f"{cls.lower()}_pft", label=cls)
+        except Exception as e:
+            st.warning(f"Could not load {cls} PFT: {e}")
 
-        with t2:  # Academics tab
-            try:
-                acad_sheet_map = {
-                    "1CL": "1CL ACAD",
-                    "2CL": "2CL ACAD",
-                    "3CL": "3CL ACAD"
-                }
-                acad = sheet_df(acad_sheet_map[cls])
+# --- T2: Academics ---
+with t2:
+    st.header("🎓 Academic Grades")
+    for cls in ["1CL", "2CL", "3CL"]:
+        sheet_name = f"{cls} ACAD"
+        try:
+            df = sheet_df(sheet_name)
+            st.subheader(f"{cls} Academics")
+            render_editable_table(df, sheet_name, f"{cls.lower()}_acad", label=cls)
+        except Exception as e:
+            st.warning(f"Could not load {cls} ACAD: {e}")
 
-                if acad.empty:
-                    st.info("No Academic data available for this class.")
-                else:
-                    target_name_col = "NAME"
-                    if target_name_col not in acad.columns:
-                        st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet '{acad_sheet_map[cls]}'.")
-                        st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
-                    else:
-                        acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+# --- T3: Military ---
+with t3:
+    st.header("🪖 Military Standing")
+    for cls in ["1CL", "2CL", "3CL"]:
+        sheet_name = f"{cls} MIL"
+        try:
+            df = sheet_df(sheet_name)
+            st.subheader(f"{cls} Military")
+            render_editable_table(df, sheet_name, f"{cls.lower()}_mil", label=cls)
+        except Exception as e:
+            st.warning(f"Could not load {cls} MIL: {e}")
 
-                        r = acad[acad["NAME_CLEANED"] == name_clean]
+# --- T4: Conduct ---
+with t4:
+    st.header("📜 Conduct Reports")
+    for cls in ["1CL", "2CL", "3CL"]:
+        sheet_name = f"{cls} CONDUCT"
+        try:
+            df = sheet_df(sheet_name)
+            st.subheader(f"{cls} Conduct")
+            render_editable_table(df, sheet_name, f"{cls.lower()}_conduct", label=cls)
+        except Exception as e:
+            st.warning(f"Could not load {cls} CONDUCT: {e}")
 
-                        if not r.empty:
-                            r = r.iloc[0]
-                            df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
-
-                            df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
-                            df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
-                            df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-
-                            st.dataframe(df[['Subject', 'Grade', 'Status']], hide_index=True)
-                        else:
-                            st.warning(f"No academic record found for {name_disp}.")
-            except Exception as e:
-                st.error(f"Academic load error: {e}")
-
-        with t3:
-            try:
-                pft_sheet_map = {
-                    "1CL": "1CL PFT",
-                    "2CL": "2CL PFT",
-                    "3CL": "3CL PFT"
-                }
-        
-                sheet_name = pft_sheet_map.get(cls, None)
-                if not sheet_name:
-                    st.warning("No PFT sheet mapped for selected class.")
-                else:
-                    pft = sheet_df(sheet_name)
-        
-                    if pft.empty:
-                        st.info(f"No PFT data available in '{sheet_name}'.")
-                    else:
-                        # Normalize columns (strip spaces)
-                        pft.columns = [c.strip().upper() for c in pft.columns]
-                        pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-        
-                        cadet = pft[pft["NAME_CLEANED"] == name_clean]
-        
-                        if cadet.empty:
-                            st.warning(f"No PFT record found for {name_disp} in '{sheet_name}'.")
-                        else:
-                            cadet = cadet.iloc[0]
-        
-                            exercises = [
-                                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                                ("Situps", "SITUPS", "SITUPS_GRADES"),
-                                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                                ("3.2KM Run", "RUN", "RUN_GRADES")
-                            ]
-        
-                            table = []
-                            for label, raw_col, grade_col in exercises:
-                                reps = cadet.get(raw_col, "")
-                                grade = cadet.get(grade_col, "N/A")
-                                status = (
-                                    "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                                    else "Failed" if str(grade).strip().isdigit()
-                                    else "N/A"
-                                )
-                                table.append({
-                                    "Exercise": label,
-                                    "Repetitions": reps,
-                                    "Grade": grade,
-                                    "Status": status
-                                })
-        
-                            st.dataframe(pd.DataFrame(table), hide_index=True)
-            except Exception as e:
-                st.error(f"PFT load error: {e}")
-        with t4:
-            try:
-                mil_sheet_map = {
-                    "1CL": "1CL MIL",
-                    "2CL": "2CL MIL",
-                    "3CL": "3CL MIL"
-                }
-                sheet_name = mil_sheet_map.get(cls)
-                if not sheet_name:
-                    st.warning("Select a class to view military grades.")
-                else:
-                    mil = sheet_df(sheet_name)
-                    if mil.empty:
-                        st.info(f"No military data found in '{sheet_name}'.")
-                    else:
-                        mil.columns = [c.strip().upper() for c in mil.columns]
-        
-                        name_col = "NAME"
-                        if name_col not in mil.columns:
-                            st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
-                        else:
-                            mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet = mil[mil["NAME_CLEANED"] == name_clean]
-        
-                            if cadet.empty:
-                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
-                            else:
-                                cadet = cadet.iloc[0]
-        
-                                if cls == "1CL":
-                                    bos = cadet.get("BOS", "N/A")
-                                    grade = cadet.get("GRADE", "N/A")
-                                    try:
-                                        grade_val = float(grade)
-                                        status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-                                    df = pd.DataFrame([{
-                                        "Name": name_disp,
-                                        "BOS": bos,
-                                        "Grade": grade,
-                                        "Status": status
-                                    }])
-        
-                                elif cls == "2CL":
-                                    rows = []
-                                    for subj in ["AS", "NS", "AFS"]:
-                                        grade = cadet.get(subj, "N/A")
-                                        try:
-                                            grade_val = float(grade)
-                                            status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                        except:
-                                            status = "N/A"
-                                        rows.append({
-                                            "Name": name_disp,
-                                            "Subject": subj,
-                                            "Grade": grade,
-                                            "Status": status
-                                        })
-                                    df = pd.DataFrame(rows)
-        
-                                elif cls == "3CL":
-                                    grade = cadet.get("MS231", "N/A")
-                                    try:
-                                        grade_val = float(grade)
-                                        status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-                                    df = pd.DataFrame([{
-                                        "Name": name_disp,
-                                        "Grade": grade,
-                                        "Status": status
-                                    }])
-        
-                                st.dataframe(df, hide_index=True)
-            except Exception as e:
-                st.error(f"Military tab error: {e}")
-                
-        with t5:
-            try:
-                conduct_sheet_map = {
-                    "1CL": "1CL CONDUCT",
-                    "2CL": "2CL CONDUCT",
-                    "3CL": "3CL CONDUCT"
-                }
-                sheet_name = conduct_sheet_map.get(cls)
-        
-                if not sheet_name:
-                    st.warning("Please select a valid class to view conduct data.")
-                else:
-                    conduct = sheet_df(sheet_name)
-                    if conduct.empty:
-                        st.info(f"No conduct data found for {sheet_name}.")
-                    else:
-                        conduct.columns = [c.strip().upper() for c in conduct.columns]
-                        if "NAME" not in conduct.columns or "MERITS" not in conduct.columns:
-                            st.error(f"Missing expected columns in {sheet_name}. Found: {conduct.columns.tolist()}")
-                        else:
-                            conduct["NAME_CLEANED"] = conduct["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean]
-        
-                            if cadet_data.empty:
-                                st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
-                            else:
-                                cadet_data = cadet_data.copy()
-        
-                                # First table: Merits and status
-                                total_merits = cadet_data["MERITS"].astype(float).sum()
-                                status = "Failed" if total_merits < 0 else "Passed"
-                                merit_table = pd.DataFrame([{
-                                    "Name": name_disp,
-                                    "Merits": total_merits,
-                                    "Status": status
-                                }])
-                                st.subheader("Merits Summary")
-                                st.dataframe(merit_table, hide_index=True)
-        
-                                # Second table: Reports with Date and Class
-                                report_table = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
-                                report_table.columns = ["Reports", "Date of Report", "Class"]
-                                st.subheader("Conduct Reports")
-                                st.dataframe(report_table, hide_index=True)
-        
-            except Exception as e:
-                st.error(f"Conduct tab error: {e}")
-
+# --- T5: Admin Tab ---
+with t5:
+    st.header("⚙️ Admin Tools")
+    st.markdown("Use this tab to test sheet access, refresh, or add more editing utilities.")
+    test_sheet = st.text_input("Test Sheet Name", value="1CL ACAD")
+    if st.button("🔍 Preview Sheet"):
+        try:
+            test_df = sheet_df(test_sheet)
+            st.dataframe(test_df, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error loading sheet: {e}")
