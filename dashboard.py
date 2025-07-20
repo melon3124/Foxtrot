@@ -212,6 +212,7 @@ if st.session_state.mode == "class" and cls:
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
         with t2:  # Academics tab
+            from datetime import datetime
             try:
                 acad_sheet_map = {
                     "1CL": "1CL ACAD",
@@ -276,6 +277,7 @@ if st.session_state.mode == "class" and cls:
             
             except Exception as e:
                 st.error(f"Error in Academics tab: {e}")
+
                             
                         with t3:
                             try:
