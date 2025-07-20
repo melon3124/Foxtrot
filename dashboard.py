@@ -212,88 +212,82 @@ if st.session_state.mode == "class" and cls:
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
         with t2:  # Academics tab
+            from datetime import datetime
             try:
                 acad_sheet_map = {
                     "1CL": "1CL ACAD",
                     "2CL": "2CL ACAD",
                     "3CL": "3CL ACAD"
                 }
+                acad = sheet_df(acad_sheet_map[cls])
             
-                acad = sheet_df(acad_sheet_map[cls])  # Load sheet
                 if acad.empty:
                     st.info("No Academic data available for this class.")
                 else:
                     target_name_col = "NAME"
                     if target_name_col not in acad.columns:
-                        st.error(f"Expected column '{target_name_col}' not found.")
-                        st.write(f"Available columns: {acad.columns.tolist()}")
+                        st.error(f"Error: Expected column '{target_name_col}' not found in '{acad_sheet_map[cls]}'.")
                     else:
-                        # Match cadet
-                        acad["NAME_CLEANED"] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                        acad["NAME_CLEANED"] = acad["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                         cadet_row = acad[acad["NAME_CLEANED"] == name_clean]
             
                         if cadet_row.empty:
                             st.warning(f"No academic record found for {name_disp}.")
                         else:
                             cadet_row = cadet_row.iloc[0]
-                            df_data = cadet_row.drop([target_name_col, 'NAME_CLEANED'], errors='ignore')
-                            df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
+                            raw_grades = cadet_row.drop([target_name_col, "NAME_CLEANED"], errors='ignore')
+            
+                            df = pd.DataFrame({
+                                "Subject": raw_grades.index,
+                                "Grade": raw_grades.values
+                            })
+            
                             df["Grade"] = pd.to_numeric(df["Grade"], errors="coerce")
                             df["Status"] = df["Grade"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
             
-                            # ✏️ Update Form
-                            with st.expander("✏️ UPDATE GRADES"):
-                                edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
-                            
-                                from datetime import datetime
-                            
-                                if st.button("✅ Submit Updates", key="submit_updated_grades"):
-                                    edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
-                                    comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
-                                    comparison["Change"] = comparison.apply(
-                                        lambda row: (
-                                            "⬆️ Increased" if row["Grade_new"] > row["Grade_old"]
-                                            else "⬇️ Decreased" if row["Grade_new"] < row["Grade_old"]
-                                            else "➖ No Change"
-                                        ) if pd.notna(row["Grade_new"]) and pd.notna(row["Grade_old"]) else "Invalid",
-                                        axis=1
-                                    )
-                            
-                                    # Save to GSheet History
-                                    comparison["Cadet Name"] = name_disp
-                                    comparison["Timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                                    append_to_gsheet("1CL ACAD HISTORY", comparison[["Timestamp", "Cadet Name", "Subject", "Grade_old", "Grade_new", "Change"]])
-                            
-                                    # 🕒 Updated Grades Table (TOP)
-                                    st.markdown(f"#### 🕒 `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
-                                    st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(columns={
-                                        "Grade_old": "Previous Grade", "Grade_new": "Updated Grade"
-                                    }), hide_index=True)
-                            
-                                    # 🗂️ Previous Grades (BOTTOM)
-                                    st.markdown(f"#### 🗂️ Backup of Grades Before Update")
-                                    st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+                            st.subheader("📝 Update Grades")
+                            edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
             
-                                    # Record update to history sheet
-                                    history_df = comparison[["Subject", "Grade_old", "Grade_new", "Change"]].copy()
-                                    history_df.insert(0, "Cadet", name_disp)
-                                    history_df.insert(1, "Timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                            if st.button("✅ Submit Updates", key="submit_updates_btn"):
+                                edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
+                                comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
+                                comparison["Change"] = comparison.apply(
+                                    lambda row: (
+                                        "⬆️ Increased" if row["Grade_new"] > row["Grade_old"]
+                                        else "⬇️ Decreased" if row["Grade_new"] < row["Grade_old"]
+                                        else "➖ No Change"
+                                    ) if pd.notna(row["Grade_new"]) and pd.notna(row["Grade_old"]) else "Invalid",
+                                    axis=1
+                                )
             
-                                    # Push to "1CL ACAD HISTORY"
-                                    append_to_gsheet("1CL ACAD HISTORY", history_df)
+                                # Save to HISTORY
+                                comparison["Cadet Name"] = name_disp
+                                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                comparison["Timestamp"] = timestamp
+                                append_to_gsheet("1CL ACAD HISTORY", comparison[["Timestamp", "Cadet Name", "Subject", "Grade_old", "Grade_new", "Change"]])
             
-                                    st.success("Grades updated successfully!")
+                                # Save UPDATED grades back to 1CL ACAD sheet
+                                for i, row in edited_df.iterrows():
+                                    subject_col = row["Subject"]
+                                    new_grade = row["Grade"]
+                                    if subject_col in acad.columns:
+                                        row_idx = acad[acad["NAME_CLEANED"] == name_clean].index[0] + 2  # +2 because gspread is 1-indexed and first row is header
+                                        col_idx = acad.columns.get_loc(subject_col) + 1
+                                        gc.open_by_key(SPREADSHEET_ID).worksheet(acad_sheet_map[cls]).update_cell(row_idx, col_idx, new_grade)
             
-                                    st.subheader("📌 Updated Grades")
-                                    st.markdown(f"#### 🕒 Grades Updated On: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
-                                    st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]], hide_index=True)
+                                # Display updated grades on top
+                                st.markdown(f"#### 🕒 `{timestamp}` — Updated Grades")
+                                st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(columns={
+                                    "Grade_old": "Previous Grade", "Grade_new": "Updated Grade"
+                                }), hide_index=True)
             
-                            # 📘 Past Grades
-                            st.subheader("📘 Previous Grades")
-                            st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
-            
-            except Exception as e:
-                st.error(f"Error in Academics tab: {e}")
+                                # Display old grades at bottom
+                                st.markdown("#### 🗂️ Backup of Grades Before Update")
+                                st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+
+except Exception as e:
+    st.error(f"Error in Academics tab: {e}")
+
                 
             with t3:
                 try:
