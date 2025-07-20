@@ -3,7 +3,6 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import os
-import json
 import re
 import unicodedata
 from datetime import datetime
@@ -83,8 +82,8 @@ scope = [
 ]
 
 try:
-    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"])
-    gs_client = gspread.authorize(creds)
+    credentials = Credentials.from_service_account_info(st.secrets)
+    gc = gspread.authorize(credentials)
     SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
     st.error(f"Error connecting to Google Sheets: {e}")
