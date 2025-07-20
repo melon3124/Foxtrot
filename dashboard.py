@@ -251,7 +251,7 @@ if st.session_state.mode == "class" and cls:
                                     )
             
                                     # Display updated grades
-                                    from datetime import datetim
+                                    from datetime import datetime
                                     st.subheader("📌 Updated Grades")
                                     st.markdown(f"#### 🕒 Grades Updated On: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
                                     st.dataframe(updated_df[['Subject', 'Old Grade', 'New Grade', 'Change']], hide_index=True)
