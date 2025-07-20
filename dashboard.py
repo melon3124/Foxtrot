@@ -252,7 +252,7 @@ if st.session_state.mode == "class" and cls:
                                     )
             
                                     # Display updated grades
-                                    target_name_col = "NAME"
+                                 target_name_col = "NAME"
     
                                     if target_name_col not in acad.columns:
                                         st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet.")
