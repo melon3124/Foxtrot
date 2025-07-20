@@ -285,8 +285,8 @@ if st.session_state.mode == "class" and cls:
                                 st.markdown("#### 🗂️ Backup of Grades Before Update")
                                 st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
 
-except Exception as e:
-    st.error(f"Error in Academics tab: {e}")
+             except Exception as e:
+                 st.error(f"Error in Academics tab: {e}")
 
                 
             with t3:
