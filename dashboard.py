@@ -92,6 +92,16 @@ try:
 except Exception as e:
     st.error(f"Error connecting to Google Sheets: {e}")
     st.stop()
+
+def append_to_gsheet(sheet_name, df):
+    """Appends a DataFrame to a worksheet in the Google Sheet."""
+    try:
+        sh = client.open("FOXTROT DASHBOARD V2")
+        worksheet = sh.worksheet(sheet_name)
+        rows = df.astype(str).values.tolist()
+        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+    except Exception as e:
+        st.error(f"Failed to append to Google Sheet: {e}")
     
 def normalize_column_name(col: str) -> str:
     if not isinstance(col, str):
