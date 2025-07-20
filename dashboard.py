@@ -240,39 +240,38 @@ if st.session_state.mode == "class" and cls:
                     "3CL": "3CL ACAD"
                 }
             
-                acad_sheet_name = acad_sheet_map[cls]
-                acad = sheet_df(acad_sheet_name)
+                acad = sheet_df(acad_sheet_map[cls])
             
                 if acad.empty:
                     st.info("No Academic data available for this class.")
                 else:
                     target_name_col = "NAME"
                     if target_name_col not in acad.columns:
-                        st.error(f"Expected column '{target_name_col}' not found in sheet '{acad_sheet_name}'.")
+                        st.error(f"Error: Expected column '{target_name_col}' not found.")
                     else:
-                        acad["NAME_CLEANED"] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                        acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
                         cadet_row = acad[acad["NAME_CLEANED"] == name_clean]
             
                         if cadet_row.empty:
                             st.warning(f"No academic record found for {name_disp}.")
                         else:
                             cadet_row = cadet_row.iloc[0]
-                            df = pd.DataFrame({
-                                "Subject": cadet_row.drop([target_name_col, "NAME_CLEANED"], errors="ignore").index,
-                                "Grade": cadet_row.drop([target_name_col, "NAME_CLEANED"], errors="ignore").values
-                            })
+                            raw_grades = cadet_row.drop([target_name_col, "NAME_CLEANED"], errors='ignore')
             
+                            df = pd.DataFrame({
+                                "Subject": raw_grades.index,
+                                "Grade": raw_grades.values
+                            })
                             df["Grade"] = pd.to_numeric(df["Grade"], errors="coerce")
                             df["Status"] = df["Grade"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
             
-                            # ✅ Show current (latest) grades
                             st.subheader("📘 Current Grades")
                             st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
             
-                            st.markdown("### ✏️ Update Grades")
-                            edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
+                            st.subheader("✏️ Update Grades")
+                            edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades_cadet")
             
-                            if st.button("✅ Submit Updates", key="submit_update_grades"):
+                            if st.button("✅ Submit Updates", key="submit_grades_cadet"):
                                 edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
                                 comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
                                 comparison["Change"] = comparison.apply(
@@ -284,23 +283,37 @@ if st.session_state.mode == "class" and cls:
                                     axis=1
                                 )
             
-                                # Save to HISTORY sheet
-                                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                                history_df = comparison.copy()
-                                history_df["Cadet Name"] = name_disp
-                                history_df["Timestamp"] = timestamp
-                                append_to_gsheet("1CL ACAD HISTORY", history_df[["Timestamp", "Cadet Name", "Subject", "Grade_old", "Grade_new", "Change"]])
+                                # Save old grades to 1CL ACAD HISTORY
+                                comparison["Cadet Name"] = name_disp
+                                comparison["Timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                append_to_gsheet("1CL ACAD HISTORY", comparison[["Timestamp", "Cadet Name", "Subject", "Grade_old", "Grade_new", "Change"]])
             
-                                # Replace current grades in 1CL ACAD
-                                updated_grades_dict = dict(zip(edited_df["Subject"], edited_df["Grade"]))
-                                for subj, grade in updated_grades_dict.items():
-                                    acad.loc[acad["NAME_CLEANED"] == name_clean, subj] = grade
-                                save_df_to_gsheet(acad_sheet_name, acad)
+                                # Update main sheet (1CL ACAD) with new grades
+                                try:
+                                    sheet_name = acad_sheet_map[cls]
+                                    sheet = gs_client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
+                                    data = sheet.get_all_records()
+                                    df_sheet = pd.DataFrame(data)
             
-                                # ✅ Show updated grades below
-                                st.subheader(f"🆕 Updated Grades as of `{timestamp}`")
-                                st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(
-                                    columns={"Grade_old": "Previous Grade", "Grade_new": "Updated Grade"}), hide_index=True)
+                                    # Find the row index to update
+                                    df_sheet["NAME_CLEANED"] = df_sheet["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                                    target_index = df_sheet[df_sheet["NAME_CLEANED"] == name_clean].index[0]
+            
+                                    for subj, new_grade in zip(edited_df["Subject"], edited_df["Grade"]):
+                                        col_index = df_sheet.columns.get_loc(subj)
+                                        sheet.update_cell(target_index + 2, col_index + 1, str(new_grade))  # +2 because Google Sheets is 1-indexed and includes header
+                                except Exception as e:
+                                    st.error(f"Failed to update grades in sheet: {e}")
+            
+                                # Display updated grades (TOP)
+                                st.markdown(f"#### 🕒 `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
+                                st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(columns={
+                                    "Grade_old": "Previous Grade", "Grade_new": "Updated Grade"
+                                }), hide_index=True)
+            
+                                # Show old grades (BOTTOM)
+                                st.markdown("#### 🗂️ Grades Before Update")
+                                st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
             
             except Exception as e:
                 st.error(f"Error in Academics tab: {e}")
