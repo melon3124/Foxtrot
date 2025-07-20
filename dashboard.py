@@ -212,7 +212,6 @@ if st.session_state.mode == "class" and cls:
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
         with t2:  # Academics tab
-            from datetime import datetime
             try:
                 acad_sheet_map = {
                     "1CL": "1CL ACAD",
@@ -245,10 +244,13 @@ if st.session_state.mode == "class" and cls:
                             df["Grade"] = pd.to_numeric(df["Grade"], errors="coerce")
                             df["Status"] = df["Grade"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
             
-                            st.subheader("📝 Update Grades")
+                            st.subheader("📚 Current Grades")
+                            st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+            
+                            st.subheader("✏️ Propose Updated Grades")
                             edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
             
-                            if st.button("✅ Submit Updates", key="submit_updates_btn"):
+                            if st.button("✅ Submit Proposed Updates", key="submit_updates_btn"):
                                 edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
                                 comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
                                 comparison["Change"] = comparison.apply(
@@ -260,89 +262,76 @@ if st.session_state.mode == "class" and cls:
                                     axis=1
                                 )
             
-                                # Save to HISTORY
+                                # Save to HISTORY only (not updating official grades)
                                 comparison["Cadet Name"] = name_disp
                                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                                 comparison["Timestamp"] = timestamp
                                 append_to_gsheet("1CL ACAD HISTORY", comparison[["Timestamp", "Cadet Name", "Subject", "Grade_old", "Grade_new", "Change"]])
             
-                                # Save UPDATED grades back to 1CL ACAD sheet
-                                for i, row in edited_df.iterrows():
-                                    subject_col = row["Subject"]
-                                    new_grade = row["Grade"]
-                                    if subject_col in acad.columns:
-                                        row_idx = acad[acad["NAME_CLEANED"] == name_clean].index[0] + 2  # +2 because gspread is 1-indexed and first row is header
-                                        col_idx = acad.columns.get_loc(subject_col) + 1
-                                        gc.open_by_key(SPREADSHEET_ID).worksheet(acad_sheet_map[cls]).update_cell(row_idx, col_idx, new_grade)
-            
                                 # Display updated grades on top
-                                st.markdown(f"#### 🕒 `{timestamp}` — Updated Grades")
+                                st.markdown(f"#### 🕒 `{timestamp}` — Proposed Grades")
                                 st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(columns={
-                                    "Grade_old": "Previous Grade", "Grade_new": "Updated Grade"
+                                    "Grade_old": "Previous Grade", "Grade_new": "Proposed Grade"
                                 }), hide_index=True)
             
-                                # Display old grades at bottom
-                                st.markdown("#### 🗂️ Backup of Grades Before Update")
-                                st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
-
             except Exception as e:
-                 st.error(f"Error in Academics tab: {e}")
-
-                
-            with t3:
-                try:
-                    pft_sheet_map = {
-                        "1CL": "1CL PFT",
-                        "2CL": "2CL PFT",
-                        "3CL": "3CL PFT"
-                    }
-            
-                    sheet_name = pft_sheet_map.get(cls, None)
-                    if not sheet_name:
-                        st.warning("No PFT sheet mapped for selected class.")
-                    else:
-                        pft = sheet_df(sheet_name)
-            
-                        if pft.empty:
-                            st.info(f"No PFT data available in '{sheet_name}'.")
-                        else:
-                            # Normalize columns (strip spaces)
-                            pft.columns = [c.strip().upper() for c in pft.columns]
-                            pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            
-                            cadet = pft[pft["NAME_CLEANED"] == name_clean]
-            
-                            if cadet.empty:
-                                st.warning(f"No PFT record found for {name_disp} in '{sheet_name}'.")
-                            else:
-                                cadet = cadet.iloc[0]
-            
-                                exercises = [
-                                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                                    ("Situps", "SITUPS", "SITUPS_GRADES"),
-                                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                                    ("3.2KM Run", "RUN", "RUN_GRADES")
-                                ]
-            
-                                table = []
-                                for label, raw_col, grade_col in exercises:
-                                    reps = cadet.get(raw_col, "")
-                                    grade = cadet.get(grade_col, "N/A")
-                                    status = (
-                                        "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                                        else "Failed" if str(grade).strip().isdigit()
-                                        else "N/A"
-                                    )
-                                    table.append({
-                                        "Exercise": label,
-                                        "Repetitions": reps,
-                                        "Grade": grade,
-                                        "Status": status
-                                    })
-            
-                                st.dataframe(pd.DataFrame(table), hide_index=True)
-                except Exception as e:
-                    st.error(f"PFT load error: {e}")
+                st.error(f"Error in Academics tab: {e}")
+                            
+                        with t3:
+                            try:
+                                pft_sheet_map = {
+                                    "1CL": "1CL PFT",
+                                    "2CL": "2CL PFT",
+                                    "3CL": "3CL PFT"
+                                }
+                        
+                                sheet_name = pft_sheet_map.get(cls, None)
+                                if not sheet_name:
+                                    st.warning("No PFT sheet mapped for selected class.")
+                                else:
+                                    pft = sheet_df(sheet_name)
+                        
+                                    if pft.empty:
+                                        st.info(f"No PFT data available in '{sheet_name}'.")
+                                    else:
+                                        # Normalize columns (strip spaces)
+                                        pft.columns = [c.strip().upper() for c in pft.columns]
+                                        pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                        
+                                        cadet = pft[pft["NAME_CLEANED"] == name_clean]
+                        
+                                        if cadet.empty:
+                                            st.warning(f"No PFT record found for {name_disp} in '{sheet_name}'.")
+                                        else:
+                                            cadet = cadet.iloc[0]
+                        
+                                            exercises = [
+                                                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                                                ("Situps", "SITUPS", "SITUPS_GRADES"),
+                                                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                                                ("3.2KM Run", "RUN", "RUN_GRADES")
+                                            ]
+                        
+                                            table = []
+                                            for label, raw_col, grade_col in exercises:
+                                                reps = cadet.get(raw_col, "")
+                                                grade = cadet.get(grade_col, "N/A")
+                                                status = (
+                                                    "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                                                    else "Failed" if str(grade).strip().isdigit()
+                                                    else "N/A"
+                                                )
+                                                table.append({
+                                                    "Exercise": label,
+                                                    "Repetitions": reps,
+                                                    "Grade": grade,
+                                                    "Status": status
+                                                })
+                        
+                                            st.dataframe(pd.DataFrame(table), hide_index=True)
+                            except Exception as e:
+                                st.error(f"PFT load error: {e}")
+                    
             with t4:
                 try:
                     mil_sheet_map = {
