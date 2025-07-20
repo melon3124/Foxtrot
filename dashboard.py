@@ -245,6 +245,10 @@ if st.session_state.mode == "class" and cls:
                             df["Grade"] = pd.to_numeric(df["Grade"], errors="coerce")
                             df["Status"] = df["Grade"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
             
+                            # ✅ Show current (latest) grades
+                            st.subheader("📘 Current Grades")
+                            st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+            
                             st.markdown("### ✏️ Update Grades")
                             edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
             
@@ -273,14 +277,10 @@ if st.session_state.mode == "class" and cls:
                                     acad.loc[acad["NAME_CLEANED"] == name_clean, subj] = grade
                                 save_df_to_gsheet(acad_sheet_name, acad)
             
-                                # ✅ Show updated grades
+                                # ✅ Show updated grades below
                                 st.subheader(f"🆕 Updated Grades as of `{timestamp}`")
                                 st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(
                                     columns={"Grade_old": "Previous Grade", "Grade_new": "Updated Grade"}), hide_index=True)
-            
-                                # 🗂️ Show previous grades
-                                st.subheader("📦 Previous Grades Before Update")
-                                st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
             
             except Exception as e:
                 st.error(f"Error in Academics tab: {e}")
