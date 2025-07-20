@@ -251,8 +251,11 @@ if st.session_state.mode == "class" and cls:
                                     )
             
                                     # Display updated grades
-                                    st.subheader("📈 Updated Grades")
-                                    st.dataframe(updated_df[["Subject", "New_Grade", "Change"]], hide_index=True)
+                                    from datetime import datetim
+                                    st.subheader("📌 Updated Grades")
+                                    st.markdown(f"#### 🕒 Grades Updated On: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
+                                    st.dataframe(updated_df[['Subject', 'Old Grade', 'New Grade', 'Change']], hide_index=True)
+
             
                                     # Save to history sheet
                                     history_sheet = f"{cls} ACAD HISTORY"
@@ -266,7 +269,7 @@ if st.session_state.mode == "class" and cls:
                                     }
                                     history_df = pd.DataFrame(history_data)
             
-                                    append_to_gsheet(history_sheet, history_df)
+                                    append_to_gsheet("1CL ACAD HISTORY", history_df)
                                     st.success("Grades updated and logged successfully!")
                         else:
                             st.warning(f"No academic record found for {name_disp}.")
