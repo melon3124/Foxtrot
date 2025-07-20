@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import os
+import json
 import re
 import unicodedata
 
@@ -31,8 +32,10 @@ scope = [
 ]
 
 try:
-    credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"])
-    gc = gspread.authorize(credentials)
+    creds = Credentials.from_service_account_info(
+        st.secrets["google_service_account"],
+        scopes=scope
+    )
     client = gspread.authorize(creds)
     SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
