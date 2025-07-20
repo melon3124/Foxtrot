@@ -6,6 +6,7 @@ import os
 import json
 import re
 import unicodedata
+from datetime import datetime
 st.write("Version:", st.__version__)
 # -------------------- SIMPLE AUTH --------------------
 # --- Session State Initialization ---
@@ -251,30 +252,52 @@ if st.session_state.mode == "class" and cls:
                                     )
             
                                     # Display updated grades
-                                    from datetime import datetime
-                                    st.subheader("📌 Updated Grades")
-                                    st.markdown(f"#### 🕒 Grades Updated On: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
-                                    st.dataframe(updated_df[['Subject', 'Old Grade', 'New Grade', 'Change']], hide_index=True)
-
-            
-                                    # Save to history sheet
-                                    history_sheet = f"{cls} ACAD HISTORY"
-                                    history_data = {
-                                        "Timestamp": [pd.Timestamp.now()] * len(updated_df),
-                                        "Name": [name_disp] * len(updated_df),
-                                        "Subject": updated_df["Subject"],
-                                        "Old Grade": updated_df["Grade_Numeric"],
-                                        "New Grade": updated_df["New_Grade_Numeric"],
-                                        "Change": updated_df["Change"]
-                                    }
-                                    history_df = pd.DataFrame(history_data)
-            
-                                    append_to_gsheet("1CL ACAD HISTORY", history_df)
-                                    st.success("Grades updated and logged successfully!")
-                        else:
-                            st.warning(f"No academic record found for {name_disp}.")
-            except Exception as e:
-                st.error(f"Academic load error: {e}")
+                                    target_name_col = "NAME"
+    
+                                    if target_name_col not in acad.columns:
+                                        st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet.")
+                                        st.write(f"Available columns: {acad.columns.tolist()}")
+                                    else:
+                                        acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                                        cadet_row = acad[acad["NAME_CLEANED"] == name_clean]
+                                    
+                                        if not cadet_row.empty:
+                                            cadet_row = cadet_row.iloc[0]
+                                            raw_grades = cadet_row.drop([target_name_col, "NAME_CLEANED"], errors='ignore')
+                                    
+                                            df = pd.DataFrame({
+                                                "Subject": raw_grades.index,
+                                                "Grade": raw_grades.values
+                                            })
+                                    
+                                            df["Grade"] = pd.to_numeric(df["Grade"], errors="coerce")
+                                            df["Status"] = df["Grade"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                                    
+                                            st.subheader("🎓 Past Grades")
+                                            st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+                                    
+                                            st.subheader("✏️ Update Grades")
+                                            edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
+                                    
+                                            if st.button("✅ Submit Updates"):
+                                                edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
+                                                comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
+                                                comparison["Change"] = comparison.apply(
+                                                    lambda row: (
+                                                        "Increased" if row["Grade_new"] > row["Grade_old"]
+                                                        else "Decreased" if row["Grade_new"] < row["Grade_old"]
+                                                        else "No Change"
+                                                    ) if pd.notna(row["Grade_new"]) and pd.notna(row["Grade_old"]) else "Invalid",
+                                                    axis=1
+                                                )
+                                    
+                                                # Optionally append to "1CL ACAD HISTORY" here using `append_to_gsheet`
+                                    
+                                                st.subheader("📌 Updated Grades")
+                                                st.markdown(f"#### 🕒 Grades Updated On: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
+                                                st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]], hide_index=True)
+                                        else:
+                                            st.warning(f"No academic record found for {name_disp}.")
                 
         with t3:
             try:
