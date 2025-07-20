@@ -290,7 +290,7 @@ if st.session_state.mode == "class" and cls:
                                             st.markdown(f"#### 🕒 Grades Updated On: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
                                             st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]], hide_index=True)
                 except Exception as e:
-                st.error(f"Error in Academics tab: {e}")
+                    st.error(f"Error in Academics tab: {e}")
             with t3:
                 try:
                     pft_sheet_map = {
