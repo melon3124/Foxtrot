@@ -273,20 +273,6 @@ if st.session_state.mode == "class" and cls:
                                     # 🗂️ Previous Grades (BOTTOM)
                                     st.markdown(f"#### 🗂️ Backup of Grades Before Update")
                                     st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
-
-
-            
-                                if st.button("✅ Submit Updates"):
-                                    edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
-                                    comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
-                                    comparison["Change"] = comparison.apply(
-                                        lambda row: (
-                                            "⬆️ Increased" if row["Grade_new"] > row["Grade_old"]
-                                            else "⬇️ Decreased" if row["Grade_new"] < row["Grade_old"]
-                                            else "➖ No Change"
-                                        ) if pd.notna(row["Grade_new"]) and pd.notna(row["Grade_old"]) else "Invalid",
-                                        axis=1
-                                    )
             
                                     # Record update to history sheet
                                     history_df = comparison[["Subject", "Grade_old", "Grade_new", "Change"]].copy()
