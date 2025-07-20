@@ -298,8 +298,8 @@ if st.session_state.mode == "class" and cls:
                             
                                         st.markdown(f"### 📌 Updated Grades as of `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
                                         st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
-                                except Exception as e:
-                                    st.error(f"Error writing updated grades to 1CL ACAD: {e}")
+        except Exception as e:
+            st.error(f"Error writing updated grades to 1CL ACAD: {e}")
 
 
                             
