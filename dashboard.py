@@ -244,6 +244,36 @@ if st.session_state.mode == "class" and cls:
                             # ✏️ Update Form
                             with st.expander("✏️ UPDATE GRADES"):
                                 edited_df = st.data_editor(df[["Subject", "Grade"]], num_rows="dynamic", use_container_width=True, key="edit_grades")
+
+                                from datetime import datetime
+
+                                if st.button("✅ Submit Updates"):
+                                    edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
+                                    comparison = pd.merge(df, edited_df, on="Subject", suffixes=("_old", "_new"))
+                                    comparison["Change"] = comparison.apply(
+                                        lambda row: (
+                                            "⬆️ Increased" if row["Grade_new"] > row["Grade_old"]
+                                            else "⬇️ Decreased" if row["Grade_new"] < row["Grade_old"]
+                                            else "➖ No Change"
+                                        ) if pd.notna(row["Grade_new"]) and pd.notna(row["Grade_old"]) else "Invalid",
+                                        axis=1
+                                    )
+                                
+                                    # Save to GSheet History
+                                    comparison["Cadet Name"] = name_disp
+                                    comparison["Timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                    append_to_gsheet("1CL ACAD HISTORY", comparison[["Timestamp", "Cadet Name", "Subject", "Grade_old", "Grade_new", "Change"]])
+                                
+                                    # 🕒 Updated Grades Table (TOP)
+                                    st.markdown(f"#### 🕒 `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
+                                    st.dataframe(comparison[["Subject", "Grade_old", "Grade_new", "Change"]].rename(columns={
+                                        "Grade_old": "Previous Grade", "Grade_new": "Updated Grade"
+                                    }), hide_index=True)
+                                
+                                    # 🗂️ Previous Grades (BOTTOM)
+                                    st.markdown(f"#### 🗂️ Backup of Grades Before Update")
+                                    st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+
             
                                 if st.button("✅ Submit Updates"):
                                     edited_df["Grade"] = pd.to_numeric(edited_df["Grade"], errors="coerce")
