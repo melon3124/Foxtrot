@@ -299,183 +299,183 @@ if st.session_state.mode == "class" and cls:
                                         else:
                                             st.warning(f"No academic record found for {name_disp}.")
                 
-        with t3:
-            try:
-                pft_sheet_map = {
-                    "1CL": "1CL PFT",
-                    "2CL": "2CL PFT",
-                    "3CL": "3CL PFT"
-                }
-        
-                sheet_name = pft_sheet_map.get(cls, None)
-                if not sheet_name:
-                    st.warning("No PFT sheet mapped for selected class.")
-                else:
-                    pft = sheet_df(sheet_name)
-        
-                    if pft.empty:
-                        st.info(f"No PFT data available in '{sheet_name}'.")
+            with t3:
+                try:
+                    pft_sheet_map = {
+                        "1CL": "1CL PFT",
+                        "2CL": "2CL PFT",
+                        "3CL": "3CL PFT"
+                    }
+            
+                    sheet_name = pft_sheet_map.get(cls, None)
+                    if not sheet_name:
+                        st.warning("No PFT sheet mapped for selected class.")
                     else:
-                        # Normalize columns (strip spaces)
-                        pft.columns = [c.strip().upper() for c in pft.columns]
-                        pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-        
-                        cadet = pft[pft["NAME_CLEANED"] == name_clean]
-        
-                        if cadet.empty:
-                            st.warning(f"No PFT record found for {name_disp} in '{sheet_name}'.")
+                        pft = sheet_df(sheet_name)
+            
+                        if pft.empty:
+                            st.info(f"No PFT data available in '{sheet_name}'.")
                         else:
-                            cadet = cadet.iloc[0]
-        
-                            exercises = [
-                                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                                ("Situps", "SITUPS", "SITUPS_GRADES"),
-                                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                                ("3.2KM Run", "RUN", "RUN_GRADES")
-                            ]
-        
-                            table = []
-                            for label, raw_col, grade_col in exercises:
-                                reps = cadet.get(raw_col, "")
-                                grade = cadet.get(grade_col, "N/A")
-                                status = (
-                                    "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                                    else "Failed" if str(grade).strip().isdigit()
-                                    else "N/A"
-                                )
-                                table.append({
-                                    "Exercise": label,
-                                    "Repetitions": reps,
-                                    "Grade": grade,
-                                    "Status": status
-                                })
-        
-                            st.dataframe(pd.DataFrame(table), hide_index=True)
-            except Exception as e:
-                st.error(f"PFT load error: {e}")
-        with t4:
-            try:
-                mil_sheet_map = {
-                    "1CL": "1CL MIL",
-                    "2CL": "2CL MIL",
-                    "3CL": "3CL MIL"
-                }
-                sheet_name = mil_sheet_map.get(cls)
-                if not sheet_name:
-                    st.warning("Select a class to view military grades.")
-                else:
-                    mil = sheet_df(sheet_name)
-                    if mil.empty:
-                        st.info(f"No military data found in '{sheet_name}'.")
-                    else:
-                        mil.columns = [c.strip().upper() for c in mil.columns]
-        
-                        name_col = "NAME"
-                        if name_col not in mil.columns:
-                            st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
-                        else:
-                            mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet = mil[mil["NAME_CLEANED"] == name_clean]
-        
+                            # Normalize columns (strip spaces)
+                            pft.columns = [c.strip().upper() for c in pft.columns]
+                            pft["NAME_CLEANED"] = pft["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            
+                            cadet = pft[pft["NAME_CLEANED"] == name_clean]
+            
                             if cadet.empty:
-                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                                st.warning(f"No PFT record found for {name_disp} in '{sheet_name}'.")
                             else:
                                 cadet = cadet.iloc[0]
-        
-                                if cls == "1CL":
-                                    bos = cadet.get("BOS", "N/A")
-                                    grade = cadet.get("GRADE", "N/A")
-                                    try:
-                                        grade_val = float(grade)
-                                        status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-                                    df = pd.DataFrame([{
-                                        "Name": name_disp,
-                                        "BOS": bos,
+            
+                                exercises = [
+                                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                                    ("Situps", "SITUPS", "SITUPS_GRADES"),
+                                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                                    ("3.2KM Run", "RUN", "RUN_GRADES")
+                                ]
+            
+                                table = []
+                                for label, raw_col, grade_col in exercises:
+                                    reps = cadet.get(raw_col, "")
+                                    grade = cadet.get(grade_col, "N/A")
+                                    status = (
+                                        "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                                        else "Failed" if str(grade).strip().isdigit()
+                                        else "N/A"
+                                    )
+                                    table.append({
+                                        "Exercise": label,
+                                        "Repetitions": reps,
                                         "Grade": grade,
                                         "Status": status
-                                    }])
-        
-                                elif cls == "2CL":
-                                    rows = []
-                                    for subj in ["AS", "NS", "AFS"]:
-                                        grade = cadet.get(subj, "N/A")
+                                    })
+            
+                                st.dataframe(pd.DataFrame(table), hide_index=True)
+                except Exception as e:
+                    st.error(f"PFT load error: {e}")
+            with t4:
+                try:
+                    mil_sheet_map = {
+                        "1CL": "1CL MIL",
+                        "2CL": "2CL MIL",
+                        "3CL": "3CL MIL"
+                    }
+                    sheet_name = mil_sheet_map.get(cls)
+                    if not sheet_name:
+                        st.warning("Select a class to view military grades.")
+                    else:
+                        mil = sheet_df(sheet_name)
+                        if mil.empty:
+                            st.info(f"No military data found in '{sheet_name}'.")
+                        else:
+                            mil.columns = [c.strip().upper() for c in mil.columns]
+            
+                            name_col = "NAME"
+                            if name_col not in mil.columns:
+                                st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
+                            else:
+                                mil["NAME_CLEANED"] = mil[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                                cadet = mil[mil["NAME_CLEANED"] == name_clean]
+            
+                                if cadet.empty:
+                                    st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                                else:
+                                    cadet = cadet.iloc[0]
+            
+                                    if cls == "1CL":
+                                        bos = cadet.get("BOS", "N/A")
+                                        grade = cadet.get("GRADE", "N/A")
                                         try:
                                             grade_val = float(grade)
                                             status = "Proficient" if grade_val >= 7 else "DEFICIENT"
                                         except:
                                             status = "N/A"
-                                        rows.append({
+                                        df = pd.DataFrame([{
                                             "Name": name_disp,
-                                            "Subject": subj,
+                                            "BOS": bos,
                                             "Grade": grade,
                                             "Status": status
-                                        })
-                                    df = pd.DataFrame(rows)
-        
-                                elif cls == "3CL":
-                                    grade = cadet.get("MS231", "N/A")
-                                    try:
-                                        grade_val = float(grade)
-                                        status = "Proficient" if grade_val >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-                                    df = pd.DataFrame([{
+                                        }])
+            
+                                    elif cls == "2CL":
+                                        rows = []
+                                        for subj in ["AS", "NS", "AFS"]:
+                                            grade = cadet.get(subj, "N/A")
+                                            try:
+                                                grade_val = float(grade)
+                                                status = "Proficient" if grade_val >= 7 else "DEFICIENT"
+                                            except:
+                                                status = "N/A"
+                                            rows.append({
+                                                "Name": name_disp,
+                                                "Subject": subj,
+                                                "Grade": grade,
+                                                "Status": status
+                                            })
+                                        df = pd.DataFrame(rows)
+            
+                                    elif cls == "3CL":
+                                        grade = cadet.get("MS231", "N/A")
+                                        try:
+                                            grade_val = float(grade)
+                                            status = "Proficient" if grade_val >= 7 else "DEFICIENT"
+                                        except:
+                                            status = "N/A"
+                                        df = pd.DataFrame([{
+                                            "Name": name_disp,
+                                            "Grade": grade,
+                                            "Status": status
+                                        }])
+            
+                                    st.dataframe(df, hide_index=True)
+                except Exception as e:
+                    st.error(f"Military tab error: {e}")
+                    
+            with t5:
+                try:
+                    conduct_sheet_map = {
+                        "1CL": "1CL CONDUCT",
+                        "2CL": "2CL CONDUCT",
+                        "3CL": "3CL CONDUCT"
+                    }
+                    sheet_name = conduct_sheet_map.get(cls)
+            
+                    if not sheet_name:
+                        st.warning("Please select a valid class to view conduct data.")
+                    else:
+                        conduct = sheet_df(sheet_name)
+                        if conduct.empty:
+                            st.info(f"No conduct data found for {sheet_name}.")
+                        else:
+                            conduct.columns = [c.strip().upper() for c in conduct.columns]
+                            if "NAME" not in conduct.columns or "MERITS" not in conduct.columns:
+                                st.error(f"Missing expected columns in {sheet_name}. Found: {conduct.columns.tolist()}")
+                            else:
+                                conduct["NAME_CLEANED"] = conduct["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                                cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean]
+            
+                                if cadet_data.empty:
+                                    st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
+                                else:
+                                    cadet_data = cadet_data.copy()
+            
+                                    # First table: Merits and status
+                                    total_merits = cadet_data["MERITS"].astype(float).sum()
+                                    status = "Failed" if total_merits < 0 else "Passed"
+                                    merit_table = pd.DataFrame([{
                                         "Name": name_disp,
-                                        "Grade": grade,
+                                        "Merits": total_merits,
                                         "Status": status
                                     }])
-        
-                                st.dataframe(df, hide_index=True)
-            except Exception as e:
-                st.error(f"Military tab error: {e}")
-                
-        with t5:
-            try:
-                conduct_sheet_map = {
-                    "1CL": "1CL CONDUCT",
-                    "2CL": "2CL CONDUCT",
-                    "3CL": "3CL CONDUCT"
-                }
-                sheet_name = conduct_sheet_map.get(cls)
-        
-                if not sheet_name:
-                    st.warning("Please select a valid class to view conduct data.")
-                else:
-                    conduct = sheet_df(sheet_name)
-                    if conduct.empty:
-                        st.info(f"No conduct data found for {sheet_name}.")
-                    else:
-                        conduct.columns = [c.strip().upper() for c in conduct.columns]
-                        if "NAME" not in conduct.columns or "MERITS" not in conduct.columns:
-                            st.error(f"Missing expected columns in {sheet_name}. Found: {conduct.columns.tolist()}")
-                        else:
-                            conduct["NAME_CLEANED"] = conduct["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean]
-        
-                            if cadet_data.empty:
-                                st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
-                            else:
-                                cadet_data = cadet_data.copy()
-        
-                                # First table: Merits and status
-                                total_merits = cadet_data["MERITS"].astype(float).sum()
-                                status = "Failed" if total_merits < 0 else "Passed"
-                                merit_table = pd.DataFrame([{
-                                    "Name": name_disp,
-                                    "Merits": total_merits,
-                                    "Status": status
-                                }])
-                                st.subheader("Merits Summary")
-                                st.dataframe(merit_table, hide_index=True)
-        
-                                # Second table: Reports with Date and Class
-                                report_table = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
-                                report_table.columns = ["Reports", "Date of Report", "Class"]
-                                st.subheader("Conduct Reports")
-                                st.dataframe(report_table, hide_index=True)
-        
-            except Exception as e:
-                st.error(f"Conduct tab error: {e}")
+                                    st.subheader("Merits Summary")
+                                    st.dataframe(merit_table, hide_index=True)
+            
+                                    # Second table: Reports with Date and Class
+                                    report_table = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
+                                    report_table.columns = ["Reports", "Date of Report", "Class"]
+                                    st.subheader("Conduct Reports")
+                                    st.dataframe(report_table, hide_index=True)
+            
+                except Exception as e:
+                    st.error(f"Conduct tab error: {e}")
 
