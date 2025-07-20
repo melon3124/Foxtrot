@@ -133,6 +133,26 @@ def clean_cadet_name_for_comparison(name: str) -> str:
         return ""
     return re.sub(r'\s+', ' ', name).strip().upper()
 
+# Utility: Append rows to GSheet
+def append_to_gsheet(sheet_name, df):
+    try:
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        worksheet = sh.worksheet(sheet_name)
+        rows = df.astype(str).values.tolist()
+        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+    except Exception as e:
+        st.error(f"Failed to append to Google Sheet: {e}")
+
+# Utility: Replace entire GSheet with new DataFrame
+def save_df_to_gsheet(sheet_name, df):
+    try:
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        worksheet = sh.worksheet(sheet_name)
+        worksheet.clear()
+        worksheet.update([df.columns.values.tolist()] + df.astype(str).values.tolist())
+    except Exception as e:
+        st.error(f"Failed to save to Google Sheet: {e}")
+
 # -------------------- DEMOGRAPHICS --------------------
 demo_df = sheet_df("DEMOGRAPHICS")
 if demo_df.empty:
