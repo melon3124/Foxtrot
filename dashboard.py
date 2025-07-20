@@ -6,7 +6,54 @@ import os
 import json
 import re
 import unicodedata
+# --- Session State Initialization ---
+if "auth_ok" not in st.session_state:
+    st.session_state.auth_ok = False
+if "role" not in st.session_state:
+    st.session_state.role = None
+if "username" not in st.session_state:
+    st.session_state.username = None
 
+# --- Login Logic ---
+if not st.session_state.auth_ok:
+    st.title("🦊 Foxtrot CIS Login")
+
+    username = st.text_input("Username")
+    pw = st.text_input("Password", type="password")
+    login_btn = st.button("Login")
+
+    USER_CREDENTIALS = {
+        "admin": {
+            "password": "Adm1n$ecure",
+            "role": "admin"
+        },
+        "cadet": {
+            "password": "CadetV13wer",
+            "role": "cadet"
+        }
+    }
+
+    if login_btn:
+        user = USER_CREDENTIALS.get(username)
+        if user and user["password"] == pw:
+            st.session_state.auth_ok = True
+            st.session_state.role = user["role"]
+            st.session_state.username = username
+            st.success(f"✅ Logged in as {username.upper()} ({user['role'].upper()})")
+            st.rerun()
+        else:
+            st.error("❌ Invalid username or password.")
+    st.stop()
+
+# --- Logged In ---
+st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
+
+# Optional logout
+if st.sidebar.button("🔓 Logout"):
+    st.session_state.auth_ok = False
+    st.session_state.role = None
+    st.session_state.username = None
+    st.rerun()
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
