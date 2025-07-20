@@ -83,11 +83,8 @@ scope = [
 ]
 
 try:
-    creds = Credentials.from_service_account_info(
-        st.secrets["google_service_account"],
-        scopes=scope
-    )
-    client = gspread.authorize(creds)
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"])
+    gs_client = gspread.authorize(creds)
     SS = client.open("FOXTROT DASHBOARD V2")
 except Exception as e:
     st.error(f"Error connecting to Google Sheets: {e}")
