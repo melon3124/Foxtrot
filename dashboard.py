@@ -224,20 +224,21 @@ if st.session_state.mode == "class" and cls:
                         r = r.iloc[0]
                         df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
     
-                        # First table - PFT 1 | 1ST TERM
+                        # --- PFT 1 Table ---
                         st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
                         df1 = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
                         df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
                         df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
                         st.dataframe(df1[["Subject", "Grade", "Status"]], hide_index=True)
     
-                        # Second table - PFT 2 | 2ND TERM
+                        # --- PFT 2 Table (blank version) ---
                         st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
-                        # Optional: Use empty table or same data again for now
-                        df2 = pd.DataFrame({"Subject": df_data.index, "Grade": [""] * len(df_data)})
-                        df2["Grade_Numeric"] = pd.to_numeric(df2["Grade"], errors='coerce')
-                        df2["Status"] = df2["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-                        st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
+                        df2 = pd.DataFrame({
+                            "Subject": df1["Subject"],
+                            "Grade": ["" for _ in range(len(df1))],
+                            "Status": ["" for _ in range(len(df1))]
+                        })
+                        st.dataframe(df2, hide_index=True)
     
                     else:
                         st.warning(f"No PFT record found for {name_disp}.")
