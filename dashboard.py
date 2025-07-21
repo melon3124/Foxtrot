@@ -233,7 +233,14 @@ if st.session_state.mode == "class" and cls:
                         df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
                         df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
                         st.dataframe(df1[["Subject", "Grade", "Status"]], hide_index=True)
-
+    
+                        # --- PFT 2 Table (explicit blank table with same columns) ---
+                        st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
+                        df2 = pd.DataFrame({
+                            "Subject": df1["Subject"],
+                            "Grade": [""] * len(df1),
+                            "Status": [""] * len(df1)
+                        })
                         st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
     
                     else:
