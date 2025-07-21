@@ -380,21 +380,22 @@ if st.session_state.mode == "class" and cls:
                     if conduct.empty:
                         st.info(f"No conduct data found for {sheet_name}.")
                     else:
-                        conduct.columns = [c.strip().upper() for c in conduct.columns]
-                        required_cols = {"NAME", "MERITS", "REPORTS", "DATE OF REPORT", "CLASS"}
+                        # Ensure all columns are lowercase for matching
+                        conduct.columns = [c.strip().lower() for c in conduct.columns]
+                        required_cols = {"name", "merits", "reports", "date of report", "class"}
                         missing = required_cols - set(conduct.columns)
                         if missing:
                             st.error(f"Missing expected columns in {sheet_name}: {missing}")
                         else:
-                            conduct["NAME_CLEANED"] = conduct["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean].copy()
+                            conduct["name_cleaned"] = conduct["name"].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_data = conduct[conduct["name_cleaned"] == name_clean].copy()
         
                             if cadet_data.empty:
                                 st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                             else:
                                 st.subheader("Merits Summary")
         
-                                total_merits = cadet_data["MERITS"].astype(float).sum()
+                                total_merits = cadet_data["merits"].astype(float).sum()
                                 status = "Failed" if total_merits < 0 else "Passed"
                                 merit_table = pd.DataFrame([{
                                     "Name": name_disp,
@@ -405,17 +406,15 @@ if st.session_state.mode == "class" and cls:
         
                                 st.subheader("Conduct Reports")
         
-                                # Prepare editable data
-                                editable_cols = ["Reports", "Date of Report", "Class", "Demerits"]
-                                editable_data = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
-                                editable_data.columns = editable_cols[:-1]
-                                editable_data["Demerits"] = ""
+                                # Prepare editable table
+                                editable_cols = ["reports", "date of report", "class", "demerits"]
+                                editable_data = cadet_data[["reports", "date of report", "class"]].copy()
+                                editable_data["demerits"] = ""
         
-                                # Add blank row for new entry
+                                # Add a blank row for input
                                 empty_row = pd.DataFrame([{col: "" for col in editable_cols}])
                                 editable_data = pd.concat([editable_data, empty_row], ignore_index=True)
         
-                                # Editor
                                 edited = st.data_editor(
                                     editable_data,
                                     num_rows="dynamic",
@@ -424,33 +423,32 @@ if st.session_state.mode == "class" and cls:
                                     key="conduct_editor"
                                 )
         
-                                # Save new entries only
-                                if st.button("📤 Add Report"):
-                                    new_entries = edited.dropna(how='all')  # Drop fully empty rows
-                                    new_entries = new_entries[new_entries["reports"].str.strip() != ""]  # Only rows with actual reports
+                                if st.button("📤 Submit New Reports to 'REPORTS' Sheet"):
+                                    try:
+                                        new_entries = edited.copy()
+                                        new_entries = new_entries[new_entries["reports"].astype(str).str.strip() != ""]
         
-                                    if not new_entries.empty:
-                                        # Add identity columns: name and timestamp
-                                        new_entries["Name"] = name_disp
-                                        new_entries["Class Level"] = cls
-                                        new_entries["Submitted By"] = st.session_state.username
-                                        new_entries["Timestamp"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+                                        if not new_entries.empty:
+                                            new_entries["name"] = name_disp
+                                            new_entries["class level"] = cls
+                                            new_entries["submitted by"] = st.session_state.username
+                                            new_entries["timestamp"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
         
-                                        # Reorder columns if needed
-                                        columns = ["Name", "Class Level", "Reports", "Date of Report", "Demerits", "Submitted By", "Timestamp"]
-                                        report_rows = new_entries[columns].values.tolist()
+                                            # Set column order for 'REPORTS' sheet
+                                            final_cols = ["name", "class level", "reports", "date of report", "demerits", "submitted by", "timestamp"]
+                                            rows_to_append = new_entries[final_cols].values.tolist()
         
-                                        try:
-                                            report_ws = SS.worksheet("reports")
-                                            report_ws.append_rows(report_rows, value_input_option="USER_ENTERED")
+                                            # Append to Google Sheet
+                                            report_ws = SS.worksheet("REPORTS")
+                                            report_ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+        
                                             st.success("✅ New reports successfully submitted.")
                                             st.rerun()
-                                        except Exception as e:
-                                            st.error(f"❌ Failed to append to 'reports' sheet: {e}")
-                                    else:
-                                        st.info("No new reports to submit.")
+                                        else:
+                                            st.info("No valid new reports to submit.")
+                                    except Exception as e:
+                                        st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
 
-        
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
 
