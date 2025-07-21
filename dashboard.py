@@ -298,8 +298,6 @@ if st.session_state.mode == "class" and cls:
                                 "Status": [""] * len(df1)
                             })
                             st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
-                        else:
-                            st.warning(f"No PFT record found for {name_disp}.")
                             
             except Exception as e:
                 st.error(f"PFT load error: {e}")
