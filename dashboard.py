@@ -5,6 +5,7 @@ from google.oauth2.service_account import Credentials
 import os
 import re
 import unicodedata
+import time
 
 # --- Session State Initialization ---
 if "auth_ok" not in st.session_state:
