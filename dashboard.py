@@ -208,9 +208,9 @@ if st.session_state.mode == "class" and cls:
                 "3CL": "3CL ACAD"
             }
             acad = sheet_df(acad_sheet_map[cls])
-    
+
             if acad.empty:
-                st.info("No PFT data available for this class.")
+                st.info("No Academic data available for this class.")
             else:
                 target_name_col = "NAME"
                 if target_name_col not in acad.columns:
@@ -218,14 +218,23 @@ if st.session_state.mode == "class" and cls:
                     st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
                 else:
                     acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+
                     r = acad[acad["NAME_CLEANED"] == name_clean]
-    
+
                     if not r.empty:
                         r = r.iloc[0]
                         df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
-    
+
+                        df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
+                        df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
+                        df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+
+                        st.dataframe(df[['Subject', 'Grade', 'Status']], hide_index=True)
+                    else:
+                        st.warning(f"No academic record found for {name_disp}.")
         except Exception as e:
-            st.error(f"PFT data load error: {e}")
+            st.error(f"Academic load error: {e}")
+
 
         with t3:
             try:
