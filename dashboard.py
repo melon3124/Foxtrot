@@ -207,111 +207,122 @@ if st.session_state.mode == "class" and cls:
                 "2CL": "2CL ACAD",
                 "3CL": "3CL ACAD"
             }
-            history_sheet_map = {
+            acad_hist_map = {
                 "1CL": "1CL ACAD HISTORY",
                 "2CL": "2CL ACAD HISTORY",
                 "3CL": "3CL ACAD HISTORY"
             }
     
+            # Load sheets
             acad = sheet_df(acad_sheet_map[cls])
-            history = sheet_df(history_sheet_map[cls])
+            hist_df = sheet_df(acad_hist_map[cls])
     
-            if acad.empty:
-                st.info("No Academic data available for this class.")
+            # Fallback for name column
+            possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
+            acad_name_col = next((col for col in acad.columns if col.upper() in [c.upper() for c in possible_name_cols]), None)
+            hist_name_col = next((col for col in hist_df.columns if col.upper() in [c.upper() for c in possible_name_cols]), None)
+    
+            if acad.empty or acad_name_col is None:
+                st.warning("No valid academic data or name column found.")
             else:
-                target_name_col = "NAME"
-                if target_name_col not in acad.columns:
-                    st.error(f"Expected column '{target_name_col}' not found in the academic sheet.")
+                acad["NAME_CLEANED"] = acad[acad_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                row = acad[acad["NAME_CLEANED"] == name_clean]
+    
+                if row.empty:
+                    st.warning(f"No academic record found for {name_disp}.")
                 else:
-                    acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                    history['NAME_CLEANED'] = history[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                    row = row.iloc[0].drop([acad_name_col, "NAME_CLEANED"], errors='ignore')
+                    df = pd.DataFrame({
+                        "SUBJECT": row.index,
+                        "PREVIOUS GRADE": pd.to_numeric(row.values, errors='coerce')
+                    })
     
-                    r = acad[acad["NAME_CLEANED"] == name_clean]
-                    rh = history[history["NAME_CLEANED"] == name_clean]
+                    # Process history sheet
+                    if hist_name_col is None:
+                        df["CURRENT GRADE"] = None
+                    else:
+                        hist_df["NAME_CLEANED"] = hist_df[hist_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                        hist_row = hist_df[hist_df["NAME_CLEANED"] == name_clean]
     
-                    if not r.empty:
-                        r = r.iloc[0]
-                        df = pd.DataFrame({
-                            "SUBJECT": r.drop([target_name_col, 'NAME_CLEANED'], errors='ignore').index,
-                            "PREVIOUS GRADE": r.drop([target_name_col, 'NAME_CLEANED'], errors='ignore').values
-                        })
-                        df["PREVIOUS GRADE"] = pd.to_numeric(df["PREVIOUS GRADE"], errors='coerce')
-    
-                        if not rh.empty:
-                            rh = rh.iloc[0]
-                            df["CURRENT GRADE"] = [pd.to_numeric(rh.get(subject, None), errors='coerce') for subject in df["SUBJECT"]]
+                        if not hist_row.empty:
+                            hist_row = hist_row.iloc[0].drop([hist_name_col, "NAME_CLEANED"], errors='ignore')
+                            current_df = pd.DataFrame({
+                                "SUBJECT": hist_row.index,
+                                "CURRENT GRADE": pd.to_numeric(hist_row.values, errors='coerce')
+                            })
+                            df = df.merge(current_df, on="SUBJECT", how="left")
                         else:
                             df["CURRENT GRADE"] = None
     
-                        df["INCREASED/DECREASED"] = df.apply(
-                            lambda row: (
-                                "Increased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
-                                else "Decreased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] < row["PREVIOUS GRADE"]
-                                else "No Change" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"])
-                                else "N/A"
-                            ),
-                            axis=1
-                        )
+                    # Difference + Status
+                    df["INCREASED/DECREASED"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
+                    df["STATUS"] = df["INCREASED/DECREASED"].apply(
+                        lambda x: "Improved" if x > 0 else "Declined" if x < 0 else ("No Change" if pd.notna(x) else "N/A")
+                    )
     
-                        df["STATUS"] = df["CURRENT GRADE"].apply(lambda g: "Proficient" if pd.notna(g) and g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                    # Show table
+                    st.subheader("📘 Academic Grades Overview")
+                    st.dataframe(df, use_container_width=True, hide_index=True)
     
-                        st.subheader("📘 Academic Grades")
-                        st.dataframe(df, use_container_width=True, hide_index=True)
+                    # Grade input form
+                    st.subheader("➕ Input New Grades")
+                    with st.form("new_grade_form"):
+                        subject_choices = df["SUBJECT"].tolist()
+                        selected_subject = st.selectbox("Subject", subject_choices)
+                        new_grade = st.number_input("New Grade", min_value=0.0, max_value=100.0, step=0.1)
+                        submitted = st.form_submit_button("📤 Submit Grade")
     
-                        st.subheader("➕ Update Current Grades")
-                        with st.form("update_grades_form"):
-                            new_grades = {}
-                            for subject in df["SUBJECT"]:
-                                val = st.number_input(f"{subject}", min_value=0.0, max_value=10.0, step=0.1, format="%.1f", key=f"grade_{subject}")
-                                new_grades[subject] = val if val else None
-                            submit = st.form_submit_button("📤 Submit Grades")
+                    if submitted:
+                        try:
+                            # Update worksheet
+                            hist_ws = SS.worksheet(acad_hist_map[cls])
+                            data = hist_ws.get_all_values()
+                            headers = data[0]
     
-                        if submit:
-                            try:
-                                history_ws = SS.worksheet(history_sheet_map[cls])
-                                sheet_data = history_ws.get_all_values()
-                                headers = sheet_data[0]
-                                name_idx = next(i for i, h in enumerate(headers) if h.strip().upper() in ["NAME", "FULL NAME", "CADET NAME"])
-                                row_idx = None
+                            # Use fallback again for NAME column
+                            hist_name_index = next((i for i, h in enumerate(headers) if h.upper() in [c.upper() for c in possible_name_cols]), None)
+                            if hist_name_index is None:
+                                st.error("❌ 'NAME' column not found in academic history sheet.")
+                            else:
+                                # Find or create subject column
+                                if selected_subject not in headers:
+                                    headers.append(selected_subject)
+                                    for row in data[1:]:
+                                        while len(row) < len(headers):
+                                            row.append("")
+                                    subj_index = len(headers) - 1
+                                else:
+                                    subj_index = headers.index(selected_subject)
     
-                                for idx, row in enumerate(sheet_data[1:], start=2):
-                                    if clean_cadet_name_for_comparison(row[name_idx]) == name_clean:
-                                        row_idx = idx
+                                # Update or append row
+                                updated = False
+                                for row in data[1:]:
+                                    if clean_cadet_name_for_comparison(row[hist_name_index]) == name_clean:
+                                        while len(row) <= subj_index:
+                                            row.append("")
+                                        row[subj_index] = str(new_grade)
+                                        updated = True
                                         break
     
-                                for subject in df["SUBJECT"]:
-                                    if subject not in headers:
-                                        headers.append(subject)
-                                        for r in sheet_data[1:]:
-                                            r.append("")
+                                if not updated:
+                                    new_row = [""] * len(headers)
+                                    new_row[hist_name_index] = name_disp
+                                    new_row[subj_index] = str(new_grade)
+                                    data.append(new_row)
     
-                                if row_idx:
-                                    for subject in df["SUBJECT"]:
-                                        val = new_grades.get(subject)
-                                        if val is not None:
-                                            col = headers.index(subject)
-                                            history_ws.update_cell(row_idx, col + 1, val)
-                                else:
-                                    new_row = ["" for _ in headers]
-                                    new_row[name_idx] = name_disp
-                                    for subject in df["SUBJECT"]:
-                                        val = new_grades.get(subject)
-                                        if val is not None:
-                                            new_row[headers.index(subject)] = val
-                                    history_ws.append_row(new_row, value_input_option="USER_ENTERED")
-    
+                                # Upload data
+                                hist_ws.clear()
+                                hist_ws.update("A1", [headers] + data[1:])
                                 st.cache_data.clear()
-                                st.success("✅ Grades updated. Refreshing...")
-                                st.experimental_rerun()
+                                st.success("✅ Grade submitted successfully.")
+                                st.rerun()
     
-                            except Exception as e:
-                                st.error(f"❌ Error updating grades: {e}")
-    
-                    else:
-                        st.warning(f"No academic record found for {name_disp}.")
+                        except Exception as e:
+                            st.error(f"❌ Error submitting grade: {e}")
     
         except Exception as e:
             st.error(f"❌ Unexpected academic section error: {e}")
+
 
         with t3:
             try:
