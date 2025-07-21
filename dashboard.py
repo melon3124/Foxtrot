@@ -369,9 +369,7 @@ if st.session_state.mode == "class" and cls:
                 
         with t5:
             try:
-                cls, name_disp = st.session_state["cadet_name"].split(" - ")
-                name_clean = clean_cadet_name_for_comparison(name_disp)
-        
+                # Map selected class to worksheet
                 conduct_sheet_map = {
                     "1CL": "1CL CONDUCT",
                     "2CL": "2CL CONDUCT",
@@ -403,11 +401,11 @@ if st.session_state.mode == "class" and cls:
         
                         # --- Conduct Reports Table ---
                         st.subheader("Conduct Reports")
-                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "LEVEL", "DEMERITS"]
+                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]
         
                         try:
                             now = time.time()
-                            if st.session_state.get("last_report_fetch") is None or now - st.session_state["last_report_fetch"] > 10:
+                            if now - st.session_state["last_report_fetch"] > 10:
                                 reports_df = sheet_df("REPORTS")
                                 st.session_state["last_report_df"] = reports_df
                                 st.session_state["last_report_fetch"] = now
@@ -428,7 +426,7 @@ if st.session_state.mode == "class" and cls:
                             cadet_reports = pd.DataFrame(columns=expected_cols)
         
                         st.dataframe(
-                            cadet_reports[["REPORT", "DATE OF REPORT", "LEVEL", "DEMERITS"]],
+                            cadet_reports[["REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
                             use_container_width=True,
                             hide_index=True
                         )
@@ -438,26 +436,25 @@ if st.session_state.mode == "class" and cls:
                         with st.form("report_form"):
                             new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
                             new_report_date = st.date_input("Date of Report")
-                            new_level = st.selectbox("Nature of Offense (Level)", options=["I", "II", "III", "IV"])
                             new_demerits = st.number_input("Demerits", step=1)
                             submitted = st.form_submit_button("📤 Submit Report")
         
                         if submitted:
                             try:
-                                time.sleep(0.5)
+                                time.sleep(0.5)  # Allow smoother API write
         
                                 report_ws = SS.worksheet("REPORTS")
                                 new_row = [
                                     name_disp,
                                     new_report.strip(),
                                     str(new_report_date),
-                                    new_level,  # this is LEVEL and also the Nature of Offense
+                                    cls,
                                     str(new_demerits)
                                 ]
                                 report_ws.append_row(new_row, value_input_option="USER_ENTERED")
         
-                                st.cache_data.clear()
-                                time.sleep(0.75)
+                                st.cache_data.clear()  # ✅ Clear only after writing
+                                time.sleep(0.75)  # Give sheet time to reflect
                                 st.success("✅ Report submitted successfully.")
                                 st.rerun()
                             except Exception as e:
