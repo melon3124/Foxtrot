@@ -401,7 +401,10 @@ if st.session_state.mode == "class" and cls:
         
                         # --- Conduct Reports Table ---
                         st.subheader("Conduct Reports")
-                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]
+                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]
+        
+                        if "last_report_fetch" not in st.session_state:
+                            st.session_state["last_report_fetch"] = 0
         
                         try:
                             now = time.time()
@@ -426,7 +429,7 @@ if st.session_state.mode == "class" and cls:
                             cadet_reports = pd.DataFrame(columns=expected_cols)
         
                         st.dataframe(
-                            cadet_reports[["NAME","REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
+                            cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]],
                             use_container_width=True,
                             hide_index=True
                         )
@@ -436,6 +439,7 @@ if st.session_state.mode == "class" and cls:
                         with st.form("report_form"):
                             new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
                             new_report_date = st.date_input("Date of Report")
+                            new_nature = st.selectbox("Nature", ["I", "II", "III", "IV"])
                             new_demerits = st.number_input("Demerits", step=1)
                             submitted = st.form_submit_button("📤 Submit Report")
         
@@ -448,17 +452,49 @@ if st.session_state.mode == "class" and cls:
                                     name_disp,
                                     new_report.strip(),
                                     str(new_report_date),
-                                    cls,
+                                    new_nature,
                                     str(new_demerits)
                                 ]
                                 report_ws.append_row(new_row, value_input_option="USER_ENTERED")
         
-                                st.cache_data.clear()  # ✅ Clear only after writing
-                                time.sleep(0.75)  # Give sheet time to reflect
+                                st.cache_data.clear()
+                                time.sleep(0.75)
                                 st.success("✅ Report submitted successfully.")
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
+        
+                # Optional one-time header fix: Rename CLASS to NATURE
+                def rename_class_column_to_nature():
+                    try:
+                        report_ws = SS.worksheet("REPORTS")
+                        data = report_ws.get_all_values()
+        
+                        if not data:
+                            st.warning("REPORTS sheet is empty.")
+                            return
+        
+                        headers = data[0]
+                        if "CLASS" not in headers:
+                            st.info("✅ 'CLASS' column already renamed to 'NATURE'.")
+                            return
+        
+                        class_index = headers.index("CLASS")
+                        headers[class_index] = "NATURE"
+                        updated_data = [headers] + data[1:]
+        
+                        report_ws.clear()
+                        report_ws.update("A1", updated_data)
+                        st.success("✅ Renamed 'CLASS' column to 'NATURE' successfully.")
+                    except Exception as e:
+                        st.error(f"❌ Error updating 'REPORTS' sheet: {e}")
+        
+                with st.expander("🔧 Run one-time data fix"):
+                    if st.button("Rename 'CLASS' to 'NATURE' in REPORTS sheet"):
+                        rename_class_column_to_nature()
+        
+            except Exception as e:
+                st.error(f"❌ Unexpected error in conduct report section: {e}")
 
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
