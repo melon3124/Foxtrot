@@ -209,7 +209,7 @@ if st.session_state.mode == "class" and cls:
                 "3CL": "3CL ACAD"
             }
             acad_hist_map = {
-                "1CL": ("", "1CL ACAD HISTORY"),  # only current history
+                "1CL": ("", "1CL ACAD HISTORY"),
                 "2CL": ("1CL ACAD HISTORY", "2CL ACAD HISTORY"),
                 "3CL": ("2CL ACAD HISTORY", "3CL ACAD HISTORY")
             }
@@ -245,35 +245,35 @@ if st.session_state.mode == "class" and cls:
                         hist_prev_df = sheet_df(hist_prev_name) if hist_prev_name else pd.DataFrame()
                         hist_curr_df = sheet_df(hist_curr_name) if hist_curr_name else pd.DataFrame()
     
-                        def extract_grades(df):
+                        def extract_grades(df, grade_label="GRADE"):
                             if df.empty or "NAME" not in df.columns:
-                                return pd.DataFrame()
+                                return pd.DataFrame(columns=["SUBJECT", grade_label])
                             df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                             row = df[df["NAME_CLEANED"] == name_clean]
                             if row.empty:
-                                return pd.DataFrame()
+                                return pd.DataFrame(columns=["SUBJECT", grade_label])
                             row = row.iloc[0].drop(["NAME", "NAME_CLEANED"], errors='ignore')
                             return pd.DataFrame({
                                 "SUBJECT": row.index,
-                                "GRADE": pd.to_numeric(row.values, errors='coerce')
+                                grade_label: pd.to_numeric(row.values, errors='coerce')
                             })
     
-                        # Extract historical grades
-                        prev_df = extract_grades(hist_prev_df).rename(columns={"GRADE": "PREVIOUS GRADE"})
-                        curr_df = extract_grades(hist_curr_df).rename(columns={"GRADE": "CURRENT GRADE"})
+                        # Extract history
+                        prev_df = extract_grades(hist_prev_df, grade_label="PREVIOUS GRADE")
+                        curr_df = extract_grades(hist_curr_df, grade_label="CURRENT GRADE")
     
-                        # Merge history with current
+                        # Merge into one table
                         df = current_df.copy()
                         df = df.merge(prev_df, on="SUBJECT", how="left")
                         df = df.merge(curr_df, on="SUBJECT", how="left")
     
-                        # Calculate difference and status
+                        # Calculate improvement and status
                         df["INCREASED/DECREASED"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
                         df["STATUS"] = df["INCREASED/DECREASED"].apply(
                             lambda x: "Improved" if x > 0 else ("Declined" if x < 0 else "No Change") if pd.notna(x) else "N/A"
                         )
     
-                        # Show editable data editor
+                        # Display table
                         st.subheader("📘 Academic Grades Overview (Editable)")
                         st.data_editor(
                             df,
@@ -288,6 +288,10 @@ if st.session_state.mode == "class" and cls:
                             use_container_width=True,
                             hide_index=True
                         )
+    
+                        # Optional info message
+                        if prev_df.empty or curr_df.empty:
+                            st.info("Some historical grade data is missing or unavailable.")
     
         except Exception as e:
             st.error(f"Academic load error: {e}")
