@@ -396,12 +396,14 @@ if st.session_state.mode == "class" and cls:
                         }])
                         st.dataframe(merit_table, hide_index=True)
         
-                        # --- Conduct Reports Table (always show even if empty) ---
+                        # --- Conduct Reports Table ---
                         st.subheader("Conduct Reports")
         
                         expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]
-        
                         try:
+                            # Force cache clear so it loads the latest sheet
+                            st.cache_data.clear()
+        
                             reports_df = sheet_df("REPORTS")
                             reports_df.columns = [c.strip().upper() for c in reports_df.columns]
         
@@ -440,11 +442,13 @@ if st.session_state.mode == "class" and cls:
                                     str(new_demerits)
                                 ]
                                 report_ws.append_row(new_row, value_input_option="USER_ENTERED")
+        
                                 st.success("✅ Report submitted successfully.")
+                                time.sleep(0.75)  # let sheet update
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
-
-            except Exception as e:
-                st.error(f"Conduct tab error: {e}")
+        
+                    except Exception as e:
+                        st.error(f"Conduct tab error: {e}")
 
