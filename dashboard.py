@@ -200,40 +200,46 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-        with t2:  # Academics tab
-            try:
-                acad_sheet_map = {
-                    "1CL": "1CL ACAD",
-                    "2CL": "2CL ACAD",
-                    "3CL": "3CL ACAD"
-                }
-                acad = sheet_df(acad_sheet_map[cls])
-
-                if acad.empty:
-                    st.info("No Academic data available for this class.")
+    with t2:  # PFT tab
+        try:
+            acad_sheet_map = {
+                "1CL": "1CL ACAD",
+                "2CL": "2CL ACAD",
+                "3CL": "3CL ACAD"
+            }
+            acad = sheet_df(acad_sheet_map[cls])
+    
+            if acad.empty:
+                st.info("No PFT data available for this class.")
+            else:
+                target_name_col = "NAME"
+                if target_name_col not in acad.columns:
+                    st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet '{acad_sheet_map[cls]}'.")
+                    st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
                 else:
-                    target_name_col = "NAME"
-                    if target_name_col not in acad.columns:
-                        st.error(f"Error: Expected column '{target_name_col}' not found in the academic sheet '{acad_sheet_map[cls]}'.")
-                        st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
+                    acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+    
+                    r = acad[acad["NAME_CLEANED"] == name_clean]
+    
+                    if not r.empty:
+                        r = r.iloc[0]
+                        df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
+    
+                        # Create first table - PFT 1 | 1ST TERM
+                        st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
+                        df1 = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
+                        df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
+                        df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                        st.dataframe(df1[['Subject', 'Grade', 'Status']], hide_index=True)
+    
+                        # Create second table - PFT 2 | 2ND TERM (same data for now)
+                        st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
+                        df2 = df1.copy()  # Same structure/data for now
+                        st.dataframe(df2[['Subject', 'Grade', 'Status']], hide_index=True)
                     else:
-                        acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-
-                        r = acad[acad["NAME_CLEANED"] == name_clean]
-
-                        if not r.empty:
-                            r = r.iloc[0]
-                            df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
-
-                            df = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
-                            df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
-                            df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-
-                            st.dataframe(df[['Subject', 'Grade', 'Status']], hide_index=True)
-                        else:
-                            st.warning(f"No academic record found for {name_disp}.")
-            except Exception as e:
-                st.error(f"Academic load error: {e}")
+                        st.warning(f"No PFT record found for {name_disp}.")
+        except Exception as e:
+            st.error(f"PFT data load error: {e}")
 
         with t3:
             try:
