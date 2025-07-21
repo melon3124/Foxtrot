@@ -218,24 +218,26 @@ if st.session_state.mode == "class" and cls:
                     st.write(f"Available columns in '{acad_sheet_map[cls]}': {acad.columns.tolist()}")
                 else:
                     acad['NAME_CLEANED'] = acad[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-    
                     r = acad[acad["NAME_CLEANED"] == name_clean]
     
                     if not r.empty:
                         r = r.iloc[0]
                         df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
     
-                        # Create first table - PFT 1 | 1ST TERM
-                        st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
-                        df1 = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
-                        df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
-                        df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-                        st.dataframe(df1[['Subject', 'Grade', 'Status']], hide_index=True)
+                        # Shared logic for both tables
+                        def build_pft_table(df_source, label):
+                            df = pd.DataFrame({"Subject": df_source.index, "Grade": df_source.values})
+                            df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
+                            df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                            st.subheader(label)
+                            st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
     
-                        # Create second table - PFT 2 | 2ND TERM (same data for now)
-                        st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
-                        df2 = df1.copy()  # Same structure/data for now
-                        st.dataframe(df2[['Subject', 'Grade', 'Status']], hide_index=True)
+                        # --- PFT 1 Table ---
+                        build_pft_table(df_data, "🏋️‍♂️ PFT 1 | 1ST TERM")
+    
+                        # --- PFT 2 Table (duplicate for now) ---
+                        build_pft_table(df_data, "🏋️‍♂️ PFT 2 | 2ND TERM")
+    
                     else:
                         st.warning(f"No PFT record found for {name_disp}.")
         except Exception as e:
