@@ -371,84 +371,74 @@ if st.session_state.mode == "class" and cls:
                     "2CL": "2CL CONDUCT",
                     "3CL": "3CL CONDUCT"
                 }
-                sheet_name = conduct_sheet_map.get(cls)
         
+                sheet_name = conduct_sheet_map.get(cls)
                 if not sheet_name:
                     st.warning("Please select a valid class to view conduct data.")
                 else:
                     conduct = sheet_df(sheet_name)
-                    if conduct.empty:
-                        st.info(f"No conduct data found for {sheet_name}.")
+                    conduct.columns = [c.strip().lower() for c in conduct.columns]
+                    conduct["name_cleaned"] = conduct["name"].astype(str).apply(clean_cadet_name_for_comparison)
+                    cadet_data = conduct[conduct["name_cleaned"] == name_clean].copy()
+        
+                    if cadet_data.empty:
+                        st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                     else:
-                        conduct.columns = [c.strip().lower() for c in conduct.columns]
-                        required_cols = {"name", "merits", "reports", "date of report", "class"}
-                        missing = required_cols - set(conduct.columns)
-                        if missing:
-                            st.error(f"Missing expected columns in {sheet_name}: {missing}")
-                        else:
-                            conduct["name_cleaned"] = conduct["name"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_data = conduct[conduct["name_cleaned"] == name_clean].copy()
+                        st.subheader("Merits Summary")
+                        total_merits = cadet_data["merits"].astype(float).sum()
+                        status = "Failed" if total_merits < 0 else "Passed"
+                        merit_table = pd.DataFrame([{
+                            "Name": name_disp,
+                            "Merits": total_merits,
+                            "Status": status
+                        }])
+                        st.dataframe(merit_table, hide_index=True)
         
-                            if cadet_data.empty:
-                                st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
+                        # ------------------- Load Existing Reports -------------------
+                        try:
+                            reports_df = sheet_df("REPORTS")
+                            reports_df.columns = [c.strip().upper() for c in reports_df.columns]
+                            reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
+        
+                            st.subheader("Conduct Reports")
+                            if cadet_reports.empty:
+                                st.info("No reports submitted for this cadet yet.")
                             else:
-                                st.subheader("Merits Summary")
-        
-                                total_merits = cadet_data["merits"].astype(float).sum()
-                                status = "Failed" if total_merits < 0 else "Passed"
-                                merit_table = pd.DataFrame([{
-                                    "Name": name_disp,
-                                    "Merits": total_merits,
-                                    "Status": status
-                                }])
-                                st.dataframe(merit_table, hide_index=True)
-        
-                                st.subheader("Conduct Reports")
-        
-                                editable_cols = ["reports", "date of report", "class", "demerits"]
-        
-                                # Initialize new_reports only once
-                                if "new_reports" not in st.session_state:
-                                    base_data = cadet_data[["reports", "date of report", "class"]].copy()
-                                    base_data["demerits"] = ""
-                                    st.session_state.new_reports = base_data
-        
-                                # Editor without adding rows on every rerun
-                                edited = st.data_editor(
-                                    st.session_state.new_reports,
-                                    num_rows="dynamic",
+                                st.dataframe(
+                                    cadet_reports[["REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
                                     use_container_width=True,
-                                    hide_index=True,
-                                    key="conduct_editor"
+                                    hide_index=True
                                 )
+                        except Exception as e:
+                            st.error(f"❌ Error loading reports: {e}")
         
-                                if st.button("📤 Submit New Reports to 'Reports' Sheet"):
-                                    try:
-                                        new_entries = edited.copy()
-                                        new_entries = new_entries[new_entries["reports"].astype(str).str.strip() != ""]
+                        # ------------------- Add New Report -------------------
+                        st.subheader("➕ Add New Conduct Report")
+                        with st.form("report_form"):
+                            new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
+                            new_report_date = st.date_input("Date of Report")
+                            new_demerits = st.number_input("Demerits", step=1)
+                            submitted = st.form_submit_button("📤 Submit Report")
         
-                                        if not new_entries.empty:
-                                            new_entries["name"] = name_disp
-                                            new_entries["class level"] = cls
-                                            new_entries["submitted by"] = st.session_state.username
-                                            new_entries["timestamp"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-                                            final_cols = ["name", "class level", "reports", "date of report", "demerits", "submitted by", "timestamp"]
-                                            rows_to_append = new_entries[final_cols].values.tolist()
-        
-                                            # Append to Reports sheet
-                                            report_ws = SS.worksheet("REPORTS")
-                                            report_ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+                        if submitted:
+                            try:
+                                report_ws = SS.worksheet("REPORTS")  # Must be exact name
+                                new_row = [
+                                    name_disp,
+                                    new_report.strip(),
+                                    str(new_report_date),
+                                    cls,
+                                    str(new_demerits)
+                                ]
+                                report_ws.append_row(new_row, value_input_option="USER_ENTERED")
+                                st.success("✅ Report submitted successfully.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
+    except Exception as e:
+        st.error(f"Conduct tab error: {e}")
 
-        
-                                            # Refresh table with newly submitted data only
-                                            st.session_state.new_reports = new_entries[editable_cols].copy()
-        
-                                            st.success("✅ New reports submitted.")
-                                        else:
-                                            st.info("No valid new reports to submit.")
-                                    except Exception as e:
-                                        st.error(f"❌ Error submitting to 'Reports' sheet: {e}")
 
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
