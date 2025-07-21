@@ -437,8 +437,9 @@ if st.session_state.mode == "class" and cls:
                                             rows_to_append = new_entries[final_cols].values.tolist()
         
                                             # Append to Reports sheet
-                                            report_ws = SS.worksheet("Reports")  # Use exact name
+                                            report_ws = SS.worksheet("REPORTS")
                                             report_ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+
         
                                             # Refresh table with newly submitted data only
                                             st.session_state.new_reports = new_entries[editable_cols].copy()
