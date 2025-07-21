@@ -200,7 +200,7 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-    with t2:  # PFT tab
+    with t2: 
         try:
             acad_sheet_map = {
                 "1CL": "1CL ACAD",
@@ -224,27 +224,6 @@ if st.session_state.mode == "class" and cls:
                         r = r.iloc[0]
                         df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
     
-                        # --- PFT 1 Table ---
-                        st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
-                        df1 = pd.DataFrame({
-                            "Subject": df_data.index,
-                            "Grade": df_data.values
-                        })
-                        df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
-                        df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-                        st.dataframe(df1[["Subject", "Grade", "Status"]], hide_index=True)
-    
-                        # --- PFT 2 Table (explicit blank table with same columns) ---
-                        st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
-                        df2 = pd.DataFrame({
-                            "Subject": df1["Subject"],
-                            "Grade": [""] * len(df1),
-                            "Status": [""] * len(df1)
-                        })
-                        st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
-    
-                    else:
-                        st.warning(f"No PFT record found for {name_disp}.")
         except Exception as e:
             st.error(f"PFT data load error: {e}")
 
@@ -300,6 +279,28 @@ if st.session_state.mode == "class" and cls:
                                 })
         
                             st.dataframe(pd.DataFrame(table), hide_index=True)
+
+                                        # --- PFT 1 Table ---
+                            st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
+                            df1 = pd.DataFrame({
+                                "Subject": df_data.index,
+                                "Grade": df_data.values
+                            })
+                            df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
+                            df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                            st.dataframe(df1[["Subject", "Grade", "Status"]], hide_index=True)
+        
+                            # --- PFT 2 Table (explicit blank table with same columns) ---
+                            st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
+                            df2 = pd.DataFrame({
+                                "Subject": df1["Subject"],
+                                "Grade": [""] * len(df1),
+                                "Status": [""] * len(df1)
+                            })
+                            st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
+                        else:
+                            st.warning(f"No PFT record found for {name_disp}.")
+                            
             except Exception as e:
                 st.error(f"PFT load error: {e}")
                 
