@@ -381,18 +381,19 @@ if st.session_state.mode == "class" and cls:
                         st.info(f"No conduct data found for {sheet_name}.")
                     else:
                         conduct.columns = [c.strip().upper() for c in conduct.columns]
-                        if "NAME" not in conduct.columns or "MERITS" not in conduct.columns:
-                            st.error(f"Missing expected columns in {sheet_name}. Found: {conduct.columns.tolist()}")
+                        required_cols = {"NAME", "MERITS", "REPORTS", "DATE OF REPORT", "CLASS"}
+                        missing = required_cols - set(conduct.columns)
+                        if missing:
+                            st.error(f"Missing expected columns in {sheet_name}: {missing}")
                         else:
                             conduct["NAME_CLEANED"] = conduct["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean]
+                            cadet_data = conduct[conduct["NAME_CLEANED"] == name_clean].copy()
         
                             if cadet_data.empty:
                                 st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                             else:
-                                cadet_data = cadet_data.copy()
+                                st.subheader("Merits Summary")
         
-                                # First table: Merits and status
                                 total_merits = cadet_data["MERITS"].astype(float).sum()
                                 status = "Failed" if total_merits < 0 else "Passed"
                                 merit_table = pd.DataFrame([{
@@ -400,14 +401,57 @@ if st.session_state.mode == "class" and cls:
                                     "Merits": total_merits,
                                     "Status": status
                                 }])
-                                st.subheader("Merits Summary")
                                 st.dataframe(merit_table, hide_index=True)
         
-                                # Second table: Reports with Date and Class
-                                report_table = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
-                                report_table.columns = ["Reports", "Date of Report", "Class"]
                                 st.subheader("Conduct Reports")
-                                st.dataframe(report_table, hide_index=True)
+        
+                                # Prepare editable data
+                                editable_cols = ["Reports", "Date of Report", "Class", "Demerits"]
+                                editable_data = cadet_data[["REPORTS", "DATE OF REPORT", "CLASS"]].copy()
+                                editable_data.columns = editable_cols[:-1]
+                                editable_data["Demerits"] = ""
+        
+                                # Add blank row for new entry
+                                empty_row = pd.DataFrame([{col: "" for col in editable_cols}])
+                                editable_data = pd.concat([editable_data, empty_row], ignore_index=True)
+        
+                                # Editor
+                                edited = st.data_editor(
+                                    editable_data,
+                                    num_rows="dynamic",
+                                    use_container_width=True,
+                                    hide_index=True,
+                                    key="conduct_editor"
+                                )
+        
+                                # Save new entries only
+                                if st.button("📤 Submit New Reports to 'REPORTS' Sheet"):
+                                    new_entries = edited.dropna(how='all')  # Drop fully empty rows
+                                    new_entries = new_entries[new_entries["Reports"].str.strip() != ""]  # Only rows with actual reports
+        
+                                    if not new_entries.empty:
+                                        # Add identity columns: name and timestamp
+                                        new_entries["Name"] = name_disp
+                                        new_entries["Class Level"] = cls
+                                        new_entries["Submitted By"] = st.session_state.username
+                                        new_entries["Timestamp"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+                                        # Reorder columns if needed
+                                        columns = ["Name", "Class Level", "Reports", "Date of Report", "Demerits", "Submitted By", "Timestamp"]
+                                        report_rows = new_entries[columns].values.tolist()
+        
+                                        try:
+                                            report_ws = SS.worksheet("REPORTS")
+                                            report_ws.append_rows(report_rows, value_input_option="USER_ENTERED")
+                                            st.success("✅ New reports successfully submitted.")
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"❌ Failed to append to 'REPORTS' sheet: {e}")
+                                    else:
+                                        st.info("No new reports to submit.")
+    except Exception as e:
+        st.error(f"Conduct tab error: {e}")
+
         
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
