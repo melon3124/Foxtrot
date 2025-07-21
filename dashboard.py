@@ -270,24 +270,6 @@ if st.session_state.mode == "class" and cls:
                                 ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
                                 ("3.2KM Run", "RUN", "RUN_GRADES")
                             ]
-        
-                            table = []
-                            for label, raw_col, grade_col in exercises:
-                                reps = cadet.get(raw_col, "")
-                                grade = cadet.get(grade_col, "N/A")
-                                status = (
-                                    "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                                    else "Failed" if str(grade).strip().isdigit()
-                                    else "N/A"
-                                )
-                                table.append({
-                                    "Exercise": label,
-                                    "Repetitions": reps,
-                                    "Grade": grade,
-                                    "Status": status
-                                })
-        
-                            st.dataframe(pd.DataFrame(table), hide_index=True)
 
                                         # --- PFT 1 Table ---
                             st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
