@@ -202,61 +202,81 @@ if st.session_state.mode == "class" and cls:
 
     with t2: 
         try:
-            # Sheet name maps
+            acad_sheet_map = {
+                "1CL": "1CL ACAD",
+                "2CL": "2CL ACAD",
+                "3CL": "3CL ACAD"
+            }
             acad_hist_map = {
-                "1CL": ("", "1CL ACAD HISTORY"),
-                "2CL": ("1CL ACAD HISTORY", "2CL ACAD HISTORY"),
-                "3CL": ("2CL ACAD HISTORY", "3CL ACAD HISTORY")
+                "1CL": "1CL ACAD HISTORY",
+                "2CL": "2CL ACAD HISTORY",
+                "3CL": "3CL ACAD HISTORY"
             }
     
-            hist_prev_name, hist_curr_name = acad_hist_map[cls]
-            hist_prev_df = sheet_df(hist_prev_name) if hist_prev_name else pd.DataFrame()
-            hist_curr_df = sheet_df(hist_curr_name) if hist_curr_name else pd.DataFrame()
+            # Load sheets
+            acad = sheet_df(acad_sheet_map[cls])
+            hist_df = sheet_df(acad_hist_map[cls])
     
-            def extract_grades(df, label):
-                if df.empty or "NAME" not in df.columns:
-                    return pd.DataFrame(columns=["SUBJECT", label])
-                df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                row = df[df["NAME_CLEANED"] == name_clean]
-                if row.empty:
-                    return pd.DataFrame(columns=["SUBJECT", label])
-                row = row.iloc[0].drop(["NAME", "NAME_CLEANED"], errors='ignore')
-                return pd.DataFrame({
-                    "SUBJECT": row.index,
-                    label: pd.to_numeric(row.values, errors='coerce')
-                })
-    
-            prev_df = extract_grades(hist_prev_df, label="GRADE")
-            curr_df = extract_grades(hist_curr_df, label="CURRENT GRADE")
-    
-            if prev_df.empty:
-                st.warning("No previous academic history found.")
+            # Validate
+            if acad.empty:
+                st.info("No academic data available for this class.")
+            elif "NAME" not in acad.columns:
+                st.error(f"Expected column 'NAME' not found in '{acad_sheet_map[cls]}'.")
             else:
-                # Merge current into previous
-                df = prev_df.merge(curr_df, on="SUBJECT", how="left")
+                acad["NAME_CLEANED"] = acad["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                row = acad[acad["NAME_CLEANED"] == name_clean]
     
-                # Calculate improvement
-                df["INCREASED/DECREASED"] = df["CURRENT GRADE"] - df["GRADE"]
-                df["STATUS"] = df["INCREASED/DECREASED"].apply(
-                    lambda x: "Improved" if x > 0 else ("Declined" if x < 0 else "No Change") if pd.notna(x) else "N/A"
-                )
+                if row.empty:
+                    st.warning(f"No academic record found for {name_disp}.")
+                else:
+                    row = row.iloc[0].drop(["NAME", "NAME_CLEANED"], errors='ignore')
+                    df = pd.DataFrame({
+                        "SUBJECT": row.index,
+                        "PREVIOUS GRADE": pd.to_numeric(row.values, errors='coerce')
+                    })
     
-                st.subheader("📘 Academic Grades Overview (Editable)")
-                st.data_editor(
-                    df,
-                    column_config={
-                        "SUBJECT": st.column_config.TextColumn("SUBJECT", disabled=True),
-                        "GRADE": st.column_config.NumberColumn("GRADE", min_value=0, max_value=100),
-                        "CURRENT GRADE": st.column_config.NumberColumn("CURRENT GRADE", disabled=True),
-                        "INCREASED/DECREASED": st.column_config.NumberColumn("Δ", disabled=True),
-                        "STATUS": st.column_config.TextColumn("STATUS", disabled=True),
-                    },
-                    use_container_width=True,
-                    hide_index=True
-                )
+                    # Extract current grades from history
+                    def extract_history(df_hist):
+                        if df_hist.empty or "NAME" not in df_hist.columns:
+                            return pd.DataFrame(columns=["SUBJECT", "CURRENT GRADE"])
+                        df_hist["NAME_CLEANED"] = df_hist["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                        row = df_hist[df_hist["NAME_CLEANED"] == name_clean]
+                        if row.empty:
+                            return pd.DataFrame(columns=["SUBJECT", "CURRENT GRADE"])
+                        row = row.iloc[0].drop(["NAME", "NAME_CLEANED"], errors='ignore')
+                        return pd.DataFrame({
+                            "SUBJECT": row.index,
+                            "CURRENT GRADE": pd.to_numeric(row.values, errors='coerce')
+                        })
     
-                if curr_df.empty:
-                    st.info("Current academic history is missing. Showing only previous grades.")
+                    current_df = extract_history(hist_df)
+    
+                    # Merge current grades
+                    df = df.merge(current_df, on="SUBJECT", how="left")
+    
+                    # Compute delta and status
+                    df["INCREASED/DECREASED"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
+                    df["STATUS"] = df["INCREASED/DECREASED"].apply(
+                        lambda x: "Improved" if x > 0 else ("Declined" if x < 0 else "No Change") if pd.notna(x) else "N/A"
+                    )
+    
+                    # Display editor
+                    st.subheader("📘 Academic Grades Overview (Editable)")
+                    st.data_editor(
+                        df,
+                        column_config={
+                            "SUBJECT": st.column_config.TextColumn("SUBJECT", disabled=True),
+                            "PREVIOUS GRADE": st.column_config.NumberColumn("GRADE", min_value=0, max_value=100),
+                            "CURRENT GRADE": st.column_config.NumberColumn("CURRENT GRADE", disabled=True),
+                            "INCREASED/DECREASED": st.column_config.NumberColumn("Δ", disabled=True),
+                            "STATUS": st.column_config.TextColumn("STATUS", disabled=True),
+                        },
+                        use_container_width=True,
+                        hide_index=True
+                    )
+    
+                    if current_df.empty:
+                        st.info("Current academic history is missing. Only showing grades from the current academic sheet.")
     
         except Exception as e:
             st.error(f"Academic load error: {e}")
