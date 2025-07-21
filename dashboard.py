@@ -449,8 +449,6 @@ if st.session_state.mode == "class" and cls:
                                             st.error(f"❌ Failed to append to 'REPORTS' sheet: {e}")
                                     else:
                                         st.info("No new reports to submit.")
-    except Exception as e:
-        st.error(f"Conduct tab error: {e}")
 
         
             except Exception as e:
