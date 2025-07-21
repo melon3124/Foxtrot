@@ -270,25 +270,23 @@ if st.session_state.mode == "class" and cls:
                                 ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
                                 ("3.2KM Run", "RUN", "RUN_GRADES")
                             ]
-
-                                        # --- PFT 1 Table ---
-                            st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
-                            df1 = pd.DataFrame({
-                                "Subject": df_data.index,
-                                "Grade": df_data.values
-                            })
-                            df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
-                            df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-                            st.dataframe(df1[["Subject", "Grade", "Status"]], hide_index=True)
+                                 table = []
+                            for label, raw_col, grade_col in exercises:
+                                reps = cadet.get(raw_col, "")
+                                grade = cadet.get(grade_col, "N/A")
+                                status = (
+                                    "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                                    else "Failed" if str(grade).strip().isdigit()
+                                    else "N/A"
+                                )
+                                table.append({
+                                    "Exercise": label,
+                                    "Repetitions": reps,
+                                    "Grade": grade,
+                                    "Status": status
+                                })
         
-                            # --- PFT 2 Table (explicit blank table with same columns) ---
-                            st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
-                            df2 = pd.DataFrame({
-                                "Subject": df1["Subject"],
-                                "Grade": [""] * len(df1),
-                                "Status": [""] * len(df1)
-                            })
-                            st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
+                            st.dataframe(pd.DataFrame(table), hide_index=True)
                             
             except Exception as e:
                 st.error(f"PFT load error: {e}")
