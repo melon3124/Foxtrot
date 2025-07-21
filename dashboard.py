@@ -202,50 +202,44 @@ if st.session_state.mode == "class" and cls:
 
     with t2: 
         try:
-            # Maps for data sources
             acad_sheet_map = {
                 "1CL": "1CL ACAD",
                 "2CL": "2CL ACAD",
                 "3CL": "3CL ACAD"
             }
-            hist_sheet_map = {
+            history_sheet_map = {
                 "1CL": "1CL ACAD HISTORY",
                 "2CL": "2CL ACAD HISTORY",
                 "3CL": "3CL ACAD HISTORY"
             }
     
             acad_df = sheet_df(acad_sheet_map[cls])
-            hist_df = sheet_df(hist_sheet_map[cls])
+            history_df = sheet_df(history_sheet_map[cls])
     
-            # Validate name column in both sheets
-            possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
-            target_name_col = next((col for col in acad_df.columns if col.upper() in [c.upper() for c in possible_name_cols]), None)
-            hist_name_col = next((col for col in hist_df.columns if col.upper() in [c.upper() for c in possible_name_cols]), None)
-    
-            if not target_name_col or not hist_name_col:
-                st.error("❌ 'NAME' column not found in academic or history sheet.")
+            # Identify name column
+            name_col = next((col for col in acad_df.columns if col.upper() in ["NAME", "FULL NAME", "CADET NAME"]), None)
+            if not name_col:
+                st.error("❌ Could not find a name column in the academic sheet.")
             else:
-                # Clean cadet names for matching
-                acad_df["NAME_CLEANED"] = acad_df[target_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                hist_df["NAME_CLEANED"] = hist_df[hist_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                acad_df["NAME_CLEANED"] = acad_df[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                r = acad_df[acad_df["NAME_CLEANED"] == name_clean]
     
-                acad_row = acad_df[acad_df["NAME_CLEANED"] == name_clean]
-                hist_row = hist_df[hist_df["NAME_CLEANED"] == name_clean]
-    
-                if acad_row.empty:
+                if r.empty:
                     st.warning(f"No academic record found for {name_disp}.")
                 else:
-                    acad_row = acad_row.iloc[0].drop([target_name_col, "NAME_CLEANED"], errors="ignore")
-                    hist_row = hist_row.iloc[0].drop([hist_name_col, "NAME_CLEANED"], errors="ignore") if not hist_row.empty else pd.Series()
+                    acad_row = r.iloc[0].drop([name_col, "NAME_CLEANED"], errors='ignore')
     
-                    # Construct base table
+                    # Find matching row in history (if available)
+                    history_df["NAME_CLEANED"] = history_df[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                    h_row = history_df[history_df["NAME_CLEANED"] == name_clean]
+                    h_row = h_row.iloc[0].drop([name_col, "NAME_CLEANED"], errors='ignore') if not h_row.empty else pd.Series()
+    
                     df = pd.DataFrame({
                         "SUBJECT": acad_row.index,
                         "PREVIOUS GRADE": pd.to_numeric(acad_row.values, errors='coerce'),
-                        "CURRENT GRADE": pd.to_numeric([hist_row.get(subject, None) for subject in acad_row.index], errors='coerce')
+                        "CURRENT GRADE": pd.to_numeric([h_row.get(subject, None) for subject in acad_row.index], errors='coerce')
                     })
     
-                    # Determine grade trend and status
                     df["INCREASED/DECREASED"] = df.apply(
                         lambda row: (
                             "Increased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
@@ -259,58 +253,63 @@ if st.session_state.mode == "class" and cls:
                         lambda g: "Proficient" if pd.notna(g) and g >= 7 else "Deficient" if pd.notna(g) else "N/A"
                     )
     
-                    st.subheader("📚 Academic Grades Summary")
+                    st.subheader("📚 Academic Progress")
                     st.dataframe(df[["SUBJECT", "PREVIOUS GRADE", "CURRENT GRADE", "INCREASED/DECREASED", "STATUS"]],
                                  use_container_width=True, hide_index=True)
     
                     # --- Grade Input Form ---
-                    st.subheader("➕ Update Current Grades")
-                    with st.form("grade_update_form"):
+                    st.subheader("📝 Input New Grades (These will appear as CURRENT GRADE)")
+                    with st.form("update_grades_form"):
+                        input_cols = st.columns(len(df))
                         new_grades = {}
-                        for subject in df["SUBJECT"]:
-                            new_grade = st.number_input(f"{subject} grade", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", key=f"grade_{subject}")
-                            new_grades[subject] = new_grade if new_grade != 0.0 else None
+                        for idx, subject in enumerate(df["SUBJECT"]):
+                            with input_cols[idx]:
+                                new_value = st.text_input(subject, value="", key=f"grade_input_{subject}")
+                                try:
+                                    new_grades[subject] = float(new_value) if new_value.strip() else None
+                                except:
+                                    new_grades[subject] = None
     
                         submitted = st.form_submit_button("📤 Submit Grades")
     
                     if submitted:
                         try:
-                            # Load worksheet
-                            hist_ws = SS.worksheet(hist_sheet_map[cls])
-                            hist_data = hist_ws.get_all_values()
-                            headers = hist_data[0]
-                            name_index = next((i for i, h in enumerate(headers) if h.strip().upper() in ["NAME", "FULL NAME", "CADET NAME"]), None)
+                            history_ws = SS.worksheet(history_sheet_map[cls])
+                            sheet_data = history_ws.get_all_values()
+                            headers = sheet_data[0]
     
-                            # Find cadet row index
-                            cadet_row_index = None
-                            for idx, row in enumerate(hist_data[1:], start=2):
-                                if clean_cadet_name_for_comparison(row[name_index]) == name_clean:
-                                    cadet_row_index = idx
+                            name_idx = next((i for i, h in enumerate(headers) if h.strip().upper() in ["NAME", "FULL NAME", "CADET NAME"]), None)
+                            row_idx = None
+    
+                            for idx, row in enumerate(sheet_data[1:], start=2):
+                                if clean_cadet_name_for_comparison(row[name_idx]) == name_clean:
+                                    row_idx = idx
                                     break
     
-                            if cadet_row_index is None:
-                                # Add new row
-                                new_row = [""] * len(headers)
-                                new_row[name_index] = name_disp
-                                for subject, grade in new_grades.items():
-                                    if subject in headers and grade is not None:
-                                        sub_index = headers.index(subject)
-                                        new_row[sub_index] = grade
-                                hist_ws.append_row(new_row, value_input_option="USER_ENTERED")
-                            else:
+                            if row_idx:
                                 # Update existing row
                                 for subject, grade in new_grades.items():
                                     if subject in headers and grade is not None:
-                                        sub_index = headers.index(subject)
-                                        hist_ws.update_cell(cadet_row_index, sub_index + 1, grade)
+                                        subject_col_idx = headers.index(subject)
+                                        history_ws.update_cell(row_idx, subject_col_idx + 1, grade)
+                            else:
+                                # Append new row
+                                new_row = [""] * len(headers)
+                                new_row[name_idx] = name_disp
+                                for subject, grade in new_grades.items():
+                                    if subject in headers and grade is not None:
+                                        col_idx = headers.index(subject)
+                                        new_row[col_idx] = grade
+                                history_ws.append_row(new_row, value_input_option="USER_ENTERED")
     
                             st.cache_data.clear()
                             time.sleep(1)
-                            st.success("✅ Grades submitted successfully.")
+                            st.success("✅ Grades submitted and reflected as 'Current Grade'.")
                             st.rerun()
     
                         except Exception as e:
-                            st.error(f"❌ Error submitting grades: {e}")
+                            st.error(f"❌ Error updating grade history: {e}")
+    
         except Exception as e:
             st.error(f"❌ Unexpected academic section error: {e}")
 
