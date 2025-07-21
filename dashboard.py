@@ -253,12 +253,22 @@ if st.session_state.mode == "class" and cls:
                             df = df.merge(current_df, on="SUBJECT", how="left")
                         else:
                             df["CURRENT GRADE"] = None
-    
-                    # Difference + Status
-                    df["INCREASED/DECREASED"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
-                    df["STATUS"] = df["INCREASED/DECREASED"].apply(
-                        lambda x: "Improved" if x > 0 else "Declined" if x < 0 else ("No Change" if pd.notna(x) else "N/A")
-                    )
+            
+                            # Difference + Status
+                            df["INCREASED/DECREASED"] = df.apply(
+                            lambda row: (
+                                "Increased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
+                                else "Decreased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] < row["PREVIOUS GRADE"]
+                                else "No Change" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"])
+                                else "N/A"
+                            ),
+                            axis=1
+                        )
+                        
+                        df["STATUS"] = df["CURRENT GRADE"].apply(
+                            lambda g: "Proficient" if pd.notna(g) and g >= 7 else "Deficient" if pd.notna(g) else "N/A"
+                        )
+
     
                     # Show table
                     st.subheader("📘 Academic Grades Overview")
