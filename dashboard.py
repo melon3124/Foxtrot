@@ -224,19 +224,20 @@ if st.session_state.mode == "class" and cls:
                         r = r.iloc[0]
                         df_data = r.drop([col for col in r.index if col in [target_name_col, 'NAME_CLEANED']], errors='ignore')
     
-                        # Shared logic for both tables
-                        def build_pft_table(df_source, label):
-                            df = pd.DataFrame({"Subject": df_source.index, "Grade": df_source.values})
-                            df["Grade_Numeric"] = pd.to_numeric(df["Grade"], errors='coerce')
-                            df["Status"] = df["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
-                            st.subheader(label)
-                            st.dataframe(df[["Subject", "Grade", "Status"]], hide_index=True)
+                        # First table - PFT 1 | 1ST TERM
+                        st.subheader("🏋️‍♂️ PFT 1 | 1ST TERM")
+                        df1 = pd.DataFrame({"Subject": df_data.index, "Grade": df_data.values})
+                        df1["Grade_Numeric"] = pd.to_numeric(df1["Grade"], errors='coerce')
+                        df1["Status"] = df1["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                        st.dataframe(df1[["Subject", "Grade", "Status"]], hide_index=True)
     
-                        # --- PFT 1 Table ---
-                        build_pft_table(df_data, "🏋️‍♂️ PFT 1 | 1ST TERM")
-    
-                        # --- PFT 2 Table (duplicate for now) ---
-                        build_pft_table(df_data, "🏋️‍♂️ PFT 2 | 2ND TERM")
+                        # Second table - PFT 2 | 2ND TERM
+                        st.subheader("🏋️‍♂️ PFT 2 | 2ND TERM")
+                        # Optional: Use empty table or same data again for now
+                        df2 = pd.DataFrame({"Subject": df_data.index, "Grade": [""] * len(df_data)})
+                        df2["Grade_Numeric"] = pd.to_numeric(df2["Grade"], errors='coerce')
+                        df2["Status"] = df2["Grade_Numeric"].apply(lambda g: "Proficient" if g >= 7 else "Deficient" if pd.notna(g) else "N/A")
+                        st.dataframe(df2[["Subject", "Grade", "Status"]], hide_index=True)
     
                     else:
                         st.warning(f"No PFT record found for {name_disp}.")
