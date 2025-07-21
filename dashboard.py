@@ -426,7 +426,7 @@ if st.session_state.mode == "class" and cls:
                             cadet_reports = pd.DataFrame(columns=expected_cols)
         
                         st.dataframe(
-                            cadet_reports[["REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
+                            cadet_reports[["NAME","REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
                             use_container_width=True,
                             hide_index=True
                         )
