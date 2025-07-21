@@ -7,6 +7,8 @@ import re
 import unicodedata
 import time
 
+if "last_report_fetch" not in st.session_state:
+    st.session_state["last_report_fetch"] = 0
 # --- Session State Initialization ---
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
@@ -399,13 +401,17 @@ if st.session_state.mode == "class" and cls:
         
                         # --- Conduct Reports Table ---
                         st.subheader("Conduct Reports")
-        
                         expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]
-                        try:
-                            # Force cache clear so it loads the latest sheet
-                            st.cache_data.clear()
         
-                            reports_df = sheet_df("REPORTS")
+                        try:
+                            now = time.time()
+                            if now - st.session_state["last_report_fetch"] > 10:
+                                reports_df = sheet_df("REPORTS")
+                                st.session_state["last_report_df"] = reports_df
+                                st.session_state["last_report_fetch"] = now
+                            else:
+                                reports_df = st.session_state.get("last_report_df", pd.DataFrame(columns=expected_cols))
+        
                             reports_df.columns = [c.strip().upper() for c in reports_df.columns]
         
                             if not set(expected_cols).issubset(set(reports_df.columns)):
@@ -414,6 +420,7 @@ if st.session_state.mode == "class" and cls:
                             else:
                                 reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                                 cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
+        
                         except Exception as e:
                             st.warning(f"⚠️ Could not load reports sheet: {e}")
                             cadet_reports = pd.DataFrame(columns=expected_cols)
@@ -434,7 +441,9 @@ if st.session_state.mode == "class" and cls:
         
                         if submitted:
                             try:
-                                report_ws = SS.worksheet("REPORTS")  # Must be exact name
+                                time.sleep(0.5)  # Allow smoother API write
+        
+                                report_ws = SS.worksheet("REPORTS")
                                 new_row = [
                                     name_disp,
                                     new_report.strip(),
@@ -444,8 +453,9 @@ if st.session_state.mode == "class" and cls:
                                 ]
                                 report_ws.append_row(new_row, value_input_option="USER_ENTERED")
         
+                                st.cache_data.clear()  # ✅ Clear only after writing
+                                time.sleep(0.75)  # Give sheet time to reflect
                                 st.success("✅ Report submitted successfully.")
-                                time.sleep(0.75)  # let sheet update
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
