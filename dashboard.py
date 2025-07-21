@@ -368,6 +368,10 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"Military tab error: {e}")
                 
         with t5:
+            if "cadet_name" not in st.session_state:
+                st.warning("⚠️ Please select a cadet first.")
+                st.stop()
+
             try:
                 # --- Class Mapping and Extracting from Session ---
                 class_map = {"1CL": "I", "2CL": "II", "3CL": "III"}
