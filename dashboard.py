@@ -463,10 +463,6 @@ if st.session_state.mode == "class" and cls:
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
 
-    except Exception as e:
-        st.error(f"Conduct tab error: {e}")
-
-
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
 
