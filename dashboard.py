@@ -380,7 +380,6 @@ if st.session_state.mode == "class" and cls:
                     if conduct.empty:
                         st.info(f"No conduct data found for {sheet_name}.")
                     else:
-                        # Ensure all columns are lowercase for matching
                         conduct.columns = [c.strip().lower() for c in conduct.columns]
                         required_cols = {"name", "merits", "reports", "date of report", "class"}
                         missing = required_cols - set(conduct.columns)
@@ -406,17 +405,22 @@ if st.session_state.mode == "class" and cls:
         
                                 st.subheader("Conduct Reports")
         
-                                # Prepare editable table
+                                # Prepare table
                                 editable_cols = ["reports", "date of report", "class", "demerits"]
-                                editable_data = cadet_data[["reports", "date of report", "class"]].copy()
-                                editable_data["demerits"] = ""
+                                if "new_reports" not in st.session_state:
+                                    editable_data = cadet_data[["reports", "date of report", "class"]].copy()
+                                    editable_data["demerits"] = ""
+                                    st.session_state.new_reports = editable_data
         
-                                # Add a blank row for input
+                                # Add a blank row
                                 empty_row = pd.DataFrame([{col: "" for col in editable_cols}])
-                                editable_data = pd.concat([editable_data, empty_row], ignore_index=True)
+                                st.session_state.new_reports = pd.concat(
+                                    [st.session_state.new_reports, empty_row],
+                                    ignore_index=True
+                                )
         
                                 edited = st.data_editor(
-                                    editable_data,
+                                    st.session_state.new_reports,
                                     num_rows="dynamic",
                                     use_container_width=True,
                                     hide_index=True,
@@ -434,20 +438,29 @@ if st.session_state.mode == "class" and cls:
                                             new_entries["submitted by"] = st.session_state.username
                                             new_entries["timestamp"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
         
-                                            # Set column order for 'REPORTS' sheet
                                             final_cols = ["name", "class level", "reports", "date of report", "demerits", "submitted by", "timestamp"]
                                             rows_to_append = new_entries[final_cols].values.tolist()
         
                                             # Append to Google Sheet
-                                            report_ws = SS.worksheet("REPORTS")
+                                            try:
+                                                report_ws = SS.worksheet("Reports")  # Adjust to actual name
+                                            except Exception as e:
+                                                st.error(f"Sheet access error: {e}")
+                                                st.stop()
+        
                                             report_ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
         
-                                            st.success("✅ New reports successfully submitted.")
-                                            st.rerun()
+                                            # Keep the submitted reports in the table
+                                            st.session_state.new_reports = new_entries[editable_cols].copy()
+        
+                                            st.success("✅ New reports submitted and added to table.")
                                         else:
                                             st.info("No valid new reports to submit.")
                                     except Exception as e:
-                                        st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
+                                        st.error(f"❌ Error submitting to 'Reports' sheet: {e}")
+    except Exception as e:
+        st.error(f"Conduct tab error: {e}")
+
 
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
