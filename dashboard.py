@@ -218,10 +218,8 @@ if st.session_state.mode == "class" and cls:
             hist_df = sheet_df(acad_hist_map[cls])
     
             # Validate
-            if acad.empty:
-                st.info("No academic data available for this class.")
-            elif "NAME" not in acad.columns:
-                st.error(f"Expected column 'NAME' not found in '{acad_sheet_map[cls]}'.")
+            if acad.empty or "NAME" not in acad.columns:
+                st.warning("No valid academic data available.")
             else:
                 acad["NAME_CLEANED"] = acad["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                 row = acad[acad["NAME_CLEANED"] == name_clean]
@@ -235,52 +233,87 @@ if st.session_state.mode == "class" and cls:
                         "PREVIOUS GRADE": pd.to_numeric(row.values, errors='coerce')
                     })
     
-                    # Extract current grades from history
-                    def extract_history(df_hist):
-                        if df_hist.empty or "NAME" not in df_hist.columns:
-                            return pd.DataFrame(columns=["SUBJECT", "CURRENT GRADE"])
-                        df_hist["NAME_CLEANED"] = df_hist["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        row = df_hist[df_hist["NAME_CLEANED"] == name_clean]
-                        if row.empty:
-                            return pd.DataFrame(columns=["SUBJECT", "CURRENT GRADE"])
-                        row = row.iloc[0].drop(["NAME", "NAME_CLEANED"], errors='ignore')
-                        return pd.DataFrame({
-                            "SUBJECT": row.index,
-                            "CURRENT GRADE": pd.to_numeric(row.values, errors='coerce')
+                    # Load previous CURRENT GRADE (from history)
+                    hist_df["NAME_CLEANED"] = hist_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                    hist_row = hist_df[hist_df["NAME_CLEANED"] == name_clean]
+    
+                    if not hist_row.empty:
+                        hist_row = hist_row.iloc[0].drop(["NAME", "NAME_CLEANED"], errors='ignore')
+                        current_df = pd.DataFrame({
+                            "SUBJECT": hist_row.index,
+                            "CURRENT GRADE": pd.to_numeric(hist_row.values, errors='coerce')
                         })
+                        df = df.merge(current_df, on="SUBJECT", how="left")
+                    else:
+                        df["CURRENT GRADE"] = None
     
-                    current_df = extract_history(hist_df)
-    
-                    # Merge current grades
-                    df = df.merge(current_df, on="SUBJECT", how="left")
-    
-                    # Compute delta and status
+                    # Calculate difference and status
                     df["INCREASED/DECREASED"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
                     df["STATUS"] = df["INCREASED/DECREASED"].apply(
-                        lambda x: "Improved" if x > 0 else ("Declined" if x < 0 else "No Change") if pd.notna(x) else "N/A"
+                        lambda x: "Improved" if x > 0 else "Declined" if x < 0 else ("No Change" if pd.notna(x) else "N/A")
                     )
     
-                    # Display editor
-                    st.subheader("📘 Academic Grades Overview (Editable)")
-                    st.data_editor(
-                        df,
-                        column_config={
-                            "SUBJECT": st.column_config.TextColumn("SUBJECT", disabled=True),
-                            "PREVIOUS GRADE": st.column_config.NumberColumn("GRADE", min_value=0, max_value=100),
-                            "CURRENT GRADE": st.column_config.NumberColumn("CURRENT GRADE", disabled=True),
-                            "INCREASED/DECREASED": st.column_config.NumberColumn("Δ", disabled=True),
-                            "STATUS": st.column_config.TextColumn("STATUS", disabled=True),
-                        },
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    # Display main table
+                    st.subheader("📘 Academic Grades Overview")
+                    st.dataframe(df, use_container_width=True, hide_index=True)
     
-                    if current_df.empty:
-                        st.info("Current academic history is missing. Only showing grades from the current academic sheet.")
+                    # --- Input Form for New Grades ---
+                    st.subheader("➕ Input New Grades")
+                    with st.form("new_grade_form"):
+                        subject_choices = df["SUBJECT"].tolist()
+                        selected_subject = st.selectbox("Subject", subject_choices)
+                        new_grade = st.number_input("New Grade", min_value=0.0, max_value=100.0, step=0.1)
+                        submitted = st.form_submit_button("📤 Submit Grade")
+    
+                    if submitted:
+                        try:
+                            # Update history sheet: shift current → previous, new → current
+                            hist_ws = SS.worksheet(acad_hist_map[cls])
+                            data = hist_ws.get_all_values()
+                            headers = data[0]
+    
+                            if "NAME" not in headers:
+                                st.error("No 'NAME' column in academic history sheet.")
+                            else:
+                                name_index = headers.index("NAME")
+                                subj_index = headers.index(selected_subject) if selected_subject in headers else None
+    
+                                # If subject column doesn't exist, add it
+                                if subj_index is None:
+                                    subj_index = len(headers)
+                                    headers.append(selected_subject)
+                                    for row in data[1:]:
+                                        while len(row) <= subj_index:
+                                            row.append("")
+                                    data[0] = headers
+    
+                                # Update row or add new one
+                                updated = False
+                                for row in data[1:]:
+                                    if clean_cadet_name_for_comparison(row[name_index]) == name_clean:
+                                        row[subj_index] = str(new_grade)
+                                        updated = True
+                                        break
+    
+                                if not updated:
+                                    new_row = [""] * len(headers)
+                                    new_row[name_index] = name_disp
+                                    new_row[subj_index] = str(new_grade)
+                                    data.append(new_row)
+    
+                                # Push update
+                                hist_ws.clear()
+                                hist_ws.update("A1", data)
+    
+                                st.success("✅ Grade submitted successfully.")
+                                st.cache_data.clear()
+                                st.rerun()
+    
+                        except Exception as e:
+                            st.error(f"❌ Error submitting grade: {e}")
     
         except Exception as e:
-            st.error(f"Academic load error: {e}")
-
+            st.error(f"❌ Unexpected academic section error: {e}")
 
         with t3:
             try:
