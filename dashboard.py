@@ -448,9 +448,6 @@ if st.session_state.mode == "class" and cls:
                                             st.info("No valid new reports to submit.")
                                     except Exception as e:
                                         st.error(f"❌ Error submitting to 'Reports' sheet: {e}")
-    except Exception as e:
-        st.error(f"Conduct tab error: {e}")
-
 
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
