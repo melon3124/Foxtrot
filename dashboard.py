@@ -405,20 +405,15 @@ if st.session_state.mode == "class" and cls:
         
                                 st.subheader("Conduct Reports")
         
-                                # Prepare table
                                 editable_cols = ["reports", "date of report", "class", "demerits"]
+        
+                                # Initialize new_reports only once
                                 if "new_reports" not in st.session_state:
-                                    editable_data = cadet_data[["reports", "date of report", "class"]].copy()
-                                    editable_data["demerits"] = ""
-                                    st.session_state.new_reports = editable_data
+                                    base_data = cadet_data[["reports", "date of report", "class"]].copy()
+                                    base_data["demerits"] = ""
+                                    st.session_state.new_reports = base_data
         
-                                # Add a blank row
-                                empty_row = pd.DataFrame([{col: "" for col in editable_cols}])
-                                st.session_state.new_reports = pd.concat(
-                                    [st.session_state.new_reports, empty_row],
-                                    ignore_index=True
-                                )
-        
+                                # Editor without adding rows on every rerun
                                 edited = st.data_editor(
                                     st.session_state.new_reports,
                                     num_rows="dynamic",
@@ -427,7 +422,7 @@ if st.session_state.mode == "class" and cls:
                                     key="conduct_editor"
                                 )
         
-                                if st.button("📤 Submit New Reports to 'REPORTS' Sheet"):
+                                if st.button("📤 Submit New Reports to 'Reports' Sheet"):
                                     try:
                                         new_entries = edited.copy()
                                         new_entries = new_entries[new_entries["reports"].astype(str).str.strip() != ""]
@@ -441,23 +436,21 @@ if st.session_state.mode == "class" and cls:
                                             final_cols = ["name", "class level", "reports", "date of report", "demerits", "submitted by", "timestamp"]
                                             rows_to_append = new_entries[final_cols].values.tolist()
         
-                                            # Append to Google Sheet
-                                            try:
-                                                report_ws = SS.worksheet("Reports")  # Adjust to actual name
-                                            except Exception as e:
-                                                st.error(f"Sheet access error: {e}")
-                                                st.stop()
-        
+                                            # Append to Reports sheet
+                                            report_ws = SS.worksheet("Reports")  # Use exact name
                                             report_ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
         
-                                            # Keep the submitted reports in the table
+                                            # Refresh table with newly submitted data only
                                             st.session_state.new_reports = new_entries[editable_cols].copy()
         
-                                            st.success("✅ New reports submitted and added to table.")
+                                            st.success("✅ New reports submitted.")
                                         else:
                                             st.info("No valid new reports to submit.")
                                     except Exception as e:
                                         st.error(f"❌ Error submitting to 'Reports' sheet: {e}")
+    except Exception as e:
+        st.error(f"Conduct tab error: {e}")
+
 
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
