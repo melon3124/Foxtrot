@@ -366,6 +366,7 @@ if st.session_state.mode == "class" and cls:
                 
         with t5:
             try:
+                # Map selected class to worksheet
                 conduct_sheet_map = {
                     "1CL": "1CL CONDUCT",
                     "2CL": "2CL CONDUCT",
@@ -384,6 +385,7 @@ if st.session_state.mode == "class" and cls:
                     if cadet_data.empty:
                         st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                     else:
+                        # --- Merits Summary ---
                         st.subheader("Merits Summary")
                         total_merits = cadet_data["merits"].astype(float).sum()
                         status = "Failed" if total_merits < 0 else "Passed"
@@ -394,26 +396,32 @@ if st.session_state.mode == "class" and cls:
                         }])
                         st.dataframe(merit_table, hide_index=True)
         
-                        # ------------------- Load Existing Reports -------------------
+                        # --- Conduct Reports Table (always show even if empty) ---
+                        st.subheader("Conduct Reports")
+        
+                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]
+        
                         try:
                             reports_df = sheet_df("REPORTS")
                             reports_df.columns = [c.strip().upper() for c in reports_df.columns]
-                            reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
         
-                            st.subheader("Conduct Reports")
-                            if cadet_reports.empty:
-                                st.info("No reports submitted for this cadet yet.")
+                            if not set(expected_cols).issubset(set(reports_df.columns)):
+                                st.warning("⚠️ 'REPORTS' sheet is missing required columns. Showing empty table.")
+                                cadet_reports = pd.DataFrame(columns=expected_cols)
                             else:
-                                st.dataframe(
-                                    cadet_reports[["REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
-                                    use_container_width=True,
-                                    hide_index=True
-                                )
+                                reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                                cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
                         except Exception as e:
-                            st.error(f"❌ Error loading reports: {e}")
+                            st.warning(f"⚠️ Could not load reports sheet: {e}")
+                            cadet_reports = pd.DataFrame(columns=expected_cols)
         
-                        # ------------------- Add New Report -------------------
+                        st.dataframe(
+                            cadet_reports[["REPORT", "DATE OF REPORT", "CLASS", "DEMERITS"]],
+                            use_container_width=True,
+                            hide_index=True
+                        )
+        
+                        # --- Add New Report Form ---
                         st.subheader("➕ Add New Conduct Report")
                         with st.form("report_form"):
                             new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
@@ -436,6 +444,9 @@ if st.session_state.mode == "class" and cls:
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
+
+    except Exception as e:
+        st.error(f"Conduct tab error: {e}")
 
             except Exception as e:
                 st.error(f"Conduct tab error: {e}")
