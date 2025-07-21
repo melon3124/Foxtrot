@@ -489,10 +489,6 @@ if st.session_state.mode == "class" and cls:
                     except Exception as e:
                         st.error(f"❌ Error updating 'REPORTS' sheet: {e}")
         
-                with st.expander("🔧 Run one-time data fix"):
-                    if st.button("Rename 'CLASS' to 'NATURE' in REPORTS sheet"):
-                        rename_class_column_to_nature()
-        
             except Exception as e:
                 st.error(f"❌ Unexpected error in conduct report section: {e}")
 
