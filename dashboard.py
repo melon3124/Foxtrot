@@ -369,14 +369,20 @@ if st.session_state.mode == "class" and cls:
                 
         with t5:
             try:
-                # Map selected class to worksheet
+                # --- Class Mapping and Extracting from Session ---
+                class_map = {"1CL": "I", "2CL": "II", "3CL": "III"}
+                cls, name_disp = st.session_state["cadet_name"].split(" - ")
+                current_class_display = class_map.get(cls, "IV")  # Fallback to IV
+                name_clean = clean_cadet_name_for_comparison(name_disp)
+        
+                # --- Determine Worksheet ---
                 conduct_sheet_map = {
                     "1CL": "1CL CONDUCT",
                     "2CL": "2CL CONDUCT",
                     "3CL": "3CL CONDUCT"
                 }
-        
                 sheet_name = conduct_sheet_map.get(cls)
+        
                 if not sheet_name:
                     st.warning("Please select a valid class to view conduct data.")
                 else:
@@ -405,7 +411,7 @@ if st.session_state.mode == "class" and cls:
         
                         try:
                             now = time.time()
-                            if now - st.session_state["last_report_fetch"] > 10:
+                            if now - st.session_state.get("last_report_fetch", 0) > 10:
                                 reports_df = sheet_df("REPORTS")
                                 st.session_state["last_report_df"] = reports_df
                                 st.session_state["last_report_fetch"] = now
@@ -437,24 +443,24 @@ if st.session_state.mode == "class" and cls:
                             new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
                             new_report_date = st.date_input("Date of Report")
                             new_demerits = st.number_input("Demerits", step=1)
+                            class_choice = st.selectbox("Class Level", options=["I", "II", "III", "IV"], index=["I", "II", "III", "IV"].index(current_class_display))
                             submitted = st.form_submit_button("📤 Submit Report")
         
                         if submitted:
                             try:
-                                time.sleep(0.5)  # Allow smoother API write
-        
+                                time.sleep(0.5)
                                 report_ws = SS.worksheet("REPORTS")
                                 new_row = [
                                     name_disp,
                                     new_report.strip(),
                                     str(new_report_date),
-                                    cls,
+                                    class_choice,
                                     str(new_demerits)
                                 ]
                                 report_ws.append_row(new_row, value_input_option="USER_ENTERED")
         
-                                st.cache_data.clear()  # ✅ Clear only after writing
-                                time.sleep(0.75)  # Give sheet time to reflect
+                                st.cache_data.clear()
+                                time.sleep(0.75)
                                 st.success("✅ Report submitted successfully.")
                                 st.rerun()
                             except Exception as e:
