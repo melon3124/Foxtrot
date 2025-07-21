@@ -425,9 +425,9 @@ if st.session_state.mode == "class" and cls:
                                 )
         
                                 # Save new entries only
-                                if st.button("📤 Submit New Reports to 'REPORTS' Sheet"):
+                                if st.button("📤 Add Report"):
                                     new_entries = edited.dropna(how='all')  # Drop fully empty rows
-                                    new_entries = new_entries[new_entries["Reports"].str.strip() != ""]  # Only rows with actual reports
+                                    new_entries = new_entries[new_entries["reports"].str.strip() != ""]  # Only rows with actual reports
         
                                     if not new_entries.empty:
                                         # Add identity columns: name and timestamp
@@ -441,12 +441,12 @@ if st.session_state.mode == "class" and cls:
                                         report_rows = new_entries[columns].values.tolist()
         
                                         try:
-                                            report_ws = SS.worksheet("REPORTS")
+                                            report_ws = SS.worksheet("reports")
                                             report_ws.append_rows(report_rows, value_input_option="USER_ENTERED")
                                             st.success("✅ New reports successfully submitted.")
                                             st.rerun()
                                         except Exception as e:
-                                            st.error(f"❌ Failed to append to 'REPORTS' sheet: {e}")
+                                            st.error(f"❌ Failed to append to 'reports' sheet: {e}")
                                     else:
                                         st.info("No new reports to submit.")
 
