@@ -272,13 +272,13 @@ if st.session_state.mode == "class" and cls:
                             ]
                             
                         table = []
-                        for label, raw_col, grade_col in exercises:
-                        reps = cadet.get(raw_col, "")
-                        grade = cadet.get(grade_col, "N/A")
-                        status = (
-                            "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                            else "Failed" if str(grade).strip().isdigit()
-                            else "N/A"
+                            for label, raw_col, grade_col in exercises:
+                            reps = cadet.get(raw_col, "")
+                            grade = cadet.get(grade_col, "N/A")
+                            status = (
+                                "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                                else "Failed" if str(grade).strip().isdigit()
+                                else "N/A"
                         )
                         table.append({
                             "Exercise": label,
