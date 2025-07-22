@@ -202,22 +202,32 @@ if st.session_state.mode == "class" and cls:
 
     with t2: 
         try:
+            term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True)
+    
             acad_sheet_map = {
                 "1CL": "1CL ACAD",
                 "2CL": "2CL ACAD",
                 "3CL": "3CL ACAD"
             }
+    
             acad_hist_map = {
-                "1CL": "1CL ACAD HISTORY",
-                "2CL": "2CL ACAD HISTORY",
-                "3CL": "3CL ACAD HISTORY"
+                "1CL": {
+                    "1st Term": "1CL ACAD HISTORY",
+                    "2nd Term": "1CL ACAD HISTORY TERM 2"
+                },
+                "2CL": {
+                    "1st Term": "2CL ACAD HISTORY",
+                    "2nd Term": "2CL ACAD HISTORY TERM 2"
+                },
+                "3CL": {
+                    "1st Term": "3CL ACAD HISTORY",
+                    "2nd Term": "3CL ACAD HISTORY TERM 2"
+                }
             }
     
-            # Load sheets
             acad = sheet_df(acad_sheet_map[cls])
-            hist_df = sheet_df(acad_hist_map[cls])
+            hist_df = sheet_df(acad_hist_map[cls][term])
     
-            # Fallback for name column
             possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
             acad_name_col = next((col for col in acad.columns if col.upper() in [c.upper() for c in possible_name_cols]), None)
             hist_name_col = next((col for col in hist_df.columns if col.upper() in [c.upper() for c in possible_name_cols]), None)
@@ -237,7 +247,6 @@ if st.session_state.mode == "class" and cls:
                         "PREVIOUS GRADE": pd.to_numeric(row.values, errors='coerce')
                     })
     
-                    # Process history sheet
                     if hist_name_col is None:
                         df["CURRENT GRADE"] = None
                     else:
@@ -253,28 +262,24 @@ if st.session_state.mode == "class" and cls:
                             df = df.merge(current_df, on="SUBJECT", how="left")
                         else:
                             df["CURRENT GRADE"] = None
-            
-                            # Difference + Status
-                            df["INCREASED/DECREASED"] = df.apply(
-                            lambda row: (
-                                "Increased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
-                                else "Decreased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] < row["PREVIOUS GRADE"]
-                                else "No Change" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"])
-                                else "N/A"
-                            ),
-                            axis=1
-                        )
-                        
-                        df["STATUS"] = df["CURRENT GRADE"].apply(
-                            lambda g: "Proficient" if pd.notna(g) and g >= 7 else "Deficient" if pd.notna(g) else "N/A"
-                        )
-
     
-                    # Show table
-                    st.subheader("📘 Academic Grades Overview")
+                    df["INCREASED/DECREASED"] = df.apply(
+                        lambda row: (
+                            "Increased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
+                            else "Decreased" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] < row["PREVIOUS GRADE"]
+                            else "No Change" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"])
+                            else "N/A"
+                        ),
+                        axis=1
+                    )
+    
+                    df["STATUS"] = df["CURRENT GRADE"].apply(
+                        lambda g: "Proficient" if pd.notna(g) and g >= 7 else "Deficient" if pd.notna(g) else "N/A"
+                    )
+    
+                    st.subheader(f"📘 Academic Grades Overview — {term}")
                     st.dataframe(df, use_container_width=True, hide_index=True)
     
-                    # Grade input form
                     st.subheader("➕ Input New Grades")
                     with st.form("new_grade_form"):
                         subject_choices = df["SUBJECT"].tolist()
@@ -284,17 +289,14 @@ if st.session_state.mode == "class" and cls:
     
                     if submitted:
                         try:
-                            # Update worksheet
-                            hist_ws = SS.worksheet(acad_hist_map[cls])
+                            hist_ws = SS.worksheet(acad_hist_map[cls][term])
                             data = hist_ws.get_all_values()
                             headers = data[0]
     
-                            # Use fallback again for NAME column
                             hist_name_index = next((i for i, h in enumerate(headers) if h.upper() in [c.upper() for c in possible_name_cols]), None)
                             if hist_name_index is None:
                                 st.error("❌ 'NAME' column not found in academic history sheet.")
                             else:
-                                # Find or create subject column
                                 if selected_subject not in headers:
                                     headers.append(selected_subject)
                                     for row in data[1:]:
@@ -304,7 +306,6 @@ if st.session_state.mode == "class" and cls:
                                 else:
                                     subj_index = headers.index(selected_subject)
     
-                                # Update or append row
                                 updated = False
                                 for row in data[1:]:
                                     if clean_cadet_name_for_comparison(row[hist_name_index]) == name_clean:
@@ -320,7 +321,6 @@ if st.session_state.mode == "class" and cls:
                                     new_row[subj_index] = str(new_grade)
                                     data.append(new_row)
     
-                                # Upload data
                                 hist_ws.clear()
                                 hist_ws.update("A1", [headers] + data[1:])
                                 st.cache_data.clear()
@@ -329,10 +329,9 @@ if st.session_state.mode == "class" and cls:
     
                         except Exception as e:
                             st.error(f"❌ Error submitting grade: {e}")
-    
         except Exception as e:
             st.error(f"❌ Unexpected academic section error: {e}")
-
+    
 
     with t3:
         try:
