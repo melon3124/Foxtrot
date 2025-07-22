@@ -341,15 +341,15 @@ if st.session_state.mode == "class" and cls:
                 "2CL": "2CL PFT",
                 "3CL": "3CL PFT"
             }
-    
+        
             pft2_sheet_map = {
                 "1CL": "1CL PFT 2",
                 "2CL": "2CL PFT 2",
                 "3CL": "3CL PFT 2"
             }
-    
+        
             term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
-    
+        
             def get_pft_data(sheet_key):
                 sheet_name = sheet_key.get(cls, None)
                 if not sheet_name:
@@ -363,14 +363,14 @@ if st.session_state.mode == "class" and cls:
                 if cadet.empty:
                     return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
                 return cadet.iloc[0], None
-    
+        
             exercises = [
                 ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
                 ("Situps", "SITUPS", "SITUPS_GRADES"),
                 ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
                 ("3.2KM Run", "RUN", "RUN_GRADES")
             ]
-    
+        
             def build_table(title, cadet_data):
                 table = []
                 for label, raw_col, grade_col in exercises:
@@ -389,7 +389,7 @@ if st.session_state.mode == "class" and cls:
                     })
                 st.subheader(title)
                 st.dataframe(pd.DataFrame(table), hide_index=True)
-    
+        
             if term == "1st Term":
                 cadet1, err1 = get_pft_data(pft_sheet_map)
                 cadet2, err2 = get_pft_data(pft2_sheet_map)
@@ -401,7 +401,7 @@ if st.session_state.mode == "class" and cls:
                     st.warning(err2)
                 else:
                     build_table("🏋️ PFT 2 | 2nd Term", cadet2)
-    
+        
             elif term == "2nd Term":
                 cadet2, err2 = get_pft_data(pft2_sheet_map)
                 cadet1, err1 = get_pft_data(pft_sheet_map)
@@ -413,7 +413,7 @@ if st.session_state.mode == "class" and cls:
                     st.warning(err1)
                 else:
                     build_table("🏋️ PFT 1 | 1st Term", cadet1)
-    
+        
         except Exception as e:
             st.error(f"PFT load error: {e}")
 
