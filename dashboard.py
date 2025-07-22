@@ -335,88 +335,88 @@ if st.session_state.mode == "class" and cls:
 
 
       with t3:
-        try:
-            pft_sheet_map = {
-                "1CL": "1CL PFT",
-                "2CL": "2CL PFT",
-                "3CL": "3CL PFT"
-            }
-        
-            pft2_sheet_map = {
-                "1CL": "1CL PFT 2",
-                "2CL": "2CL PFT 2",
-                "3CL": "3CL PFT 2"
-            }
-        
-            term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
-        
-            def get_pft_data(sheet_key):
-                sheet_name = sheet_key.get(cls, None)
-                if not sheet_name:
-                    return None, f"No PFT sheet mapped for selected class in {sheet_key}."
-                df = sheet_df(sheet_name)
-                if df.empty:
-                    return None, f"No PFT data available in '{sheet_name}'."
-                df.columns = [c.strip().upper() for c in df.columns]
-                df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                cadet = df[df["NAME_CLEANED"] == name_clean]
-                if cadet.empty:
-                    return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
-                return cadet.iloc[0], None
-        
-            exercises = [
-                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                ("Situps", "SITUPS", "SITUPS_GRADES"),
-                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                ("3.2KM Run", "RUN", "RUN_GRADES")
-            ]
-        
-            def build_table(title, cadet_data):
-                table = []
-                for label, raw_col, grade_col in exercises:
-                    reps = cadet_data.get(raw_col, "")
-                    grade = cadet_data.get(grade_col, "N/A")
-                    status = (
-                        "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                        else "Failed" if str(grade).strip().isdigit()
-                        else "N/A"
-                    )
-                    table.append({
-                        "Exercise": label,
-                        "Repetitions": reps,
-                        "Grade": grade,
-                        "Status": status
-                    })
-                st.subheader(title)
-                st.dataframe(pd.DataFrame(table), hide_index=True)
-        
-            if term == "1st Term":
-                cadet1, err1 = get_pft_data(pft_sheet_map)
-                cadet2, err2 = get_pft_data(pft2_sheet_map)
-                if err1:
-                    st.warning(err1)
-                else:
-                    build_table("🏋️ PFT 1 | 1st Term", cadet1)
-                if err2:
-                    st.warning(err2)
-                else:
-                    build_table("🏋️ PFT 2 | 2nd Term", cadet2)
-        
-            elif term == "2nd Term":
-                cadet2, err2 = get_pft_data(pft2_sheet_map)
-                cadet1, err1 = get_pft_data(pft_sheet_map)
-                if err2:
-                    st.warning(err2)
-                else:
-                    build_table("🏋️ PFT 2 | 2nd Term", cadet2)
-                if err1:
-                    st.warning(err1)
-                else:
-                    build_table("🏋️ PFT 1 | 1st Term", cadet1)
-        
-        except Exception as e:
-            st.error(f"PFT load error: {e}")
-
+         try:
+                pft_sheet_map = {
+                    "1CL": "1CL PFT",
+                    "2CL": "2CL PFT",
+                    "3CL": "3CL PFT"
+                }
+            
+                pft2_sheet_map = {
+                    "1CL": "1CL PFT 2",
+                    "2CL": "2CL PFT 2",
+                    "3CL": "3CL PFT 2"
+                }
+            
+                term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
+            
+                def get_pft_data(sheet_key):
+                    sheet_name = sheet_key.get(cls, None)
+                    if not sheet_name:
+                        return None, f"No PFT sheet mapped for selected class in {sheet_key}."
+                    df = sheet_df(sheet_name)
+                    if df.empty:
+                        return None, f"No PFT data available in '{sheet_name}'."
+                    df.columns = [c.strip().upper() for c in df.columns]
+                    df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                    cadet = df[df["NAME_CLEANED"] == name_clean]
+                    if cadet.empty:
+                        return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
+                    return cadet.iloc[0], None
+            
+                exercises = [
+                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                    ("Situps", "SITUPS", "SITUPS_GRADES"),
+                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                    ("3.2KM Run", "RUN", "RUN_GRADES")
+                ]
+            
+                def build_table(title, cadet_data):
+                    table = []
+                    for label, raw_col, grade_col in exercises:
+                        reps = cadet_data.get(raw_col, "")
+                        grade = cadet_data.get(grade_col, "N/A")
+                        status = (
+                            "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
+                            else "Failed" if str(grade).strip().isdigit()
+                            else "N/A"
+                        )
+                        table.append({
+                            "Exercise": label,
+                            "Repetitions": reps,
+                            "Grade": grade,
+                            "Status": status
+                        })
+                    st.subheader(title)
+                    st.dataframe(pd.DataFrame(table), hide_index=True)
+            
+                if term == "1st Term":
+                    cadet1, err1 = get_pft_data(pft_sheet_map)
+                    cadet2, err2 = get_pft_data(pft2_sheet_map)
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_table("🏋️ PFT 1 | 1st Term", cadet1)
+                    if err2:
+                        st.warning(err2)
+                    else:
+                        build_table("🏋️ PFT 2 | 2nd Term", cadet2)
+            
+                elif term == "2nd Term":
+                    cadet2, err2 = get_pft_data(pft2_sheet_map)
+                    cadet1, err1 = get_pft_data(pft_sheet_map)
+                    if err2:
+                        st.warning(err2)
+                    else:
+                        build_table("🏋️ PFT 2 | 2nd Term", cadet2)
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_table("🏋️ PFT 1 | 1st Term", cadet1)
+            
+            except Exception as e:
+                st.error(f"PFT load error: {e}")
+    
 
         with t4:
             try:
