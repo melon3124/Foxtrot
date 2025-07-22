@@ -202,8 +202,10 @@ if st.session_state.mode == "class" and cls:
 
     with t2: 
         try:
+            # --- Term Selector ---
             term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True)
     
+            # --- Sheet Mapping ---
             acad_sheet_map = {
                 "1CL": "1CL ACAD",
                 "2CL": "2CL ACAD",
@@ -225,6 +227,14 @@ if st.session_state.mode == "class" and cls:
                 }
             }
     
+            # --- Safe Worksheet Getter ---
+            def get_worksheet_by_name(name):
+                for ws in SS.worksheets():
+                    if ws.title.strip().upper() == name.strip().upper():
+                        return ws
+                raise Exception(f"Worksheet '{name}' not found (check for trailing spaces or typos)")
+    
+            # --- Load Sheets ---
             acad = sheet_df(acad_sheet_map[cls])
             hist_df = sheet_df(acad_hist_map[cls][term])
     
@@ -289,7 +299,7 @@ if st.session_state.mode == "class" and cls:
     
                     if submitted:
                         try:
-                            hist_ws = SS.worksheet(acad_hist_map[cls][term])
+                            hist_ws = get_worksheet_by_name(acad_hist_map[cls][term])
                             data = hist_ws.get_all_values()
                             headers = data[0]
     
@@ -329,9 +339,11 @@ if st.session_state.mode == "class" and cls:
     
                         except Exception as e:
                             st.error(f"❌ Error submitting grade: {e}")
+    
         except Exception as e:
             st.error(f"❌ Unexpected academic section error: {e}")
     
+        
 
     with t3:
         try:
