@@ -203,7 +203,6 @@ if st.session_state.mode == "class" and cls:
 
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-_, t2, _ = st.tabs(["Term 1", "Term 2", "Other"])
 
 with t2:
     try:
