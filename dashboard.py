@@ -201,8 +201,6 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-
     with t2:
         try:
             term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True)
@@ -276,12 +274,25 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
                     else:
                         df["CURRENT GRADE"] = None
     
+                    df["INCREASE/DECREASE"] = df.apply(
+                        lambda row: "⬆️" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
+                        else ("⬇️" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] < row["PREVIOUS GRADE"] else ""),
+                        axis=1
+                    )
+    
+                    df["STATUS"] = df.apply(
+                        lambda row: "PROFICIENT" if pd.notna(row["CURRENT GRADE"]) and row["CURRENT GRADE"] >= 75 else ("DEFICIENT" if pd.notna(row["CURRENT GRADE"]) else ""),
+                        axis=1
+                    )
+    
                     st.subheader("📝 Editable Grades Table")
     
                     gb = GridOptionsBuilder.from_dataframe(df)
                     gb.configure_column("CURRENT GRADE", editable=True)
-                    gb.configure_column("PREVIOUS GRADE", editable=True)  # now editable
+                    gb.configure_column("PREVIOUS GRADE", editable=True)
                     gb.configure_column("SUBJECT", editable=False)
+                    gb.configure_column("INCREASE/DECREASE", editable=False)
+                    gb.configure_column("STATUS", editable=False)
                     grid_options = gb.build()
     
                     grid_response = AgGrid(
@@ -389,7 +400,7 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
     
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
-
+    
 
         
     with t3:
