@@ -1,6 +1,7 @@
 import streamlit as st
 from utils.auth import login
 from utils.gsheet import init_gsheets, sheet_df, clean_cadet_name_for_comparison
+from utils.demographics import load_demographics, display_class_selector, display_cadet_buttons
 import os
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
@@ -121,7 +122,8 @@ def clean_cadet_name_for_comparison(name: str) -> str:
     return re.sub(r'\s+', ' ', name).strip().upper()
 
 # -------------------- DEMOGRAPHICS --------------------
-demo_df = sheet_df("DEMOGRAPHICS")
+st.session_state.demo_df = load_demographics(sheet_df("DEMOGRAPHICS"))
+demo_df = st.session_state.demo_df
 if demo_df.empty:
     st.error("Demographics sheet missing.")
     st.stop()
