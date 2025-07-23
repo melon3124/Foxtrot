@@ -244,7 +244,7 @@ if st.session_state.mode == "class" and cls:
                 }
             }
     
-            def get_worksheet_by_name(name):
+        def get_worksheet_by_name(name):
         for ws in SS.worksheets():
             st.write(f"🧾 Found sheet: '{ws.title}'")  # Debug output
             if ws.title.strip().upper() == name.strip().upper():
