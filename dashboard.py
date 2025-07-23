@@ -204,7 +204,7 @@ if st.session_state.mode == "class" and cls:
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 
-   with t2:
+ with t2:
     try:
         # --- Setup Term Selection ---
         if "selected_term" not in st.session_state:
