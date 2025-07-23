@@ -201,6 +201,10 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+
+_, t2, _ = st.tabs(["Term 1", "Term 2", "Other"])
+
     with t2:
         try:
             if "selected_term" not in st.session_state:
@@ -245,11 +249,11 @@ if st.session_state.mode == "class" and cls:
             }
     
             def get_worksheet_by_name(name):
-                for ws in SS.worksheets():
-                    st.write(f"🧾 Found sheet: '{ws.title}'")  # Debug output
-                    if ws.title.strip().upper() == name.strip().upper():
-                        return ws
-                raise Exception(f"Worksheet '{name}' not found.")
+        for ws in SS.worksheets():
+            st.write(f"🧾 Found sheet: '{ws.title}'")  # Debug output
+            if ws.title.strip().upper() == name.strip().upper():
+                return ws
+        raise Exception(f"Worksheet '{name}' not found.")
     
             prev_df = sheet_df(acad_sheet_map[cls][term])
             curr_df = sheet_df(acad_hist_map[cls][term])
