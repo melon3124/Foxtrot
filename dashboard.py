@@ -204,7 +204,16 @@ if st.session_state.mode == "class" and cls:
 
     with t2:
         try:
-            term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True)
+            if "selected_term" not in st.session_state:
+                st.session_state.selected_term = "1st Term"
+    
+            term = st.radio(
+                "Select Term",
+                ["1st Term", "2nd Term"],
+                index=["1st Term", "2nd Term"].index(st.session_state.selected_term),
+                horizontal=True
+            )
+            st.session_state.selected_term = term
     
             acad_sheet_map = {
                 "1CL": {
@@ -277,7 +286,7 @@ if st.session_state.mode == "class" and cls:
     
                     df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
                     df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️"))
-                    df["STATUS"] = df["CURRENT GRADE"].apply(lambda x: "PROFICIENT" if pd.notna(x) and x >= 75 else ("DEFICIENT" if pd.notna(x) else ""))
+                    df["STATUS"] = df["CURRENT GRADE"].apply(lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else ""))
     
                     st.subheader("📝 Editable Grades Table")
     
@@ -390,8 +399,7 @@ if st.session_state.mode == "class" and cls:
     
                                     st.cache_data.clear()
                                     st.success("✅ All changes saved to both sheets.")
-                                    st.rerun()
-    
+                            
                             except Exception as e:
                                 st.error(f"❌ Error saving changes: {e}")
                     else:
@@ -400,6 +408,7 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
+    
 
     
     with t3:
