@@ -1,10 +1,7 @@
 import streamlit as st
-import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
+from utils.auth import login
+from utils.gsheet import init_gsheets, sheet_df, clean_cadet_name_for_comparison
 import os
-import re
-import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
