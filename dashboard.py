@@ -201,6 +201,7 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
+
     with t2:
         try:
             term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True)
@@ -261,7 +262,7 @@ if st.session_state.mode == "class" and cls:
                     row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
                     subjects = row_prev.index.tolist()
                     df = pd.DataFrame({"SUBJECT": subjects})
-                    df["PREVIOUS GRADE"] = row_prev.values
+                    df["PREVIOUS GRADE"] = pd.to_numeric(row_prev.values, errors="coerce")
     
                     if curr_name_col and not curr_df.empty:
                         curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
@@ -274,23 +275,16 @@ if st.session_state.mode == "class" and cls:
                     else:
                         df["CURRENT GRADE"] = None
     
-                    df["INCREASE/DECREASE"] = df.apply(
-                        lambda row: "⬆️" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] > row["PREVIOUS GRADE"]
-                        else ("⬇️" if pd.notna(row["CURRENT GRADE"]) and pd.notna(row["PREVIOUS GRADE"]) and row["CURRENT GRADE"] < row["PREVIOUS GRADE"] else ""),
-                        axis=1
-                    )
-    
-                    df["STATUS"] = df.apply(
-                        lambda row: "PROFICIENT" if pd.notna(row["CURRENT GRADE"]) and row["CURRENT GRADE"] >= 75 else ("DEFICIENT" if pd.notna(row["CURRENT GRADE"]) else ""),
-                        axis=1
-                    )
+                    df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
+                    df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️"))
+                    df["STATUS"] = df["CURRENT GRADE"].apply(lambda x: "PROFICIENT" if pd.notna(x) and x >= 75 else ("DEFICIENT" if pd.notna(x) else ""))
     
                     st.subheader("📝 Editable Grades Table")
     
                     gb = GridOptionsBuilder.from_dataframe(df)
-                    gb.configure_column("CURRENT GRADE", editable=True)
-                    gb.configure_column("PREVIOUS GRADE", editable=True)
                     gb.configure_column("SUBJECT", editable=False)
+                    gb.configure_column("PREVIOUS GRADE", editable=True)
+                    gb.configure_column("CURRENT GRADE", editable=True)
                     gb.configure_column("INCREASE/DECREASE", editable=False)
                     gb.configure_column("STATUS", editable=False)
                     grid_options = gb.build()
@@ -298,7 +292,7 @@ if st.session_state.mode == "class" and cls:
                     grid_response = AgGrid(
                         df,
                         gridOptions=grid_options,
-                        update_mode=GridUpdateMode.MANUAL,
+                        update_mode=GridUpdateMode.VALUE_CHANGED,
                         allow_unsafe_jscode=True,
                         fit_columns_on_grid_load=True,
                         height=400,
@@ -307,9 +301,14 @@ if st.session_state.mode == "class" and cls:
     
                     edited_df = grid_response["data"]
     
-                    if not edited_df.equals(df):
+                    grades_changed = not edited_df[["SUBJECT", "PREVIOUS GRADE", "CURRENT GRADE"]].astype(str).equals(
+                        df[["SUBJECT", "PREVIOUS GRADE", "CURRENT GRADE"]].astype(str)
+                    )
+    
+                    if grades_changed or st.session_state.get("force_show_submit", False):
                         st.success("✅ Detected changes. Click below to apply updates.")
                         if st.button("📤 Submit All Changes"):
+                            st.session_state["force_show_submit"] = False
                             try:
                                 hist_ws = get_worksheet_by_name(acad_hist_map[cls][term])
                                 prev_ws = get_worksheet_by_name(acad_sheet_map[cls][term])
@@ -396,13 +395,13 @@ if st.session_state.mode == "class" and cls:
                             except Exception as e:
                                 st.error(f"❌ Error saving changes: {e}")
                     else:
-                        st.info("📝 No changes yet. You can edit both grade columns above.")
+                        st.session_state["force_show_submit"] = True
+                        st.info("📝 No detected grade changes yet. Try editing a cell.")
     
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
-    
 
-        
+    
     with t3:
         try:
             pft_sheet_map = {
