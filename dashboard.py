@@ -201,6 +201,8 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+
     with t2:
         try:
             term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True)
@@ -278,7 +280,7 @@ if st.session_state.mode == "class" and cls:
     
                     gb = GridOptionsBuilder.from_dataframe(df)
                     gb.configure_column("CURRENT GRADE", editable=True)
-                    gb.configure_column("PREVIOUS GRADE", editable=False)
+                    gb.configure_column("PREVIOUS GRADE", editable=True)  # now editable
                     gb.configure_column("SUBJECT", editable=False)
                     grid_options = gb.build()
     
@@ -299,55 +301,95 @@ if st.session_state.mode == "class" and cls:
                         if st.button("📤 Submit All Changes"):
                             try:
                                 hist_ws = get_worksheet_by_name(acad_hist_map[cls][term])
-                                data = hist_ws.get_all_values()
-                                headers = data[0]
+                                prev_ws = get_worksheet_by_name(acad_sheet_map[cls][term])
+                                hist_data = hist_ws.get_all_values()
+                                prev_data = prev_ws.get_all_values()
     
-                                name_idx = next((i for i, h in enumerate(headers) if h.upper() in [c.upper() for c in possible_name_cols]), None)
-                                if name_idx is None:
-                                    st.error("❌ 'NAME' column not found in history sheet.")
+                                headers_hist = hist_data[0]
+                                headers_prev = prev_data[0]
+    
+                                name_idx_hist = next((i for i, h in enumerate(headers_hist) if h.upper() in [c.upper() for c in possible_name_cols]), None)
+                                name_idx_prev = next((i for i, h in enumerate(headers_prev) if h.upper() in [c.upper() for c in possible_name_cols]), None)
+    
+                                if name_idx_hist is None or name_idx_prev is None:
+                                    st.error("❌ 'NAME' column not found in one of the sheets.")
                                 else:
-                                    subj_indices = {}
-                                    for subj in edited_df["SUBJECT"]:
-                                        if subj not in headers:
-                                            headers.append(subj)
-                                        subj_indices[subj] = headers.index(subj)
+                                    subj_idx_hist = {}
+                                    subj_idx_prev = {}
     
-                                    for row in data[1:]:
-                                        while len(row) < len(headers):
+                                    for subj in edited_df["SUBJECT"]:
+                                        if subj not in headers_hist:
+                                            headers_hist.append(subj)
+                                        subj_idx_hist[subj] = headers_hist.index(subj)
+    
+                                        if subj not in headers_prev:
+                                            headers_prev.append(subj)
+                                        subj_idx_prev[subj] = headers_prev.index(subj)
+    
+                                    for row in hist_data[1:]:
+                                        while len(row) < len(headers_hist):
+                                            row.append("")
+                                    for row in prev_data[1:]:
+                                        while len(row) < len(headers_prev):
                                             row.append("")
     
-                                    updated = False
-                                    for row in data[1:]:
-                                        if clean_cadet_name_for_comparison(row[name_idx]) == name_clean:
+                                    updated_hist = False
+                                    updated_prev = False
+    
+                                    for row in hist_data[1:]:
+                                        if clean_cadet_name_for_comparison(row[name_idx_hist]) == name_clean:
                                             for _, r in edited_df.iterrows():
                                                 subj = r["SUBJECT"]
-                                                new_val = str(r["CURRENT GRADE"]) if pd.notna(r["CURRENT GRADE"]) else ""
-                                                row[subj_indices[subj]] = new_val
-                                            updated = True
+                                                val = str(r["CURRENT GRADE"]) if pd.notna(r["CURRENT GRADE"]) else ""
+                                                row[subj_idx_hist[subj]] = val
+                                            updated_hist = True
                                             break
     
-                                    if not updated:
-                                        new_row = ["" for _ in headers]
-                                        new_row[name_idx] = name_disp
+                                    for row in prev_data[1:]:
+                                        if clean_cadet_name_for_comparison(row[name_idx_prev]) == name_clean:
+                                            for _, r in edited_df.iterrows():
+                                                subj = r["SUBJECT"]
+                                                val = str(r["PREVIOUS GRADE"]) if pd.notna(r["PREVIOUS GRADE"]) else ""
+                                                row[subj_idx_prev[subj]] = val
+                                            updated_prev = True
+                                            break
+    
+                                    if not updated_hist:
+                                        new_row = ["" for _ in headers_hist]
+                                        new_row[name_idx_hist] = name_disp
                                         for _, r in edited_df.iterrows():
                                             subj = r["SUBJECT"]
                                             val = str(r["CURRENT GRADE"]) if pd.notna(r["CURRENT GRADE"]) else ""
-                                            new_row[subj_indices[subj]] = val
-                                        data.append(new_row)
+                                            new_row[subj_idx_hist[subj]] = val
+                                        hist_data.append(new_row)
+    
+                                    if not updated_prev:
+                                        new_row = ["" for _ in headers_prev]
+                                        new_row[name_idx_prev] = name_disp
+                                        for _, r in edited_df.iterrows():
+                                            subj = r["SUBJECT"]
+                                            val = str(r["PREVIOUS GRADE"]) if pd.notna(r["PREVIOUS GRADE"]) else ""
+                                            new_row[subj_idx_prev[subj]] = val
+                                        prev_data.append(new_row)
     
                                     hist_ws.clear()
-                                    hist_ws.update("A1", [headers] + data[1:])
+                                    hist_ws.update("A1", [headers_hist] + hist_data[1:])
+    
+                                    prev_ws.clear()
+                                    prev_ws.update("A1", [headers_prev] + prev_data[1:])
+    
                                     st.cache_data.clear()
-                                    st.success("✅ All changes saved.")
+                                    st.success("✅ All changes saved to both sheets.")
                                     st.rerun()
     
                             except Exception as e:
                                 st.error(f"❌ Error saving changes: {e}")
                     else:
-                        st.info("📝 No changes yet. You can edit 'CURRENT GRADE' cells directly above.")
+                        st.info("📝 No changes yet. You can edit both grade columns above.")
     
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
+
 
         
     with t3:
