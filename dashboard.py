@@ -244,12 +244,12 @@ if st.session_state.mode == "class" and cls:
                 }
             }
     
-        def get_worksheet_by_name(name):
-        for ws in SS.worksheets():
-            st.write(f"🧾 Found sheet: '{ws.title}'")  # Debug output
-            if ws.title.strip().upper() == name.strip().upper():
-                return ws
-        raise Exception(f"Worksheet '{name}' not found.")
+            def get_worksheet_by_name(name):
+            for ws in SS.worksheets():
+                st.write(f"🧾 Found sheet: '{ws.title}'")  # Debug output
+                if ws.title.strip().upper() == name.strip().upper():
+                    return ws
+            raise Exception(f"Worksheet '{name}' not found.")
     
             prev_df = sheet_df(acad_sheet_map[cls][term])
             curr_df = sheet_df(acad_hist_map[cls][term])
