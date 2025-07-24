@@ -431,21 +431,21 @@ if st.session_state.mode == "class" and cls:
                 gb.configure_default_column(editable=True, resizable=False, filter=False, sortable=False)
                 gb.configure_column("Exercise", editable=False)
     
-                # 🌑 Custom dark theme CSS
-                custom_css = {
-                    ".ag-theme-alpine-dark": {
+                grid_options = gb.build()
+    
+                military_css = {
+                    ".ag-theme-alpine": {
                         "--ag-font-size": "12px",
                         "--ag-row-height": "28px",
-                        "--ag-background-color": "#1e1e1e",
-                        "--ag-header-background-color": "#2a2a2a",
-                        "--ag-header-foreground-color": "#ffffff",
-                        "--ag-odd-row-background-color": "#2c2c2c",
-                        "--ag-row-hover-color": "#3a3a3a",
-                        "--ag-foreground-color": "#e0e0e0",
+                        "--ag-background-color": "#3b4b3b",         # olive green base
+                        "--ag-header-background-color": "#6b6e52",   # khaki/steel mix
+                        "--ag-header-foreground-color": "#f0e6c2",   # khaki text
+                        "--ag-foreground-color": "#e6e6e6",          # light steel text
+                        "--ag-odd-row-background-color": "#495a49",  # darker olive
+                        "--ag-row-hover-color": "#5c745c",           # olive highlight
+                        "--ag-border-color": "#7a7a7a",              # steel border
                     }
                 }
-    
-                grid_options = gb.build()
     
                 grid_response = AgGrid(
                     df,
@@ -453,10 +453,11 @@ if st.session_state.mode == "class" and cls:
                     update_mode=GridUpdateMode.VALUE_CHANGED,
                     fit_columns_on_grid_load=True,
                     allow_unsafe_jscode=True,
-                    theme="alpine-dark",  # 🌑 Dark theme
+                    theme="alpine",  # Apply base theme to override
                     height=160,
                     key=grid_key,
-                    custom_css=custom_css
+                    custom_css=military_css,
+                    reload_data=True
                 )
     
                 updated_df = grid_response["data"]
@@ -499,7 +500,6 @@ if st.session_state.mode == "class" and cls:
         except Exception as e:
             st.error(f"PFT load error: {e}")
 
-        
         with t4:
             try:
                 mil_sheet_map = {
