@@ -431,7 +431,11 @@ if st.session_state.mode == "class" and cls:
     
                 default_df = pd.DataFrame(table)
     
-                df = st.session_state.get(grid_key, default_df.copy())
+                # ✅ Initialize session state BEFORE widget creation
+                if grid_key not in st.session_state:
+                    st.session_state[grid_key] = default_df.copy()
+    
+                df = st.session_state[grid_key]
     
                 st.subheader(title)
     
