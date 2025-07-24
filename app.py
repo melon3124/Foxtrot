@@ -43,21 +43,31 @@ else:
 if st.session_state.role == "cadet":
     st.title(f"🎖️ Cadet Dashboard - Welcome {st.session_state.username.capitalize()}")
 
-    # Load DEMOGRAPHICS sheet
+    # --- Load Data ---
     demo_df = sheet_df("DEMOGRAPHICS")
-    cls = st.session_state.get("selected_class")
 
-    # Load DEMOGRAPHICS data
-    demo_df = sheet_df("DEMOGRAPHICS")
-    cls = st.session_state.get("selected_class")
-
-    # Ensure cadet selection state exists
+    # --- Ensure Cadet Selection State Exists ---
     if "selected_cadet_display_name" not in st.session_state:
         st.session_state["selected_cadet_display_name"] = None
     if "selected_cadet_cleaned_name" not in st.session_state:
         st.session_state["selected_cadet_cleaned_name"] = None
 
-    # Class-based dashboard
+    # --- Class Selection Dropdown ---
+    st.markdown('<div class="centered">', unsafe_allow_html=True)
+    initial_idx = ["", *classes.keys()].index(st.session_state.get("selected_class") or "")
+    selected = st.selectbox("Select Class Level", ["", *classes.keys()], index=initial_idx)
+    if selected != st.session_state.get("selected_class"):
+        st.session_state.update({
+            "mode": "class",
+            "selected_class": selected,
+            "selected_cadet_display_name": None,
+            "selected_cadet_cleaned_name": None
+        })
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- Class View Grid ---
+    cls = st.session_state.get("selected_class")
     if st.session_state.get("mode") == "class" and cls:
         cadets = demo_df[demo_df["CLASS"] == cls]
         if cadets.empty:
@@ -69,8 +79,8 @@ if st.session_state.role == "cadet":
                 for j in range(4):
                     if i + j >= len(cadets):
                         continue
-                    name_display = cadets.iloc[i+j]["FULL NAME_DISPLAY"]
-                    name_cleaned = cadets.iloc[i+j]["FULL NAME"]
+                    name_display = cadets.iloc[i + j]["FULL NAME_DISPLAY"]
+                    name_cleaned = cadets.iloc[i + j]["FULL NAME"]
                     with cols[j]:
                         if st.button(name_display, key=f"cadet_{name_cleaned}_{cls}"):
                             st.session_state.selected_cadet_display_name = name_display
@@ -78,17 +88,13 @@ if st.session_state.role == "cadet":
                             st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # If a cadet has been selected, show tabs
+        # --- Cadet Tabs View ---
         name_disp = st.session_state.selected_cadet_display_name
         name_clean = st.session_state.selected_cadet_cleaned_name
         if name_clean:
             row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
             st.markdown(f"## Showing details for: {name_disp}")
-
-            # Tabs for cadet details
-            t1, t2, t3, t4, t5 = st.tabs([
-                "👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"
-            ])
+            t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
             with t1:
                 render_demographics(demo_df, cls)
@@ -128,5 +134,6 @@ if st.session_state.role == "cadet":
                     conduct_sheet_map
                 )
     else:
-        st.warning("Please select your class and mode first.")
+        st.info("Please select your class and mode first.")
+
 
