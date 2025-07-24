@@ -371,117 +371,117 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected academic error: {e}")
 
 
-        with t3:
-            try:
-                from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-        
-                pft_sheet_map = {
-                    "1CL": "1CL PFT",
-                    "2CL": "2CL PFT",
-                    "3CL": "3CL PFT"
-                }
-        
-                pft2_sheet_map = {
-                    "1CL": "1CL PFT 2",
-                    "2CL": "2CL PFT 2",
-                    "3CL": "3CL PFT 2"
-                }
-        
-                term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
-        
-                def get_pft_data(sheet_key):
-                    sheet_name = sheet_key.get(cls, None)
-                    if not sheet_name:
-                        return None, f"No PFT sheet mapped for selected class in {sheet_key}."
-                    df = sheet_df(sheet_name)
-                    if df.empty:
-                        return None, f"No PFT data available in '{sheet_name}'."
-                    df.columns = [c.strip().upper() for c in df.columns]
-                    if "NAME" not in df.columns:
-                        return None, f"'NAME' column missing in '{sheet_name}'."
-                    df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                    cadet = df[df["NAME_CLEANED"] == name_clean]
-                    if cadet.empty:
-                        return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
-                    return cadet.iloc[0], None
-        
-                exercises = [
-                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                    ("Situps", "SITUPS", "SITUPS_GRADES"),
-                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                    ("3.2KM Run", "RUN", "RUN_GRADES")
-                ]
-        
-                def build_table(title, cadet_data):
-                    table = []
-                    for label, raw_col, grade_col in exercises:
-                        reps = cadet_data.get(raw_col, "")
-                        grade = cadet_data.get(grade_col, "N/A")
-                        table.append({
-                            "Exercise": label,
-                            "Repetitions": reps,
-                            "Grade": grade
-                        })
-        
-                    df = pd.DataFrame(table)
-        
-                    st.subheader(title)
-        
-                    gb = GridOptionsBuilder.from_dataframe(df)
-                    gb.configure_default_column(editable=True)
-                    gb.configure_column("Exercise", editable=False)
-                    grid_options = gb.build()
-        
-                    grid_response = AgGrid(
-                        df,
-                        gridOptions=grid_options,
-                        update_mode=GridUpdateMode.VALUE_CHANGED,
-                        fit_columns_on_grid_load=True,
-                        allow_unsafe_jscode=True,
-                        theme="material"
-                    )
-        
-                    updated_df = grid_response["data"]
-        
-                    # Recalculate Status based on Grade >= 7
-                    def compute_status(grade):
-                        try:
-                            grade_int = int(str(grade).strip())
-                            return "Passed" if grade_int >= 7 else "Failed"
-                        except:
-                            return "N/A"
-        
-                    updated_df["Status"] = updated_df["Grade"].apply(compute_status)
-        
-                    st.markdown("#### 🟢 Updated PFT Table with Status")
-                    st.dataframe(updated_df, hide_index=True)
-        
-                # Load cadet data from both PFT sheets
-                cadet1, err1 = get_pft_data(pft_sheet_map)
-                cadet2, err2 = get_pft_data(pft2_sheet_map)
-        
-                if term == "1st Term":
-                    if err1:
-                        st.warning(err1)
-                    else:
-                        build_table("🏋️ PFT 1 | 1st Term", cadet1)
-                    if err2:
-                        st.warning(err2)
-                    else:
-                        build_table("🏋️ PFT 2 | 1st Term", cadet2)
-        
-                elif term == "2nd Term":
-                    if err1:
-                        st.warning(err1)
-                    else:
-                        build_table("🏋️ PFT 1 | 2nd Term", cadet1)
-                    if err2:
-                        st.warning(err2)
-                    else:
-                        build_table("🏋️ PFT 2 | 2nd Term", cadet2)
-        
-            except Exception as e:
-                st.error(f"PFT load error: {e}")
+    with t3:
+        try:
+            from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+    
+            pft_sheet_map = {
+                "1CL": "1CL PFT",
+                "2CL": "2CL PFT",
+                "3CL": "3CL PFT"
+            }
+    
+            pft2_sheet_map = {
+                "1CL": "1CL PFT 2",
+                "2CL": "2CL PFT 2",
+                "3CL": "3CL PFT 2"
+            }
+    
+            term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
+    
+            def get_pft_data(sheet_key):
+                sheet_name = sheet_key.get(cls, None)
+                if not sheet_name:
+                    return None, f"No PFT sheet mapped for selected class in {sheet_key}."
+                df = sheet_df(sheet_name)
+                if df.empty:
+                    return None, f"No PFT data available in '{sheet_name}'."
+                df.columns = [c.strip().upper() for c in df.columns]
+                if "NAME" not in df.columns:
+                    return None, f"'NAME' column missing in '{sheet_name}'."
+                df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                cadet = df[df["NAME_CLEANED"] == name_clean]
+                if cadet.empty:
+                    return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
+                return cadet.iloc[0], None
+    
+            exercises = [
+                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                ("Situps", "SITUPS", "SITUPS_GRADES"),
+                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                ("3.2KM Run", "RUN", "RUN_GRADES")
+            ]
+    
+            def build_table(title, cadet_data, grid_key):
+                table = []
+                for label, raw_col, grade_col in exercises:
+                    reps = cadet_data.get(raw_col, "")
+                    grade = cadet_data.get(grade_col, "N/A")
+                    table.append({
+                        "Exercise": label,
+                        "Repetitions": reps,
+                        "Grade": grade
+                    })
+    
+                df = pd.DataFrame(table)
+    
+                st.subheader(title)
+    
+                gb = GridOptionsBuilder.from_dataframe(df)
+                gb.configure_default_column(editable=True)
+                gb.configure_column("Exercise", editable=False)
+                grid_options = gb.build()
+    
+                grid_response = AgGrid(
+                    df,
+                    gridOptions=grid_options,
+                    update_mode=GridUpdateMode.VALUE_CHANGED,
+                    fit_columns_on_grid_load=True,
+                    allow_unsafe_jscode=True,
+                    theme="material",
+                    key=grid_key  # ✅ unique per grid
+                )
+    
+                updated_df = grid_response["data"]
+    
+                def compute_status(grade):
+                    try:
+                        grade_int = int(str(grade).strip())
+                        return "Passed" if grade_int >= 7 else "Failed"
+                    except:
+                        return "N/A"
+    
+                updated_df["Status"] = updated_df["Grade"].apply(compute_status)
+    
+                st.markdown("#### 🟢 Updated PFT Table with Status")
+                st.dataframe(updated_df, hide_index=True)
+    
+            cadet1, err1 = get_pft_data(pft_sheet_map)
+            cadet2, err2 = get_pft_data(pft2_sheet_map)
+    
+            if term == "1st Term":
+                if err1:
+                    st.warning(err1)
+                else:
+                    build_table("🏋️ PFT 1 | 1st Term", cadet1, grid_key="pft1_1st")
+                if err2:
+                    st.warning(err2)
+                else:
+                    build_table("🏋️ PFT 2 | 1st Term", cadet2, grid_key="pft2_1st")
+    
+            elif term == "2nd Term":
+                if err1:
+                    st.warning(err1)
+                else:
+                    build_table("🏋️ PFT 1 | 2nd Term", cadet1, grid_key="pft1_2nd")
+                if err2:
+                    st.warning(err2)
+                else:
+                    build_table("🏋️ PFT 2 | 2nd Term", cadet2, grid_key="pft2_2nd")
+    
+        except Exception as e:
+            st.error(f"PFT load error: {e}")
+
 
 
         with t4:
