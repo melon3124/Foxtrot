@@ -1,9 +1,6 @@
 # main.py (Foxtrot CIS Dashboard)
 
 import streamlit as st
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from utils.auth import login
 from utils.gsheet import init_gsheets, sheet_df, clean_cadet_name_for_comparison
