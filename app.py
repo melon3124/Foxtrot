@@ -1,5 +1,6 @@
 import streamlit as st
 from auth import authenticate
+authenticate()
 from constants import *
 from demographics import render_demographics
 from academics import render_academics_tab
