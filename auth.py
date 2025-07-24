@@ -1,7 +1,10 @@
 import streamlit as st
 
 def authenticate():
-    if not st.session_state.get("auth_ok", False):
+    if "auth_ok" not in st.session_state:
+        st.session_state.auth_ok = False
+
+    if not st.session_state.auth_ok:
         password = st.text_input("Enter password", type="password")
         if password == "your_secret":
             st.session_state.auth_ok = True
