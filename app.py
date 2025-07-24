@@ -373,6 +373,8 @@ if st.session_state.mode == "class" and cls:
 
         with t3:
             try:
+                from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+        
                 pft_sheet_map = {
                     "1CL": "1CL PFT",
                     "2CL": "2CL PFT",
@@ -415,24 +417,49 @@ if st.session_state.mode == "class" and cls:
                     for label, raw_col, grade_col in exercises:
                         reps = cadet_data.get(raw_col, "")
                         grade = cadet_data.get(grade_col, "N/A")
-                        status = (
-                            "Passed" if str(grade).strip().isdigit() and int(grade) >= 3
-                            else "Failed" if str(grade).strip().isdigit()
-                            else "N/A"
-                        )
                         table.append({
                             "Exercise": label,
                             "Repetitions": reps,
-                            "Grade": grade,
-                            "Status": status
+                            "Grade": grade
                         })
-                    st.subheader(title)
-                    st.dataframe(pd.DataFrame(table), hide_index=True)
         
+                    df = pd.DataFrame(table)
+        
+                    st.subheader(title)
+        
+                    gb = GridOptionsBuilder.from_dataframe(df)
+                    gb.configure_default_column(editable=True)
+                    gb.configure_column("Exercise", editable=False)
+                    grid_options = gb.build()
+        
+                    grid_response = AgGrid(
+                        df,
+                        gridOptions=grid_options,
+                        update_mode=GridUpdateMode.VALUE_CHANGED,
+                        fit_columns_on_grid_load=True,
+                        allow_unsafe_jscode=True,
+                        theme="material"
+                    )
+        
+                    updated_df = grid_response["data"]
+        
+                    # Recalculate Status based on Grade >= 7
+                    def compute_status(grade):
+                        try:
+                            grade_int = int(str(grade).strip())
+                            return "Passed" if grade_int >= 7 else "Failed"
+                        except:
+                            return "N/A"
+        
+                    updated_df["Status"] = updated_df["Grade"].apply(compute_status)
+        
+                    st.markdown("#### 🟢 Updated PFT Table with Status")
+                    st.dataframe(updated_df, hide_index=True)
+        
+                # Load cadet data from both PFT sheets
                 cadet1, err1 = get_pft_data(pft_sheet_map)
                 cadet2, err2 = get_pft_data(pft2_sheet_map)
         
-                # Adjust titles based on selected term
                 if term == "1st Term":
                     if err1:
                         st.warning(err1)
