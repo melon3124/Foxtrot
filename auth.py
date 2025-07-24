@@ -1,5 +1,15 @@
 import streamlit as st
 
+def authenticate():
+    if not st.session_state.get("auth_ok", False):
+        password = st.text_input("Enter password", type="password")
+        if password == "your_secret":
+            st.session_state.auth_ok = True
+            st.rerun()
+        else:
+            st.stop()
+
+
 # --- Login Logic ---
 if not st.session_state.auth_ok:
     st.title("🦊 Foxtrot CIS Login")
