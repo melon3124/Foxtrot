@@ -371,7 +371,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected academic error: {e}")
 
 
-         with t3:
+        with t3:
             try:
                 pft_sheet_map = {
                     "1CL": "1CL PFT",
