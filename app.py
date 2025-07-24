@@ -375,10 +375,14 @@ if st.session_state.mode == "class" and cls:
             st.header("📊 Physical Fitness Test")
         
             try:
+                cls = st.selectbox("Select Class Level", ["1CL", "2CL", "3CL"], key="pft_class")
                 pft_test = st.selectbox("Select PFT Test", ["PFT 1", "PFT 2"], key="pft_test")
                 term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="pft_term")
         
-                pft_sheet_name = f"{pft_test} | {term.lower()}"
+                # Determine the actual sheet name
+                sheet_base = f"{cls} PFT" if pft_test == "PFT 1" else f"{cls} PFT 2"
+                pft_sheet_name = sheet_base
+        
                 ws = SS.worksheet(pft_sheet_name)
                 pft_df = pd.DataFrame(ws.get_all_records())
                 pft_df.columns = [c.strip().upper() for c in pft_df.columns]
@@ -397,7 +401,7 @@ if st.session_state.mode == "class" and cls:
                             ws.append_row([new_row.get(col, "") for col in pft_df.columns])
                             st.experimental_rerun()
                     else:
-                        st.subheader("✏️ Edit Cadet PFT Record")
+                        st.subheader(f"✏️ Edit {pft_test} Record ({term})")
         
                         cadet_row_df = pft_df[cadet_mask].copy().reset_index(drop=True)
         
@@ -424,7 +428,6 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Error accessing or updating sheet '{pft_sheet_name}': {e}")
-
 
 
         with t4:
