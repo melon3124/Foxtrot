@@ -9,9 +9,23 @@ import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import openpyxl
 
-# Load sheet names dynamically
-wb = openpyxl.load_workbook("FOXTROT DASHBOARD V2 (2).xlsx", read_only=True)
-sheet_names = wb.sheetnames
+# Get Google Sheet object
+sheet = client.open_by_key(sheet_key)
+
+# Dynamically list all worksheet names (tabs)
+sheet_names = [ws.title for ws in sheet.worksheets()]
+
+# Let user select a sheet/tab
+sheet_id = st.selectbox("Select sheet", sheet_names)
+
+# Load the selected worksheet
+worksheet = sheet.worksheet(sheet_id)
+data = worksheet.get_all_records()
+df = pd.DataFrame(data)
+
+# Display the data
+st.dataframe(df)
+
 
 sheet_id = st.selectbox("Select sheet", sheet_names)
 
