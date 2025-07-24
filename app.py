@@ -371,7 +371,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected academic error: {e}")
 
 
-        with t3:
+         with t3:
             try:
                 pft_sheet_map = {
                     "1CL": "1CL PFT",
@@ -395,6 +395,8 @@ if st.session_state.mode == "class" and cls:
                     if df.empty:
                         return None, f"No PFT data available in '{sheet_name}'."
                     df.columns = [c.strip().upper() for c in df.columns]
+                    if "NAME" not in df.columns:
+                        return None, f"'NAME' column missing in '{sheet_name}'."
                     df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                     cadet = df[df["NAME_CLEANED"] == name_clean]
                     if cadet.empty:
@@ -427,9 +429,11 @@ if st.session_state.mode == "class" and cls:
                     st.subheader(title)
                     st.dataframe(pd.DataFrame(table), hide_index=True)
         
+                cadet1, err1 = get_pft_data(pft_sheet_map)
+                cadet2, err2 = get_pft_data(pft2_sheet_map)
+        
+                # Adjust titles based on selected term
                 if term == "1st Term":
-                    cadet1, err1 = get_pft_data(pft_sheet_map)
-                    cadet2, err2 = get_pft_data(pft2_sheet_map)
                     if err1:
                         st.warning(err1)
                     else:
@@ -437,22 +441,21 @@ if st.session_state.mode == "class" and cls:
                     if err2:
                         st.warning(err2)
                     else:
-                        build_table("🏋️ PFT 2 | 2nd Term", cadet2)
+                        build_table("🏋️ PFT 2 | 1st Term", cadet2)
         
                 elif term == "2nd Term":
-                    cadet2, err2 = get_pft_data(pft2_sheet_map)
-                    cadet1, err1 = get_pft_data(pft_sheet_map)
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_table("🏋️ PFT 1 | 2nd Term", cadet1)
                     if err2:
                         st.warning(err2)
                     else:
                         build_table("🏋️ PFT 2 | 2nd Term", cadet2)
-                    if err1:
-                        st.warning(err1)
-                    else:
-                        build_table("🏋️ PFT 1 | 1st Term", cadet1)
         
             except Exception as e:
                 st.error(f"PFT load error: {e}")
+
 
         with t4:
             try:
