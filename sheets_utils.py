@@ -1,9 +1,11 @@
+# sheets_utils.py
+
 import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 
-# Authenticate using secrets
+# Create authorized gspread client from Streamlit secrets
 def get_client():
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
@@ -14,10 +16,17 @@ def get_client():
     )
     return gspread.authorize(creds)
 
-# Get a worksheet as a DataFrame
+# Read a worksheet into a DataFrame
 def sheet_df(sheet_name):
     client = get_client()
-    sheet = client.open("FoxtrotCIS")  # Replace with your actual sheet name
+    sheet = client.open("FoxtrotCIS")  # Replace with your actual Google Sheet name
     ws = sheet.worksheet(sheet_name)
     data = ws.get_all_records()
     return pd.DataFrame(data)
+
+# Optional: update an entire worksheet from a DataFrame
+def update_sheet(sheet_name, df):
+    client = get_client()
+    sheet = client.open("FoxtrotCIS")
+    ws = sheet.worksheet(sheet_name)
+    ws.update([df.columns.values.tolist()] + df.values.tolist())
