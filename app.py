@@ -201,7 +201,7 @@ if st.session_state.mode == "class" and cls:
                 for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
 
- with t2:
+with t2:
     try:
         # --- Setup Term Selection ---
         if "selected_term" not in st.session_state:
