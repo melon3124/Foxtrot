@@ -27,6 +27,6 @@ def sheet_df(sheet_name):
 # Optional: update an entire worksheet from a DataFrame
 def update_sheet(sheet_name, df):
     client = get_client()
-    sheet = client.open("FoxtrotCIS")
+    sheet = client.open("FOXTROT DASHBOARD V2")
     ws = sheet.worksheet(sheet_name)
     ws.update([df.columns.values.tolist()] + df.values.tolist())
