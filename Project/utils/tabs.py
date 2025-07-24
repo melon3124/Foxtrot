@@ -1,4 +1,10 @@
 import streamlit as st
+
+def show_tabs(demo_df, name_clean, name_disp, cls, SS):
+    # Now it's safe to use cls or session_state here
+    st.write("Tabs content will go here...")
+    # Your actual logic continues...
+
 import pandas as pd
 from utils.gsheet import sheet_df, clean_cadet_name_for_comparison
 
