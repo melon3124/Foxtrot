@@ -4,7 +4,12 @@ import streamlit as st
 from utils.auth import login
 from utils.gsheet import init_gsheets, sheet_df, clean_cadet_name_for_comparison
 from utils.demographics import load_demographics, display_class_selector, display_cadet_buttons
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
 from utils.tabs import show_tabs
+
 
 # --- Page Config ---
 st.set_page_config(
