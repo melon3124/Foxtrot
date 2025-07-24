@@ -8,7 +8,7 @@ from military import render_military_tab
 from conduct import render_conduct_tab
 from sheets_utils import sheet_df
 
-demo_df = sheet_df("DEMOSHEET")
+demo_df = sheet_df("DEMOGRAPHICS")
 st.dataframe(demo_df)
 
 # Authenticate
