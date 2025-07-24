@@ -203,7 +203,6 @@ if st.session_state.mode == "class" and cls:
 
         with t2:
             try:
-                # --- Setup Term Selection ---
                 if "selected_term" not in st.session_state:
                     st.session_state.selected_term = "1st Term"
         
@@ -216,31 +215,28 @@ if st.session_state.mode == "class" and cls:
                 )
                 st.session_state.selected_term = term
         
-                # --- Sheet Mappings ---
                 acad_sheet_map = {
-                    "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD TERM 2"},
-                    "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD TERM 2"},
-                    "3CL": {"1st Term": "3CL ACAD", "2nd Term": "3CL ACAD TERM 2"}
+                    "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD 2"},
+                    "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD 2"},
+                    "3CL": {"1st Term": "3CL ACAD", "2nd Term": "3CL ACAD 2"}
                 }
                 acad_hist_map = {
-                    "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY TERM 2"},
-                    "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY TERM 2"},
-                    "3CL": {"1st Term": "3CL ACAD HISTORY", "2nd Term": "3CL ACAD HISTORY TERM 2"}
+                    "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
+                    "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
+                    "3CL": {"1st Term": "3CL ACAD HISTORY", "2nd Term": "3CL ACAD HISTORY 2"}
                 }
         
                 possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
         
-                # --- Helper Functions ---
                 def find_name_column(df):
-                    upper_cols = df.columns.str.upper()
+                    upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
                     for col in possible_name_cols:
-                        if col.upper() in upper_cols.values:
-                            return df.columns[upper_cols == col.upper()][0]
+                        if col.upper() in upper_cols:
+                            return df.columns[upper_cols.get_loc(col.upper())]
                     return None
         
                 def get_worksheet_by_name(name):
                     for ws in SS.worksheets():
-                        st.write(f"🧾 Found sheet: '{ws.title}'")  # Debug
                         if ws.title.strip().upper() == name.strip().upper():
                             return ws
                     raise Exception(f"Worksheet '{name}' not found.")
@@ -265,9 +261,11 @@ if st.session_state.mode == "class" and cls:
                         data.append(new_row)
                     return data
         
-                # --- Load Data ---
                 prev_df = sheet_df(acad_sheet_map[cls][term])
                 curr_df = sheet_df(acad_hist_map[cls][term])
+        
+                prev_df.columns = [str(c).strip().upper() for c in prev_df.columns]
+                curr_df.columns = [str(c).strip().upper() for c in curr_df.columns]
         
                 prev_name_col = find_name_column(prev_df)
                 curr_name_col = find_name_column(curr_df)
@@ -280,7 +278,7 @@ if st.session_state.mode == "class" and cls:
         
                     if row_prev.empty:
                         st.warning(f"No academic record found in previous sheet for {name_disp}.")
-                        st.info("Some available cadet names: " + ", ".join(prev_df[prev_name_col].dropna().unique()[:5]))
+                        st.info("Some available cadet names: " + ", ".join(prev_df[prev_name_col].dropna().astype(str).unique()[:5]))
                     else:
                         row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
                         subjects = row_prev.index.tolist()
@@ -299,10 +297,13 @@ if st.session_state.mode == "class" and cls:
                             df["CURRENT GRADE"] = None
         
                         df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
-                        df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️"))
-                        df["STATUS"] = df["CURRENT GRADE"].apply(lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else ""))
+                        df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(
+                            lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️")
+                        )
+                        df["STATUS"] = df["CURRENT GRADE"].apply(
+                            lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
+                        )
         
-                        # --- Editable Table ---
                         st.subheader("📝 Editable Grades Table")
                         gb = GridOptionsBuilder.from_dataframe(df)
                         gb.configure_column("SUBJECT", editable=False)
@@ -325,7 +326,6 @@ if st.session_state.mode == "class" and cls:
                         edited_df = grid_response["data"]
                         grades_changed = not edited_df[["PREVIOUS GRADE", "CURRENT GRADE"]].equals(df[["PREVIOUS GRADE", "CURRENT GRADE"]])
         
-                        # --- Save Logic ---
                         if grades_changed or st.session_state.get("force_show_submit", False):
                             st.success("✅ Detected changes. Click below to apply updates.")
                             if st.button("📤 Submit All Changes"):
@@ -361,7 +361,6 @@ if st.session_state.mode == "class" and cls:
         
                                         st.cache_data.clear()
                                         st.success("✅ All changes saved to both sheets.")
-        
                                 except Exception as e:
                                     st.error(f"❌ Error saving changes: {e}")
                         else:
@@ -370,6 +369,7 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
+
 
     
     with t3:
