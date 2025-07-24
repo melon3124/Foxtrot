@@ -44,7 +44,31 @@ if st.session_state.role == "cadet":
     st.title(f"🎖️ Cadet Dashboard - Welcome {st.session_state.username.capitalize()}")
 
     # --- Load Data ---
-    demo_df = sheet_df("DEMOGRAPHICS")
+    # Load necessary data
+demo_df = sheet_df("DEMOGRAPHICS")
+
+# 🔸 Extract unique class levels from the data
+classes = {cls: None for cls in sorted(demo_df["CLASS"].unique())}
+
+# 🔹 Class selection UI
+st.markdown('<div class="centered">', unsafe_allow_html=True)
+initial_idx = ["", *classes.keys()].index(st.session_state.get("selected_class") or "")
+selected = st.selectbox("Select Class Level", ["", *classes.keys()], index=initial_idx)
+if selected != st.session_state.get("selected_class"):
+    st.session_state.update({
+        "mode": "class",
+        "selected_class": selected,
+        "selected_cadet_display_name": None,
+        "selected_cadet_cleaned_name": None
+    })
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+# 🔸 Class view logic starts here
+cls = st.session_state.selected_class
+if st.session_state.mode == "class" and cls:
+    # (your cadet rendering code here...)
+
 
     # --- Ensure Cadet Selection State Exists ---
     if "selected_cadet_display_name" not in st.session_state:
