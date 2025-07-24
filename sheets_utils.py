@@ -19,7 +19,7 @@ def get_client():
 # Read a worksheet into a DataFrame
 def sheet_df(sheet_name):
     client = get_client()
-    sheet = client.open("FoxtrotCIS")  # Replace with your actual Google Sheet name
+    sheet = client.open("FOXTROT DASHBOARD V2")  # Replace with your actual Google Sheet name
     ws = sheet.worksheet(sheet_name)
     data = ws.get_all_records()
     return pd.DataFrame(data)
