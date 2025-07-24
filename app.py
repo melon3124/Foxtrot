@@ -7,6 +7,14 @@ import re
 import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+import openpyxl
+
+# Load sheet names dynamically
+wb = openpyxl.load_workbook("FOXTROT DASHBOARD V2 (2).xlsx", read_only=True)
+sheet_names = wb.sheetnames
+
+sheet_id = st.selectbox("Select sheet", sheet_names)
+
 
 if "last_report_fetch" not in st.session_state:
     st.session_state["last_report_fetch"] = 0
