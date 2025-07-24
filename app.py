@@ -48,30 +48,60 @@ if st.session_state.role == "cadet":
 
     cls = st.session_state.get("selected_class")
 
-    # Check if mode and class selection exist
-    if st.session_state.get("mode") == "class" and cls:
-        # Render demographics and get row of selected cadet
-        row = render_demographics(demo_df, cls)
+if st.session_state.role == "cadet":
+    st.title(f"🎖️ Cadet Dashboard - Welcome {st.session_state.username.capitalize()}")
 
-        if row is not None:
-            # Show tabbed dashboard with cadet-specific data
+    # Load DEMOGRAPHICS data
+    demo_df = sheet_df("DEMOGRAPHICS")
+    cls = st.session_state.get("selected_class")
+
+    # Ensure cadet selection state exists
+    if "selected_cadet_display_name" not in st.session_state:
+        st.session_state["selected_cadet_display_name"] = None
+    if "selected_cadet_cleaned_name" not in st.session_state:
+        st.session_state["selected_cadet_cleaned_name"] = None
+
+    # Class-based dashboard
+    if st.session_state.get("mode") == "class" and cls:
+        cadets = demo_df[demo_df["CLASS"] == cls]
+        if cadets.empty:
+            st.warning(f"No cadets for class {cls}.")
+        else:
+            st.markdown('<div class="centered">', unsafe_allow_html=True)
+            for i in range(0, len(cadets), 4):
+                cols = st.columns(4)
+                for j in range(4):
+                    if i + j >= len(cadets):
+                        continue
+                    name_display = cadets.iloc[i+j]["FULL NAME_DISPLAY"]
+                    name_cleaned = cadets.iloc[i+j]["FULL NAME"]
+                    with cols[j]:
+                        if st.button(name_display, key=f"cadet_{name_cleaned}_{cls}"):
+                            st.session_state.selected_cadet_display_name = name_display
+                            st.session_state.selected_cadet_cleaned_name = name_cleaned
+                            st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # If a cadet has been selected, show tabs
+        name_disp = st.session_state.selected_cadet_display_name
+        name_clean = st.session_state.selected_cadet_cleaned_name
+        if name_clean:
+            row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
+            st.markdown(f"## Showing details for: {name_disp}")
+
+            # Tabs for cadet details
             t1, t2, t3, t4, t5 = st.tabs([
-                "👤 Demographics", 
-                "📚 Academics", 
-                "🏃 PFT", 
-                "🪖 Military", 
-                "⚖ Conduct"
+                "👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"
             ])
 
             with t1:
-                st.subheader("👤 Demographics")
-                st.write("Demographics already shown.")
+                render_demographics(demo_df, cls)
 
             with t2:
                 render_academics_tab(
                     row,
-                    st.session_state.selected_cadet_display_name,
-                    st.session_state.selected_cadet_cleaned_name,
+                    name_disp,
+                    name_clean,
                     cls,
                     acad_sheet_map,
                     acad_hist_map
@@ -79,8 +109,8 @@ if st.session_state.role == "cadet":
 
             with t3:
                 render_pft_tab(
-                    st.session_state.selected_cadet_display_name,
-                    st.session_state.selected_cadet_cleaned_name,
+                    name_disp,
+                    name_clean,
                     cls,
                     pft_sheet_map,
                     pft2_sheet_map
@@ -88,18 +118,19 @@ if st.session_state.role == "cadet":
 
             with t4:
                 render_military_tab(
-                    st.session_state.selected_cadet_display_name,
-                    st.session_state.selected_cadet_cleaned_name,
+                    name_disp,
+                    name_clean,
                     cls,
                     mil_sheet_map
                 )
 
             with t5:
                 render_conduct_tab(
-                    st.session_state.selected_cadet_display_name,
-                    st.session_state.selected_cadet_cleaned_name,
+                    name_disp,
+                    name_clean,
                     cls,
                     conduct_sheet_map
                 )
     else:
         st.warning("Please select your class and mode first.")
+
