@@ -371,7 +371,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected academic error: {e}")
 
 
-    with t3:
+     with t3:
         try:
             pft_sheet_map = {
                 "1CL": "1CL PFT",
@@ -396,10 +396,10 @@ if st.session_state.mode == "class" and cls:
                     if not sheet_name:
                         return None, f"No PFT sheet mapped for selected class in {sheet_key}."
                     df = sheet_df(sheet_name)
-                    if df is None:
-                        return None, f"Sheet '{sheet_name}' could not be loaded (None returned)."
-                    if df.empty:
-                        return None, f"No PFT data available in '{sheet_name}'."
+                    if not isinstance(df, pd.DataFrame):
+                        return None, f"❌ Sheet '{sheet_name}' did not return a valid DataFrame."
+                    if df is None or df.empty:
+                        return None, f"⚠️ No PFT data available in '{sheet_name}'."
                     df.columns = [c.strip().upper() for c in df.columns]
                     df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                     cadet = df[df["NAME_CLEANED"] == name_clean]
@@ -494,8 +494,8 @@ if st.session_state.mode == "class" and cls:
                     if st.button(f"💾 Save changes to sheet: {sheet_name}", key=f"save_{grid_key}"):
                         try:
                             full_sheet = sheet_df(sheet_name)
-                            if full_sheet is None:
-                                st.error(f"❌ Could not load sheet '{sheet_name}' (None returned).")
+                            if not isinstance(full_sheet, pd.DataFrame) or full_sheet.empty:
+                                st.error(f"❌ Could not load sheet '{sheet_name}' or it's empty.")
                                 return
                             full_sheet.columns = [c.strip().upper() for c in full_sheet.columns]
                             full_sheet["NAME_CLEANED"] = full_sheet["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
@@ -541,6 +541,7 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
+
 
         with t4:
             try:
