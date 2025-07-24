@@ -41,7 +41,7 @@ else:
 
 
 # Load data
-demo_df = sheet_df("DEMOSHEET")
+demo_df = sheet_df("DEMOGRAPHICS")
 cls = st.session_state.get("selected_class")
 
 if st.session_state.get("mode") == "class" and cls:
