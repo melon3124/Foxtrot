@@ -7,28 +7,6 @@ import re
 import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-import openpyxl
-
-# Get Google Sheet object
-sheet = client.open_by_key(sheet_key)
-
-# Dynamically list all worksheet names (tabs)
-sheet_names = [ws.title for ws in sheet.worksheets()]
-
-# Let user select a sheet/tab
-sheet_id = st.selectbox("Select sheet", sheet_names)
-
-# Load the selected worksheet
-worksheet = sheet.worksheet(sheet_id)
-data = worksheet.get_all_records()
-df = pd.DataFrame(data)
-
-# Display the data
-st.dataframe(df)
-
-
-sheet_id = st.selectbox("Select sheet", sheet_names)
-
 
 if "last_report_fetch" not in st.session_state:
     st.session_state["last_report_fetch"] = 0
