@@ -6,7 +6,7 @@ def show_tabs(demo_df, name_clean, name_disp, cls, SS):
     # Your actual logic continues...
 
 import pandas as pd
-from utils.gsheet import sheet_df, clean_cadet_name_for_comparison
+
 
 # -------------------- CLASS VIEW --------------------
 cls = st.session_state.selected_class
