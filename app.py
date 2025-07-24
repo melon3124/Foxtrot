@@ -387,149 +387,157 @@ if st.session_state.mode == "class" and cls:
     
             term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
     
-            def get_pft_data(sheet_key):
-                sheet_name = sheet_key.get(cls, None)
-                if not sheet_name:
-                    return None, f"No PFT sheet mapped for selected class in {sheet_key}."
-                df = sheet_df(sheet_name)
-                if df.empty:
-                    return None, f"No PFT data available in '{sheet_name}'."
-                df.columns = [c.strip().upper() for c in df.columns]
-                df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                cadet = df[df["NAME_CLEANED"] == name_clean]
-                if cadet.empty:
-                    return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
-                return cadet.iloc[0], None
+            if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
+                st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
+            else:
     
-            exercises = [
-                ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                ("Situps", "SITUPS", "SITUPS_GRADES"),
-                ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                ("3.2KM Run", "RUN", "RUN_GRADES")
-            ]
+                def get_pft_data(sheet_key):
+                    sheet_name = sheet_key.get(cls, None)
+                    if not sheet_name:
+                        return None, f"No PFT sheet mapped for selected class in {sheet_key}."
+                    df = sheet_df(sheet_name)
+                    if df is None:
+                        return None, f"Sheet '{sheet_name}' could not be loaded (None returned)."
+                    if df.empty:
+                        return None, f"No PFT data available in '{sheet_name}'."
+                    df.columns = [c.strip().upper() for c in df.columns]
+                    df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                    cadet = df[df["NAME_CLEANED"] == name_clean]
+                    if cadet.empty:
+                        return None, f"No PFT record found for {name_disp} in '{sheet_name}'."
+                    return cadet.iloc[0], None
     
-            def update_sheet(sheet_name, df):
-                import gspread
-                from gspread_dataframe import set_with_dataframe
+                exercises = [
+                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                    ("Situps", "SITUPS", "SITUPS_GRADES"),
+                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                    ("3.2KM Run", "RUN", "RUN_GRADES")
+                ]
     
-                gc = gspread.service_account(filename="your-service-account.json")
-                sh = gc.open_by_key("your-sheet-id")
-                worksheet = sh.worksheet(sheet_name)
-                worksheet.clear()
-                set_with_dataframe(worksheet, df)
+                def update_sheet(sheet_name, df):
+                    import gspread
+                    from gspread_dataframe import set_with_dataframe
     
-            def build_table(title, cadet_data, grid_key, sheet_name):
-                table = []
-                for label, raw_col, grade_col in exercises:
-                    reps = cadet_data.get(raw_col, "")
-                    grade = cadet_data.get(grade_col, "N/A")
-                    table.append({
-                        "Exercise": label,
-                        "Repetitions": reps,
-                        "Grade": grade
-                    })
+                    gc = gspread.service_account(filename="your-service-account.json")
+                    sh = gc.open_by_key("your-sheet-id")
+                    worksheet = sh.worksheet(sheet_name)
+                    worksheet.clear()
+                    set_with_dataframe(worksheet, df)
     
-                default_df = pd.DataFrame(table)
+                def build_table(title, cadet_data, grid_key, sheet_name):
+                    table = []
+                    for label, raw_col, grade_col in exercises:
+                        reps = cadet_data.get(raw_col, "")
+                        grade = cadet_data.get(grade_col, "N/A")
+                        table.append({
+                            "Exercise": label,
+                            "Repetitions": reps,
+                            "Grade": grade
+                        })
     
-                # ✅ Initialize session state BEFORE widget creation
-                if grid_key not in st.session_state:
-                    st.session_state[grid_key] = default_df.copy()
+                    default_df = pd.DataFrame(table)
     
-                df = st.session_state[grid_key]
+                    if grid_key not in st.session_state:
+                        st.session_state[grid_key] = default_df.copy()
     
-                st.subheader(title)
+                    df = st.session_state[grid_key]
     
-                gb = GridOptionsBuilder.from_dataframe(df)
-                gb.configure_default_column(editable=True, resizable=False)
-                gb.configure_column("Exercise", editable=False)
-                grid_options = gb.build()
+                    st.subheader(title)
     
-                military_css = {
-                    ".ag-theme-alpine": {
-                        "--ag-font-size": "12px",
-                        "--ag-row-height": "28px",
-                        "--ag-background-color": "#3b4b3b",
-                        "--ag-header-background-color": "#6b6e52",
-                        "--ag-header-foreground-color": "#f0e6c2",
-                        "--ag-foreground-color": "#e6e6e6",
-                        "--ag-odd-row-background-color": "#495a49",
-                        "--ag-row-hover-color": "#5c745c",
-                        "--ag-border-color": "#7a7a7a"
+                    gb = GridOptionsBuilder.from_dataframe(df)
+                    gb.configure_default_column(editable=True, resizable=False)
+                    gb.configure_column("Exercise", editable=False)
+                    grid_options = gb.build()
+    
+                    military_css = {
+                        ".ag-theme-alpine": {
+                            "--ag-font-size": "12px",
+                            "--ag-row-height": "28px",
+                            "--ag-background-color": "#3b4b3b",
+                            "--ag-header-background-color": "#6b6e52",
+                            "--ag-header-foreground-color": "#f0e6c2",
+                            "--ag-foreground-color": "#e6e6e6",
+                            "--ag-odd-row-background-color": "#495a49",
+                            "--ag-row-hover-color": "#5c745c",
+                            "--ag-border-color": "#7a7a7a"
+                        }
                     }
-                }
     
-                grid_response = AgGrid(
-                    df,
-                    gridOptions=grid_options,
-                    update_mode=GridUpdateMode.VALUE_CHANGED,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    theme="alpine",
-                    height=160,
-                    key=grid_key,
-                    custom_css=military_css,
-                    reload_data=True
-                )
+                    grid_response = AgGrid(
+                        df,
+                        gridOptions=grid_options,
+                        update_mode=GridUpdateMode.VALUE_CHANGED,
+                        fit_columns_on_grid_load=True,
+                        allow_unsafe_jscode=True,
+                        theme="alpine",
+                        height=160,
+                        key=grid_key,
+                        custom_css=military_css,
+                        reload_data=True
+                    )
     
-                updated_df = grid_response["data"]
-                st.session_state[grid_key] = updated_df
+                    updated_df = grid_response["data"]
+                    st.session_state[grid_key] = updated_df
     
-                def compute_status(grade):
-                    try:
-                        grade_int = int(str(grade).strip())
-                        return "Passed" if grade_int >= 7 else "Failed"
-                    except:
-                        return "N/A"
+                    def compute_status(grade):
+                        try:
+                            grade_int = int(str(grade).strip())
+                            return "Passed" if grade_int >= 7 else "Failed"
+                        except:
+                            return "N/A"
     
-                updated_df["Status"] = updated_df["Grade"].apply(compute_status)
+                    updated_df["Status"] = updated_df["Grade"].apply(compute_status)
     
-                st.markdown("#### 🟢 Updated PFT Table with Status")
-                st.dataframe(updated_df, hide_index=True)
+                    st.markdown("#### 🟢 Updated PFT Table with Status")
+                    st.dataframe(updated_df, hide_index=True)
     
-                if st.button(f"💾 Save changes to sheet: {sheet_name}", key=f"save_{grid_key}"):
-                    try:
-                        full_sheet = sheet_df(sheet_name)
-                        full_sheet.columns = [c.strip().upper() for c in full_sheet.columns]
-                        full_sheet["NAME_CLEANED"] = full_sheet["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        idx = full_sheet[full_sheet["NAME_CLEANED"] == name_clean].index
-                        if not idx.empty:
-                            i = idx[0]
-                            for label, raw_col, grade_col in exercises:
-                                rep = updated_df.loc[updated_df["Exercise"] == label, "Repetitions"].values[0]
-                                grade = updated_df.loc[updated_df["Exercise"] == label, "Grade"].values[0]
-                                full_sheet.at[i, raw_col] = rep
-                                full_sheet.at[i, grade_col] = grade
+                    if st.button(f"💾 Save changes to sheet: {sheet_name}", key=f"save_{grid_key}"):
+                        try:
+                            full_sheet = sheet_df(sheet_name)
+                            if full_sheet is None:
+                                st.error(f"❌ Could not load sheet '{sheet_name}' (None returned).")
+                                return
+                            full_sheet.columns = [c.strip().upper() for c in full_sheet.columns]
+                            full_sheet["NAME_CLEANED"] = full_sheet["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                            idx = full_sheet[full_sheet["NAME_CLEANED"] == name_clean].index
+                            if not idx.empty:
+                                i = idx[0]
+                                for label, raw_col, grade_col in exercises:
+                                    rep = updated_df.loc[updated_df["Exercise"] == label, "Repetitions"].values[0]
+                                    grade = updated_df.loc[updated_df["Exercise"] == label, "Grade"].values[0]
+                                    full_sheet.at[i, raw_col] = rep
+                                    full_sheet.at[i, grade_col] = grade
     
-                            update_sheet(sheet_name, full_sheet)
-                            st.success(f"✅ Changes saved to '{sheet_name}'")
-                        else:
-                            st.warning("Cadet not found in sheet.")
-                    except Exception as e:
-                        st.error(f"❌ Failed to save to sheet: {e}")
+                                update_sheet(sheet_name, full_sheet)
+                                st.success(f"✅ Changes saved to '{sheet_name}'")
+                            else:
+                                st.warning("Cadet not found in sheet.")
+                        except Exception as e:
+                            st.error(f"❌ Failed to save to sheet: {e}")
     
-            if term == "1st Term":
-                cadet1, err1 = get_pft_data(pft_sheet_map)
-                cadet2, err2 = get_pft_data(pft2_sheet_map)
-                if err1:
-                    st.warning(err1)
-                else:
-                    build_table("🏋️ PFT 1 | 1st Term", cadet1, "pft1_1st", pft_sheet_map[cls])
-                if err2:
-                    st.warning(err2)
-                else:
-                    build_table("🏋️ PFT 2 | 1st Term", cadet2, "pft2_1st", pft2_sheet_map[cls])
+                if term == "1st Term":
+                    cadet1, err1 = get_pft_data(pft_sheet_map)
+                    cadet2, err2 = get_pft_data(pft2_sheet_map)
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_table("🏋️ PFT 1 | 1st Term", cadet1, "pft1_1st", pft_sheet_map[cls])
+                    if err2:
+                        st.warning(err2)
+                    else:
+                        build_table("🏋️ PFT 2 | 1st Term", cadet2, "pft2_1st", pft2_sheet_map[cls])
     
-            elif term == "2nd Term":
-                cadet2, err2 = get_pft_data(pft2_sheet_map)
-                cadet1, err1 = get_pft_data(pft_sheet_map)
-                if err2:
-                    st.warning(err2)
-                else:
-                    build_table("🏋️ PFT 2 | 2nd Term", cadet2, "pft2_2nd", pft2_sheet_map[cls])
-                if err1:
-                    st.warning(err1)
-                else:
-                    build_table("🏋️ PFT 1 | 2nd Term", cadet1, "pft1_2nd", pft_sheet_map[cls])
+                elif term == "2nd Term":
+                    cadet2, err2 = get_pft_data(pft2_sheet_map)
+                    cadet1, err1 = get_pft_data(pft_sheet_map)
+                    if err2:
+                        st.warning(err2)
+                    else:
+                        build_table("🏋️ PFT 2 | 2nd Term", cadet2, "pft2_2nd", pft2_sheet_map[cls])
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_table("🏋️ PFT 1 | 2nd Term", cadet1, "pft1_2nd", pft_sheet_map[cls])
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
