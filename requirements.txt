@@ -3,3 +3,4 @@ streamlit-aggrid
 gspread
 google-auth
 pandas
+openpyxl
