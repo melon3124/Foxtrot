@@ -40,17 +40,66 @@ else:
     st.error("🚫 Unknown role. Contact admin.")
 
 
-# Load data
-demo_df = sheet_df("DEMOGRAPHICS")
-cls = st.session_state.get("selected_class")
+if st.session_state.role == "cadet":
+    st.title(f"🎖️ Cadet Dashboard - Welcome {st.session_state.username.capitalize()}")
 
-if st.session_state.get("mode") == "class" and cls:
-    row = render_demographics(demo_df, cls)
-    if row is not None:
-        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
-        with t1: st.write("Demographics already shown.")
-        with t2: render_academics_tab(row, st.session_state.selected_cadet_display_name, st.session_state.selected_cadet_cleaned_name, cls, acad_sheet_map, acad_hist_map)
-        with t3: render_pft_tab(st.session_state.selected_cadet_display_name, st.session_state.selected_cadet_cleaned_name, cls, pft_sheet_map, pft2_sheet_map)
-        with t4: render_military_tab(st.session_state.selected_cadet_display_name, st.session_state.selected_cadet_cleaned_name, cls, mil_sheet_map)
-        with t5: render_conduct_tab(st.session_state.selected_cadet_display_name, st.session_state.selected_cadet_cleaned_name, cls, conduct_sheet_map)
+    # Load DEMOGRAPHICS sheet
+    demo_df = sheet_df("DEMOGRAPHICS")
 
+    cls = st.session_state.get("selected_class")
+
+    # Check if mode and class selection exist
+    if st.session_state.get("mode") == "class" and cls:
+        # Render demographics and get row of selected cadet
+        row = render_demographics(demo_df, cls)
+
+        if row is not None:
+            # Show tabbed dashboard with cadet-specific data
+            t1, t2, t3, t4, t5 = st.tabs([
+                "👤 Demographics", 
+                "📚 Academics", 
+                "🏃 PFT", 
+                "🪖 Military", 
+                "⚖ Conduct"
+            ])
+
+            with t1:
+                st.subheader("👤 Demographics")
+                st.write("Demographics already shown.")
+
+            with t2:
+                render_academics_tab(
+                    row,
+                    st.session_state.selected_cadet_display_name,
+                    st.session_state.selected_cadet_cleaned_name,
+                    cls,
+                    acad_sheet_map,
+                    acad_hist_map
+                )
+
+            with t3:
+                render_pft_tab(
+                    st.session_state.selected_cadet_display_name,
+                    st.session_state.selected_cadet_cleaned_name,
+                    cls,
+                    pft_sheet_map,
+                    pft2_sheet_map
+                )
+
+            with t4:
+                render_military_tab(
+                    st.session_state.selected_cadet_display_name,
+                    st.session_state.selected_cadet_cleaned_name,
+                    cls,
+                    mil_sheet_map
+                )
+
+            with t5:
+                render_conduct_tab(
+                    st.session_state.selected_cadet_display_name,
+                    st.session_state.selected_cadet_cleaned_name,
+                    cls,
+                    conduct_sheet_map
+                )
+    else:
+        st.warning("Please select your class and mode first.")
