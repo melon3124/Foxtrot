@@ -1,3 +1,5 @@
-gspread
-gspread google-auth
+streamlit
 streamlit-aggrid
+gspread
+google-auth
+pandas
