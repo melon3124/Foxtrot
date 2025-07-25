@@ -370,159 +370,91 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
 
-        with t3:
-            try:
-                pft_sheet_map = {
-                    "1CL": "1CL PFT",
-                    "2CL": "2CL PFT",
-                    "3CL": "3CL PFT"
-                }
-        
-                pft2_sheet_map = {
-                    "1CL": "1CL PFT 2",
-                    "2CL": "2CL PFT 2",
-                    "3CL": "3CL PFT 2"
-                }
-        
-                term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
-        
-                if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
-                    st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
-                else:
-        
-                    def get_pft_data(sheet_key):
-                        sheet_name = sheet_key.get(cls, None)
-                        if not sheet_name:
-                            return None, None, f"No PFT sheet mapped for selected class in {sheet_key}."
-                        df = sheet_df(sheet_name)
-                        if df is None or not isinstance(df, pd.DataFrame):
-                            return None, None, f"❌ Sheet '{sheet_name}' did not return a valid DataFrame."
-                        if df.empty:
-                            return None, None, f"⚠️ No PFT data available in '{sheet_name}'."
-                        df.columns = [c.strip().upper() for c in df.columns]
-                        df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        cadet = df[df["NAME_CLEANED"] == name_clean]
-                        if cadet.empty:
-                            return None, None, f"No PFT record found for {name_disp} in '{sheet_name}'."
-                        return cadet.copy(), df, None
-        
-                    exercises = [
-                        ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                        ("Situps", "SITUPS", "SITUPS_GRADES"),
-                        ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                        ("3.2KM Run", "RUN", "RUN_GRADES")
-                    ]
-        
-                    def build_editable_table(title, cadet_data, full_df, sheet_name):
-                        table = []
-                        for label, raw_col, grade_col in exercises:
-                            reps = cadet_data.get(raw_col, "")
-                            grade = cadet_data.get(grade_col, "N/A")
-                            grade_str = str(grade).strip()
-                            status = "N/A"
-                            if grade_str.replace(".", "", 1).isdigit():
-                                try:
-                                    grade_val = float(grade_str)
-                                    status = "Passed" if grade_val >= 7 else "Failed"
-                                except ValueError:
-                                    status = "N/A"
-                            table.append({
-                                "Exercise": label,
-                                "Repetitions": reps,
-                                "Grade": grade,
-                                "Status": status
-                            })
-        
-                        st.subheader(title)
-        
-                        df_view = pd.DataFrame(table)
-                        session_key_data = f"edit_data_{title}"
-                        session_key_widget = f"edit_widget_{title}"
-        
-                        if session_key_data not in st.session_state:
-                            st.session_state[session_key_data] = df_view.copy()
-        
-                        edited_df = st.data_editor(
-                            st.session_state[session_key_data],
-                            use_container_width=True,
-                            key=session_key_widget,
-                            column_config={
-                                "Exercise": st.column_config.TextColumn("Exercise", disabled=True),
-                                "Repetitions": st.column_config.NumberColumn("Repetitions", step=1),
-                                "Grade": st.column_config.NumberColumn("Grade", step=0.1),
-                                "Status": st.column_config.TextColumn("Status", disabled=True),
-                            }
-                        )
-        
-                        if st.button(f"💾 Save Changes for {title}"):
-                            for idx, row in edited_df.iterrows():
-                                raw_col = next((rc for l, rc, gc in exercises if l == row["Exercise"]), None)
-                                grade_col = next((gc for l, rc, gc in exercises if l == row["Exercise"]), None)
-                                if raw_col and grade_col:
-                                    rep_val = row.get("Repetitions", "")
-                                    grade_val = row.get("Grade", "")
-                                    try:
-                                        rep_val = int(rep_val)
-                                    except:
-                                        pass
-                                    try:
-                                        grade_val = float(grade_val)
-                                    except:
-                                        pass
-                                    full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = rep_val
-                                    full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col] = grade_val
-        
-                            update_sheet(sheet_name, full_df)
-        
-                            cadet_updated = full_df[full_df["NAME_CLEANED"] == name_clean].iloc[0]
-                            updated_table = []
-                            for label, raw_col, grade_col in exercises:
-                                reps = cadet_updated.get(raw_col, "")
-                                grade = cadet_updated.get(grade_col, "N/A")
-                                grade_str = str(grade).strip()
-                                status = "N/A"
-                                if grade_str.replace(".", "", 1).isdigit():
-                                    try:
-                                        grade_val = float(grade_str)
-                                        status = "Passed" if grade_val >= 7 else "Failed"
-                                    except:
-                                        status = "N/A"
-                                updated_table.append({
-                                    "Exercise": label,
-                                    "Repetitions": reps,
-                                    "Grade": grade,
-                                    "Status": status
-                                })
-                            st.session_state[session_key_data] = pd.DataFrame(updated_table)
-        
-                            st.success(f"✅ Changes to '{title}' saved successfully.")
-        
-                    if term == "1st Term":
-                        cadet1, df1, err1 = get_pft_data(pft_sheet_map)
-                        cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
-                        if err1:
-                            st.warning(err1)
-                        else:
-                            build_editable_table("🏋️ PFT 1 | 1st Term", cadet1, df1, pft_sheet_map[cls])
-                        if err2:
-                            st.warning(err2)
-                        else:
-                            build_editable_table("🏋️ PFT 2 | 1st Term", cadet2, df2, pft2_sheet_map[cls])
-        
-                    elif term == "2nd Term":
-                        cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
-                        cadet1, df1, err1 = get_pft_data(pft_sheet_map)
-                        if err2:
-                            st.warning(err2)
-                        else:
-                            build_editable_table("🏋️ PFT 2 | 2nd Term", cadet2, df2, pft2_sheet_map[cls])
-                        if err1:
-                            st.warning(err1)
-                        else:
-                            build_editable_table("🏋️ PFT 1 | 2nd Term", cadet1, df1, pft_sheet_map[cls])
-        
-            except Exception as e:
-                st.error(f"PFT load error: {e}")
+    with t3:
+        try:
+            pft_sheet_map = {
+                "1CL": "1CL PFT",
+                "2CL": "2CL PFT",
+                "3CL": "3CL PFT"
+            }
+    
+            pft2_sheet_map = {
+                "1CL": "1CL PFT 2",
+                "2CL": "2CL PFT 2",
+                "3CL": "3CL PFT 2"
+            }
+    
+            term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
+    
+            if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
+                st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
+            else:
+    
+                def get_pft_data(sheet_key):
+                    sheet_name = sheet_key.get(cls, None)
+                    if not sheet_name:
+                        return None, None, f"No PFT sheet mapped for selected class in {sheet_key}."
+                    df = sheet_df(sheet_name)
+                    if df is None or not isinstance(df, pd.DataFrame):
+                        return None, None, f"❌ Sheet '{sheet_name}' did not return a valid DataFrame."
+                    if df.empty:
+                        return None, None, f"⚠️ No PFT data available in '{sheet_name}'."
+                    df.columns = [c.strip().upper() for c in df.columns]
+                    df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                    cadet = df[df["NAME_CLEANED"] == name_clean]
+                    if cadet.empty:
+                        return None, None, f"No PFT record found for {name_disp} in '{sheet_name}'."
+                    return cadet.copy(), df, None
+    
+                exercises = [
+                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                    ("Situps", "SITUPS", "SITUPS_GRADES"),
+                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                    ("3.2KM Run", "RUN", "RUN_GRADES")
+                ]
+    
+                def build_input_form(title, cadet_data, full_df, sheet_name):
+                    st.subheader(title)
+                    input_values = {}
+                    for label, raw_col, grade_col in exercises:
+                        reps = cadet_data.get(raw_col, "")
+                        grade = cadet_data.get(grade_col, "")
+                        input_values[raw_col] = st.number_input(f"{label} - Repetitions", value=float(reps) if str(reps).replace('.', '', 1).isdigit() else 0.0, step=1.0, format="%g", key=f"{title}_{raw_col}")
+                        input_values[grade_col] = st.number_input(f"{label} - Grade", value=float(grade) if str(grade).replace('.', '', 1).isdigit() else 0.0, step=0.1, format="%g", key=f"{title}_{grade_col}")
+    
+                    if st.button(f"💾 Submit {title}"):
+                        for raw_col, val in input_values.items():
+                            full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
+                        update_sheet(sheet_name, full_df)
+                        st.success(f"✅ Changes to '{title}' saved successfully.")
+    
+                if term == "1st Term":
+                    cadet1, df1, err1 = get_pft_data(pft_sheet_map)
+                    cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_input_form("🏋️ PFT 1 | 1st Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
+                    if err2:
+                        st.warning(err2)
+                    else:
+                        build_input_form("🏋️ PFT 2 | 1st Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
+    
+                elif term == "2nd Term":
+                    cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
+                    cadet1, df1, err1 = get_pft_data(pft_sheet_map)
+                    if err2:
+                        st.warning(err2)
+                    else:
+                        build_input_form("🏋️ PFT 2 | 2nd Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
+                    if err1:
+                        st.warning(err1)
+                    else:
+                        build_input_form("🏋️ PFT 1 | 2nd Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
+    
+        except Exception as e:
+            st.error(f"PFT load error: {e}")
+
         
         with t4:
             try:
