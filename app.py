@@ -563,7 +563,7 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"PFT load error: {e}")
 
-         with t4:
+        with t4:
              try:
                 mil_sheet_map = {
                     "1CL": "1CL MIL",
