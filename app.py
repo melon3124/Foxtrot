@@ -548,60 +548,118 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"PFT load error: {e}")
 
-    with t4:
-        try:
-            mil_sheet_map = {
-                "1CL": "1CL MIL",
-                "2CL": "2CL MIL",
-                "3CL": "3CL MIL"
-            }
-    
-            sheet_name = mil_sheet_map.get(cls)
-            if not sheet_name:
-                st.warning("Select a class to view military grades.")
-            else:
-                mil = sheet_df(sheet_name)  # Your original sheet reading function
-                if mil.empty:
-                    st.info(f"No military data found in '{sheet_name}'.")
+        with t4:
+            try:
+                mil_sheet_map = {
+                    "1CL": "1CL MIL",
+                    "2CL": "2CL MIL",
+                    "3CL": "3CL MIL"
+                }
+        
+                sheet_name = mil_sheet_map.get(cls)
+                if not sheet_name:
+                    st.warning("Select a class to view military grades.")
                 else:
-                    mil = clean_column_names(mil)
-    
-                    if "NAME" not in mil.columns:
-                        st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
+                    mil = sheet_df(sheet_name)
+                    if mil.empty:
+                        st.info(f"No military data found in '{sheet_name}'.")
                     else:
-                        mil["NAME_CLEANED"] = mil["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        cadet = mil[mil["NAME_CLEANED"] == name_clean]
-    
-                        if cadet.empty:
-                            st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                        mil = clean_column_names(mil)
+        
+                        if "NAME" not in mil.columns:
+                            st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {mil.columns.tolist()}")
                         else:
-                            cadet = cadet.iloc[0]
-                            bos = cadet.get("BOS", "N/A")
-                            grade = cadet.get("GRADE", "N/A")
-                            status = evaluate_status(grade)
-    
-                            df = pd.DataFrame([{
-                                "Name": name_disp,
-                                "BOS": bos,
-                                "Grade": grade,
-                                "Status": status
-                            }])
-    
-                            st.markdown("### Edit Military Record")
-                            edited_df = st.data_editor(df, hide_index=True)
-    
-                            if st.button("Update Grades to Google Sheet"):
-                                try:
-                                    # Replace the record in the original sheet with edited values
-                                    mil.loc[mil["NAME_CLEANED"] == name_clean, "GRADE"] = edited_df.at[0, "Grade"]
-                                    mil.drop(columns=["NAME_CLEANED"], inplace=True)
-                                    update_gsheet(sheet_name, mil)
-                                    st.success("Google Sheet updated successfully!")
-                                except Exception as e:
-                                    st.error(f"Failed to update sheet: {e}")
-    
-        except Exception as e:
-            st.error(f"Military tab error: {e}")
+                            mil["NAME_CLEANED"] = mil["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet = mil[mil["NAME_CLEANED"] == name_clean]
+        
+                            if cadet.empty:
+                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                            else:
+                                cadet = cadet.iloc[0]
+        
+                                if cls == "1CL":
+                                    bos = cadet.get("BOS", "N/A")
+                                    grade = cadet.get("GRADE", "N/A")
+                                    status = evaluate_status(grade)
+        
+                                    df = pd.DataFrame([{
+                                        "Name": name_disp,
+                                        "BOS": bos,
+                                        "Grade": grade,
+                                        "Status": status
+                                    }])
+        
+                                    st.markdown("### Edit Military Record (1CL)")
+                                    edited_df = st.data_editor(df, hide_index=True)
+        
+                                    if st.button("Update Grades to Google Sheet"):
+                                        try:
+                                            new_grade = edited_df.at[0, "Grade"]
+                                            mil.loc[mil["NAME_CLEANED"] == name_clean, "GRADE"] = new_grade
+                                            mil.drop(columns=["NAME_CLEANED"], inplace=True)
+                                            update_gsheet(sheet_name, mil)
+                                            st.success("Google Sheet updated successfully!")
+                                        except Exception as e:
+                                            st.error(f"Failed to update sheet: {e}")
+        
+                                elif cls == "2CL":
+                                    subjects = ["AS", "NS", "AFS"]
+                                    missing_cols = [s for s in subjects if s not in mil.columns]
+                                    if missing_cols:
+                                        st.error(f"Missing columns in '{sheet_name}': {missing_cols}")
+                                    else:
+                                        rows = []
+                                        for subj in subjects:
+                                            grade = cadet.get(subj, "N/A")
+                                            rows.append({
+                                                "Name": name_disp,
+                                                "Subject": subj,
+                                                "Grade": grade,
+                                                "Status": evaluate_status(grade)
+                                            })
+                                        df = pd.DataFrame(rows)
+        
+                                        st.markdown("### Edit Military Record (2CL)")
+                                        edited_df = st.data_editor(df, hide_index=True)
+        
+                                        if st.button("Update Grades to Google Sheet"):
+                                            try:
+                                                for i, subj in enumerate(subjects):
+                                                    new_grade = edited_df.at[i, "Grade"]
+                                                    mil.loc[mil["NAME_CLEANED"] == name_clean, subj] = new_grade
+                                                mil.drop(columns=["NAME_CLEANED"], inplace=True)
+                                                update_gsheet(sheet_name, mil)
+                                                st.success("Google Sheet updated successfully!")
+                                            except Exception as e:
+                                                st.error(f"Failed to update sheet: {e}")
+        
+                                elif cls == "3CL":
+                                    if "MS231" not in mil.columns:
+                                        st.error(f"'MS231' column not found in '{sheet_name}'")
+                                    else:
+                                        grade = cadet.get("MS231", "N/A")
+                                        df = pd.DataFrame([{
+                                            "Name": name_disp,
+                                            "Grade": grade,
+                                            "Status": evaluate_status(grade)
+                                        }])
+        
+                                        st.markdown("### Edit Military Record (3CL)")
+                                        edited_df = st.data_editor(df, hide_index=True)
+        
+                                        if st.button("Update Grades to Google Sheet"):
+                                            try:
+                                                new_grade = edited_df.at[0, "Grade"]
+                                                mil.loc[mil["NAME_CLEANED"] == name_clean, "MS231"] = new_grade
+                                                mil.drop(columns=["NAME_CLEANED"], inplace=True)
+                                                update_gsheet(sheet_name, mil)
+                                                st.success("Google Sheet updated successfully!")
+                                            except Exception as e:
+                                                st.error(f"Failed to update sheet: {e}")
+        
+            except Exception as e:
+                st.error(f"Military tab error: {e}")
+
 
         with t5:
             try:
