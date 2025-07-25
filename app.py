@@ -408,6 +408,15 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
 
+    def update_sheet(sheet_name, updated_df):
+    try:
+        worksheet = sh.worksheet(sheet_name)
+        worksheet.clear()
+        worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
+    except Exception as e:
+        st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
+
+
     with t3:
         try:
             pft_sheet_map = {
@@ -452,6 +461,13 @@ if st.session_state.mode == "class" and cls:
                 ]
     
                 def build_display_and_form(title, cadet_data, full_df, sheet_name):
+                    # Force refresh of latest cadet data from sheet
+                    updated_df = sheet_df(sheet_name)
+                    updated_df.columns = [c.strip().upper() for c in updated_df.columns]
+                    updated_df["NAME_CLEANED"] = updated_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                    cadet_data = updated_df[updated_df["NAME_CLEANED"] == name_clean].iloc[0]
+                    full_df = updated_df.copy()
+    
                     st.subheader(title)
                     table = []
                     for label, raw_col, grade_col in exercises:
