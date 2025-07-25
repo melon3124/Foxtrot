@@ -370,7 +370,6 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
 
-
         with t3:
             try:
                 pft_sheet_map = {
@@ -443,12 +442,11 @@ if st.session_state.mode == "class" and cls:
                             use_container_width=True,
                             key=title,
                             column_config={
-                                "Repetitions": st.column_config.NumberColumn("Repetitions", step=1),
-                                "Grade": st.column_config.NumberColumn("Grade", step=0.1),
-                                "Status": st.column_config.TextColumn("Status", disabled=True),
                                 "Exercise": st.column_config.TextColumn("Exercise", disabled=True),
-                            },
-                            disabled=["Exercise", "Status"]
+                                "Repetitions": st.column_config.NumberColumn("Repetitions", step=1, required=True),
+                                "Grade": st.column_config.NumberColumn("Grade", step=0.1, required=True),
+                                "Status": st.column_config.TextColumn("Status", disabled=True),
+                            }
                         )
         
                         if st.button(f"💾 Save Changes for {title}"):
