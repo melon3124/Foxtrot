@@ -486,7 +486,7 @@ if st.session_state.mode == "class" and cls:
                         except:
                             return "N/A"
     
-                    if updated_df is not None and not updated_df.empty:
+                    if isinstance(updated_df, pd.DataFrame) and not updated_df.empty:
                         updated_df["Status"] = updated_df["Grade"].apply(compute_status)
     
                         st.markdown("#### 🟢 Updated PFT Table with Status")
@@ -542,8 +542,6 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
-
-
 
         with t4:
             try:
