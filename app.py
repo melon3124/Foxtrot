@@ -8,8 +8,7 @@ import unicodedata
 import time
 import json
 import pygsheets
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-from oauth2client.service_account import ServiceAccountCredentials
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMod
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
@@ -49,13 +48,13 @@ def clean_cadet_name_for_comparison(name):
 
 def update_gsheet(sheet_name, df):
     client = get_gsheet_client()
-    sheet = client.open("FOXTROT DASHBOARD V2").worksheet(sheet_name)
-    sheet.clear()
-    sheet.update([df.columns.tolist()] + df.values.tolist())
+    sh = client.open("Your Google Sheet Name")  # replace with actual name
+    worksheet = sh.worksheet_by_title(sheet_name)
+    worksheet.clear()
+    worksheet.set_dataframe(df, (1, 1))  # Writes to cell A1
 
 def get_gsheet_client():
-    creds_dict = st.secrets["google_service_account"]
-    return pygsheets.authorize(service_account_credentials=creds_dict)
+    return pygsheets.authorize(service_account_info=st.secrets["gcp_service_account"])
 
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
