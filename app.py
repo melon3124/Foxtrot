@@ -481,6 +481,7 @@ if st.session_state.mode == "class" and cls:
                         if st.button(f"📂 Submit {title}"):
                             for raw_col, val in input_values.items():
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
+                                cadet_data[raw_col] = val  # Update local display too
                             update_sheet(sheet_name, full_df)
                             st.success(f"✅ Changes to '{title}' saved successfully.")
                             st.rerun()
@@ -509,7 +510,7 @@ if st.session_state.mode == "class" and cls:
                     else:
                         build_display_and_form("🏋️ PFT 1 | 2nd Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
     
-        except Exception as e:
+         except Exception as e:
             st.error(f"PFT load error: {e}")
 
         with t4:
