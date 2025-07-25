@@ -16,22 +16,6 @@ if st.session_state.get("pft_refresh_triggered"):
 if "active_tab" not in st.session_state:
     st.session_state["active_tab"] = "t3"
 
-tab_labels = ["Demographics", "Academic", "PFT"]
-tabs = st.tabs(tab_labels)
-active_index = tab_labels.index("PFT") if st.session_state["active_tab"] == "t3" else 0
-
-with tabs[active_index]:
-    if tab_labels[active_index] == "PFT":
-        st.session_state["active_tab"] = "t3"
-
-        def update_sheet(sheet_name, updated_df):
-            try:
-                worksheet = sh.worksheet(sheet_name)
-                worksheet.clear()
-                worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
-            except Exception as e:
-                st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
-
 def clean_column_names(df):
     df.columns = [c.strip().upper() for c in df.columns]
     return df
