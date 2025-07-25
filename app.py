@@ -20,6 +20,7 @@ def update_sheet(sheet_name, updated_df):
         st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
 
 
+
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -461,7 +462,7 @@ if st.session_state.mode == "class" and cls:
                 ]
     
                 def build_display_and_form(title, cadet_data, full_df, sheet_name):
-                    # Force refresh of latest cadet data from sheet
+                    # Re-fetch latest data after reload
                     updated_df = sheet_df(sheet_name)
                     updated_df.columns = [c.strip().upper() for c in updated_df.columns]
                     updated_df["NAME_CLEANED"] = updated_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
@@ -510,6 +511,11 @@ if st.session_state.mode == "class" and cls:
                             for raw_col, val in input_values.items():
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
                             update_sheet(sheet_name, full_df)
+    
+                            # 👇 Clear cache so updated data is fetched
+                            if "sheet_df" in st.cache_data:
+                                st.cache_data.clear()
+    
                             st.success(f"✅ Changes to '{title}' saved successfully.")
                             st.session_state["pft_refresh_triggered"] = True
                             time.sleep(1)
