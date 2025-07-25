@@ -15,7 +15,7 @@ scopes = [
 
 # ✅ Create credentials object from secrets
 credentials = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
+    st.secrets["google_service_account"],
     scopes=scopes
 )
 
