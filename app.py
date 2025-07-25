@@ -394,8 +394,8 @@ if st.session_state.mode == "class" and cls:
                             st.info("📝 No detected grade changes yet. Try editing a cell.")
         
             except Exception as e:
-                st.error(f"❌ Unexpected academic error: {e}")
-    
+                st.error(f"❌ Unexpected academic error: {e}"
+
     with t3:
         try:
             pft_sheet_map = {
@@ -510,7 +510,7 @@ if st.session_state.mode == "class" and cls:
                     else:
                         build_display_and_form("🏋️ PFT 1 | 2nd Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
     
-         except Exception as e:
+        except Exception as e:
             st.error(f"PFT load error: {e}")
 
         with t4:
