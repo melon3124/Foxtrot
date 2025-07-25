@@ -8,6 +8,18 @@ import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+gc = gspread.service_account(filename="your-service-account-file.json")
+sh = gc.open("Your Spreadsheet Name")
+
+# ✅ Paste your update_sheet function here
+def update_sheet(sheet_name, updated_df):
+    try:
+        worksheet = sh.worksheet(sheet_name)
+        worksheet.clear()
+        worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
+    except Exception as e:
+        st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
+        
 if "last_report_fetch" not in st.session_state:
     st.session_state["last_report_fetch"] = 0
 # --- Session State Initialization ---
@@ -370,17 +382,6 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
             
-
-def update_sheet(sheet_name, updated_df):
-    # This function assumes you already have access to a Google Sheets API wrapper
-    # and that `sh` is your gspread client sheet object
-    try:
-        worksheet = sh.worksheet(sheet_name)
-        worksheet.clear()
-        worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
-    except Exception as e:
-        st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
-
         with t3:
             try:
                 pft_sheet_map = {
