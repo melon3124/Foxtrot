@@ -565,6 +565,7 @@ if st.session_state.mode == "class" and cls:
 
         with t4:
             try:
+                from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
                 mil_sheet_map = {
                     "1CL": "1CL MIL",
                     "2CL": "2CL MIL",
@@ -583,90 +584,95 @@ if st.session_state.mode == "class" and cls:
                             st.info(f"No military data found in '{sheet_name}'.")
                         else:
                             df.columns = [c.strip().upper() for c in df.columns]
-                            df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_data = df[df["NAME_CLEANED"] == name_clean]
-        
-                            if cadet_data.empty:
-                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                            if "NAME" not in df.columns:
+                                st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {df.columns.tolist()}")
                             else:
-                                cadet = cadet_data.iloc[0]
-                                st.subheader("🎖️ Military Grade Entry")
+                                df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                                cadet_df = df[df["NAME_CLEANED"] == name_clean].copy()
         
-                                if cls == "1CL":
-                                    grade_col = "GRADE"
-                                    grade_val = cadet.get(grade_col, "N/A")
-                                    try:
-                                        grade_float = float(grade_val)
-                                        status = "Proficient" if grade_float >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
+                                if cadet_df.empty:
+                                    st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                                else:
+                                    cadet_df.drop(columns=["NAME_CLEANED"], inplace=True)
         
-                                    grade_input = st.number_input(
-                                        "Military Grade", 
-                                        value=float(grade_val) if str(grade_val).replace('.', '', 1).isdigit() else 0.0,
-                                        step=0.1, format="%g"
-                                    )
+                                    # Build display DataFrame based on class
+                                    display_rows = []
         
-                                    st.markdown(f"**Status:** `{status}`")
-        
-                                    if st.button("📂 Submit Military Grade"):
-                                        df.loc[df["NAME_CLEANED"] == name_clean, grade_col] = grade_input
-                                        df.drop(columns=["NAME_CLEANED"], inplace=True)
-                                        update_sheet(sheet_name, df)
-                                        sheet_df.clear()
-                                        st.success("✅ Military grade updated successfully.")
-                                        st.rerun()
-        
-                                elif cls == "2CL":
-                                    subjects = ["AS", "NS", "AFS"]
-                                    inputs = {}
-        
-                                    for subj in subjects:
-                                        val = cadet.get(subj, "")
-                                        inputs[subj] = st.number_input(
-                                            f"{subj} Grade",
-                                            value=float(val) if str(val).replace('.', '', 1).isdigit() else 0.0,
-                                            step=0.1, format="%g"
-                                        )
+                                    if cls == "1CL":
+                                        grade = cadet_df.iloc[0].get("GRADE", "N/A")
                                         try:
-                                            status = "Proficient" if float(val) >= 7 else "DEFICIENT"
+                                            status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
                                         except:
                                             status = "N/A"
-                                        st.markdown(f"**{subj} Status:** `{status}`")
+                                        display_rows.append({
+                                            "Name": name_disp,
+                                            "BOS": cadet_df.iloc[0].get("BOS", ""),
+                                            "GRADE": grade,
+                                            "Status": status
+                                        })
         
-                                    if st.button("📂 Submit Military Grades"):
-                                        for subj in subjects:
-                                            df.loc[df["NAME_CLEANED"] == name_clean, subj] = inputs[subj]
+                                    elif cls == "2CL":
+                                        for subj in ["AS", "NS", "AFS"]:
+                                            grade = cadet_df.iloc[0].get(subj, "N/A")
+                                            try:
+                                                status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                            except:
+                                                status = "N/A"
+                                            display_rows.append({
+                                                "Name": name_disp,
+                                                "Subject": subj,
+                                                "GRADE": grade,
+                                                "Status": status
+                                            })
+        
+                                    elif cls == "3CL":
+                                        grade = cadet_df.iloc[0].get("MS231", "N/A")
+                                        try:
+                                            status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                        except:
+                                            status = "N/A"
+                                        display_rows.append({
+                                            "Name": name_disp,
+                                            "MS231": grade,
+                                            "Status": status
+                                        })
+        
+                                    display_df = pd.DataFrame(display_rows)
+        
+                                    # Show editable AgGrid
+                                    st.markdown("### ✏️ Edit Military Grades")
+                                    gb = GridOptionsBuilder.from_dataframe(display_df)
+                                    gb.configure_columns(["Status", "Name", "Subject", "BOS"], editable=False)
+                                    gb.configure_columns(["GRADE", "MS231"], editable=True)
+                                    grid_options = gb.build()
+        
+                                    grid_response = AgGrid(
+                                        display_df,
+                                        gridOptions=grid_options,
+                                        update_mode=GridUpdateMode.MANUAL,
+                                        fit_columns_on_grid_load=True,
+                                        allow_unsafe_jscode=True,
+                                        theme="streamlit"
+                                    )
+        
+                                    updated_df = grid_response["data"]
+        
+                                    if st.button("📂 Submit Updates"):
+                                        # Write updated grades back to source DataFrame
+                                        for i, row in updated_df.iterrows():
+                                            if cls == "1CL":
+                                                df.loc[df["NAME_CLEANED"] == name_clean, "GRADE"] = row["GRADE"]
+                                            elif cls == "2CL":
+                                                subj = row["Subject"]
+                                                df.loc[df["NAME_CLEANED"] == name_clean, subj] = row["GRADE"]
+                                            elif cls == "3CL":
+                                                df.loc[df["NAME_CLEANED"] == name_clean, "MS231"] = row["MS231"]
+        
                                         df.drop(columns=["NAME_CLEANED"], inplace=True)
                                         update_sheet(sheet_name, df)
                                         sheet_df.clear()
                                         st.success("✅ Military grades updated successfully.")
                                         st.rerun()
-        
-                                elif cls == "3CL":
-                                    col = "MS231"
-                                    val = cadet.get(col, "")
-                                    try:
-                                        status = "Proficient" if float(val) >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-        
-                                    ms_input = st.number_input(
-                                        "MS231 Grade", 
-                                        value=float(val) if str(val).replace('.', '', 1).isdigit() else 0.0,
-                                        step=0.1, format="%g"
-                                    )
-        
-                                    st.markdown(f"**Status:** `{status}`")
-        
-                                    if st.button("📂 Submit MS231 Grade"):
-                                        df.loc[df["NAME_CLEANED"] == name_clean, col] = ms_input
-                                        df.drop(columns=["NAME_CLEANED"], inplace=True)
-                                        update_sheet(sheet_name, df)
-                                        sheet_df.clear()
-                                        st.success("✅ MS231 grade updated successfully.")
-                                        st.rerun()
-        
             except Exception as e:
                 st.error(f"Military tab error: {e}")
 
