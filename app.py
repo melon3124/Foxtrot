@@ -413,42 +413,40 @@ if st.session_state.mode == "class" and cls:
                         ("3.2KM Run", "RUN", "RUN_GRADES")
                     ]
         
-                    def build_input_form(title, cadet_data, full_df, sheet_name):
+                    def build_display_and_form(title, cadet_data, full_df, sheet_name):
                         st.subheader(title)
-                        input_values = {}
+                        table = []
                         for label, raw_col, grade_col in exercises:
                             reps = cadet_data.get(raw_col, "")
                             grade = cadet_data.get(grade_col, "")
-                            input_values[raw_col] = st.number_input(f"{label} - Repetitions", value=float(reps) if str(reps).replace('.', '', 1).isdigit() else 0.0, step=1.0, format="%g", key=f"{title}_{raw_col}")
-                            input_values[grade_col] = st.number_input(f"{label} - Grade", value=float(grade) if str(grade).replace('.', '', 1).isdigit() else 0.0, step=0.1, format="%g", key=f"{title}_{grade_col}")
-        
-                        if st.button(f"💾 Submit {title}"):
-                            for raw_col, val in input_values.items():
-                                full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
-                            update_sheet(sheet_name, full_df)
-                            st.success(f"✅ Changes to '{title}' saved successfully.")
-        
-                        # Display updated table below the form
-                        display_data = []
-                        for label, raw_col, grade_col in exercises:
-                            reps = full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col].values[0]
-                            grade = full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col].values[0]
-                            status = "N/A"
-                            try:
-                                grade_val = float(grade)
-                                if grade_val >= 7:
-                                    status = "Passed"
-                                else:
-                                    status = "Failed"
-                            except:
-                                pass
-                            display_data.append({
+                            status = (
+                                "Passed" if str(grade).strip().replace('.', '', 1).isdigit() and float(grade) >= 7 else
+                                "Failed" if str(grade).strip().replace('.', '', 1).isdigit() else
+                                "N/A"
+                            )
+                            table.append({
                                 "Exercise": label,
                                 "Repetitions": reps,
                                 "Grade": grade,
                                 "Status": status
                             })
-                        st.dataframe(pd.DataFrame(display_data), hide_index=True, use_container_width=True)
+                        st.dataframe(pd.DataFrame(table), hide_index=True, use_container_width=True)
+        
+                        with st.expander("✏️ Edit Form"):
+                            cols = st.columns(2)
+                            input_values = {}
+                            for idx, (label, raw_col, grade_col) in enumerate(exercises):
+                                with cols[idx % 2]:
+                                    reps = cadet_data.get(raw_col, "")
+                                    grade = cadet_data.get(grade_col, "")
+                                    input_values[raw_col] = st.number_input(f"{label} Reps", value=float(reps) if str(reps).replace('.', '', 1).isdigit() else 0.0, step=1.0, format="%g", key=f"{title}_{raw_col}")
+                                    input_values[grade_col] = st.number_input(f"{label} Grade", value=float(grade) if str(grade).replace('.', '', 1).isdigit() else 0.0, step=0.1, format="%g", key=f"{title}_{grade_col}")
+        
+                            if st.button(f"💾 Submit {title}"):
+                                for raw_col, val in input_values.items():
+                                    full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
+                                update_sheet(sheet_name, full_df)
+                                st.success(f"✅ Changes to '{title}' saved successfully.")
         
                     if term == "1st Term":
                         cadet1, df1, err1 = get_pft_data(pft_sheet_map)
@@ -456,11 +454,11 @@ if st.session_state.mode == "class" and cls:
                         if err1:
                             st.warning(err1)
                         else:
-                            build_input_form("🏋️ PFT 1 | 1st Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
+                            build_display_and_form("🏋️ PFT 1 | 1st Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
                         if err2:
                             st.warning(err2)
                         else:
-                            build_input_form("🏋️ PFT 2 | 1st Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
+                            build_display_and_form("🏋️ PFT 2 | 1st Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
         
                     elif term == "2nd Term":
                         cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
@@ -468,15 +466,15 @@ if st.session_state.mode == "class" and cls:
                         if err2:
                             st.warning(err2)
                         else:
-                            build_input_form("🏋️ PFT 2 | 2nd Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
+                            build_display_and_form("🏋️ PFT 2 | 2nd Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
                         if err1:
                             st.warning(err1)
                         else:
-                            build_input_form("🏋️ PFT 1 | 2nd Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
+                            build_display_and_form("🏋️ PFT 1 | 2nd Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
         
             except Exception as e:
                 st.error(f"PFT load error: {e}")
-        
+            
         with t4:
             try:
                 mil_sheet_map = {
