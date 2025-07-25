@@ -8,8 +8,22 @@ import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-gc = gspread.authorize(Credentials)
-sh = gc.open("FOXTROT DASHBOARD V2")  
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# ✅ Create credentials object from secrets
+credentials = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=scopes
+)
+
+# ✅ Authorize gspread with the credentials instance
+gc = gspread.authorize(credentials)
+
+# ✅ Open your spreadsheet
+sh = gc.open("FOXTROT DASHBOARD V2")  # Replace with actual name
 
 # ✅ Paste your update_sheet function here
 def update_sheet(sheet_name, updated_df):
