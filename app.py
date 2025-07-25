@@ -50,6 +50,12 @@ def update_gsheet(sheet_name, df):
     sheet.clear()
     sheet.update([df.columns.tolist()] + df.values.tolist())
 
+def get_gsheet_client():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds_dict = json.loads(st.secrets["google_service_account"])  # Load from Streamlit secrets
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    return gspread.authorize(creds)
+
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
