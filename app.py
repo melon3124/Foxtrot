@@ -419,11 +419,14 @@ if st.session_state.mode == "class" and cls:
                     for label, raw_col, grade_col in exercises:
                         reps = cadet_data.get(raw_col, "")
                         grade = cadet_data.get(grade_col, "N/A")
-                        status = (
-                            "Passed" if str(grade).strip().isdigit() and int(grade) >= 7
-                            else "Failed" if str(grade).strip().isdigit()
-                            else "N/A"
-                        )
+                        grade_str = str(grade).strip()
+                        status = "N/A"
+                        if grade_str.replace(".", "", 1).isdigit():
+                            try:
+                                grade_val = float(grade_str)
+                                status = "Passed" if grade_val >= 7 else "Failed"
+                            except ValueError:
+                                status = "N/A"
                         table.append({
                             "Exercise": label,
                             "Repetitions": reps,
@@ -459,7 +462,6 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
-
 
         with t4:
             try:
