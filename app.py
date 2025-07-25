@@ -8,6 +8,7 @@ import unicodedata
 import time
 import json
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from oauth2client.service_account import ServiceAccountCredentials
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
