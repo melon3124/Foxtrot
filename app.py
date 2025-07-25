@@ -7,6 +7,7 @@ import re
 import unicodedata
 import time
 import json
+import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -53,13 +54,8 @@ def update_gsheet(sheet_name, df):
     sheet.update([df.columns.tolist()] + df.values.tolist())
 
 def get_gsheet_client():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds_dict = st.secrets["google_service_account"]  # already a dict
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    return gspread.authorize(creds)
+    creds_dict = st.secrets["google_service_account"]
+    return pygsheets.authorize(service_account_credentials=creds_dict)
 
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
