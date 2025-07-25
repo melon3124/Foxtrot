@@ -459,8 +459,21 @@ if st.session_state.mode == "class" and cls:
                             raw_col = next((rc for l, rc, gc in exercises if l == row.Exercise), None)
                             grade_col = next((gc for l, rc, gc in exercises if l == row.Exercise), None)
                             if raw_col and grade_col:
-                                full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = getattr(row, "Repetitions")
-                                full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col] = getattr(row, "Grade")
+                                rep_val = getattr(row, "Repetitions", "")
+                                grade_val = getattr(row, "Grade", "")
+    
+                                try:
+                                    rep_val = int(rep_val)
+                                except:
+                                    pass
+    
+                                try:
+                                    grade_val = float(grade_val)
+                                except:
+                                    pass
+    
+                                full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = rep_val
+                                full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col] = grade_val
                         update_sheet(sheet_name, full_df)
                         st.success(f"✅ Changes to '{title}' saved successfully.")
     
