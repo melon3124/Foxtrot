@@ -503,9 +503,8 @@ if st.session_state.mode == "class" and cls:
                                     full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
                                 update_sheet(sheet_name, full_df)
         
-                                # 👇 Clear cache so updated data is fetched
-                                if "sheet_df" in st.cache_data:
-                                    st.cache_data.clear()
+                                # 🔻 Clear cache so updated data is fetched
+                                sheet_df.clear()
         
                                 st.success(f"✅ Changes to '{title}' saved successfully.")
                                 st.session_state["pft_refresh_triggered"] = True
@@ -538,6 +537,7 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"PFT load error: {e}")
+
 
         with t4:
             try:
