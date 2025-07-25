@@ -8,6 +8,18 @@ import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+f st.session_state.get("pft_refresh_triggered"):
+    del st.session_state["pft_refresh_triggered"]
+
+def update_sheet(sheet_name, updated_df):
+    try:
+        worksheet = sh.worksheet(sheet_name)
+        worksheet.clear()
+        worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
+    except Exception as e:
+        st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
+
+
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -483,6 +495,8 @@ if st.session_state.mode == "class" and cls:
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
                             update_sheet(sheet_name, full_df)
                             st.success(f"✅ Changes to '{title}' saved successfully.")
+                            st.session_state["pft_refresh_triggered"] = True
+                            time.sleep(1)
                             st.rerun()
     
                 if term == "1st Term":
@@ -511,7 +525,6 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
-
 
         with t4:
             try:
