@@ -44,6 +44,12 @@ def evaluate_status(grade):
 def clean_cadet_name_for_comparison(name):
     return name.strip().upper()
 
+def update_gsheet(sheet_name, df):
+    client = get_gsheet_client()
+    sheet = client.open("FOXTROT DASHBOARD V2").worksheet(sheet_name)
+    sheet.clear()
+    sheet.update([df.columns.tolist()] + df.values.tolist())
+
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
