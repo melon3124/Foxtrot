@@ -52,8 +52,11 @@ def update_gsheet(sheet_name, df):
     sheet.update([df.columns.tolist()] + df.values.tolist())
 
 def get_gsheet_client():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_dict = json.loads(st.secrets["google_service_account"])  # Load from Streamlit secrets
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds_dict = st.secrets["google_service_account"]  # already a dict
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     return gspread.authorize(creds)
 
