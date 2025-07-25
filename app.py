@@ -8,7 +8,7 @@ import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-gc = gspread.authorize(credentials)
+gc = gspread.authorize(Credentials)
 sh = gc.open("FOXTROT DASHBOARD V2")  
 
 # ✅ Paste your update_sheet function here
