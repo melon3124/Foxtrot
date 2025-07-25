@@ -370,6 +370,7 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
 
+
     with t3:
         try:
             pft_sheet_map = {
@@ -434,44 +435,37 @@ if st.session_state.mode == "class" and cls:
                         })
     
                     st.subheader(title)
-                    df_view = pd.DataFrame(table)
-                    gb = GridOptionsBuilder.from_dataframe(df_view)
-                    gb.configure_columns(["Repetitions", "Grade"], editable=True)
-                    gb.configure_columns(["Status", "Exercise"], editable=False)
-                    grid_options = gb.build()
     
-                    grid = AgGrid(
+                    df_view = pd.DataFrame(table)
+    
+                    edited_df = st.data_editor(
                         df_view,
-                        gridOptions=grid_options,
-                        update_mode=GridUpdateMode.MANUAL,
-                        allow_unsafe_jscode=True,
-                        theme="alpine",
-                        fit_columns_on_grid_load=True,
-                        height=200,
-                        key=title
+                        use_container_width=True,
+                        key=title,
+                        column_config={
+                            "Repetitions": st.column_config.NumberColumn("Repetitions", step=1),
+                            "Grade": st.column_config.NumberColumn("Grade", step=0.1),
+                            "Status": st.column_config.TextColumn("Status", disabled=True),
+                            "Exercise": st.column_config.TextColumn("Exercise", disabled=True),
+                        },
+                        disabled=["Exercise", "Status"]
                     )
     
-                    submitted = st.button(f"💾 Save Changes for {title}")
-    
-                    if submitted and grid['data'] is not None and not grid['data'].equals(df_view):
-                        edited = grid['data']
-                        for idx, row in edited.iterrows():
+                    if st.button(f"💾 Save Changes for {title}"):
+                        for idx, row in edited_df.iterrows():
                             raw_col = next((rc for l, rc, gc in exercises if l == row["Exercise"]), None)
                             grade_col = next((gc for l, rc, gc in exercises if l == row["Exercise"]), None)
                             if raw_col and grade_col:
                                 rep_val = row.get("Repetitions", "")
                                 grade_val = row.get("Grade", "")
-    
                                 try:
                                     rep_val = int(rep_val)
                                 except:
                                     pass
-    
                                 try:
                                     grade_val = float(grade_val)
                                 except:
                                     pass
-    
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = rep_val
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col] = grade_val
                         update_sheet(sheet_name, full_df)
@@ -503,6 +497,7 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
+
 
         with t4:
             try:
