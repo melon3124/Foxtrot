@@ -409,7 +409,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected academic error: {e}")
 
     def update_sheet(sheet_name, updated_df):
-    try:
+        try:
         worksheet = sh.worksheet(sheet_name)
         worksheet.clear()
         worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
