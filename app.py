@@ -31,11 +31,16 @@ def clean_cadet_name_for_comparison(name):
     return name.strip().upper()
 
 def update_gsheet(sheet_name, df):
-    client = get_gsheet_client()
-    sh = client.open("Your Google Sheet Name")  # replace with actual name
-    worksheet = sh.worksheet_by_title(sheet_name)
-    worksheet.clear()
-    worksheet.set_dataframe(df, (1, 1))  # Writes to cell A1
+    try:
+        client = get_gsheet_client()
+        sh = client.open("FOXTROT DASHBOARD V2")  # Replace with your sheet name
+        worksheet = sh.worksheet_by_title(sheet_name)
+        worksheet.clear()
+        worksheet.set_dataframe(df, (1, 1))
+        st.success("Sheet update successful.")
+    except Exception as e:
+        st.error(f"Failed to update sheet: {e}")
+
 
 def get_gsheet_client():
     return pygsheets.authorize(service_account_info=st.secrets["gcp_service_account"])
