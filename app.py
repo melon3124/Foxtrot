@@ -667,8 +667,8 @@ if st.session_state.mode == "class" and cls:
                                         st.success("✅ MS231 grade updated successfully.")
                                         st.rerun()
         
-            except Exception as e:
-                st.error(f"Military tab error: {e}")
+        except Exception as e:
+            st.error(f"Military tab error: {e}")
 
         with t5:
             try:
