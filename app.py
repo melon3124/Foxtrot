@@ -8,7 +8,7 @@ import unicodedata
 import time
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-f st.session_state.get("pft_refresh_triggered"):
+if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
 
 def update_sheet(sheet_name, updated_df):
