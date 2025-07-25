@@ -43,7 +43,7 @@ def update_gsheet(sheet_name, df):
 
 
 def get_gsheet_client():
-    return pygsheets.authorize(service_account_info=st.secrets["gcp_service_account"])
+    return pygsheets.authorize(service_account_info=st.secrets["google_service_account"])
 
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
