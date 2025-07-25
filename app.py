@@ -447,10 +447,13 @@ if st.session_state.mode == "class" and cls:
                         allow_unsafe_jscode=True,
                         theme="alpine",
                         fit_columns_on_grid_load=True,
-                        height=200
+                        height=200,
+                        key=title
                     )
     
-                    if grid['data'] is not None and not grid['data'].equals(df_view):
+                    submitted = st.button(f"💾 Save Changes for {title}")
+    
+                    if submitted and grid['data'] is not None and not grid['data'].equals(df_view):
                         edited = grid['data']
                         for row in edited.itertuples():
                             raw_col = next((rc for l, rc, gc in exercises if l == row.Exercise), None)
@@ -459,7 +462,7 @@ if st.session_state.mode == "class" and cls:
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = getattr(row, "Repetitions")
                                 full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col] = getattr(row, "Grade")
                         update_sheet(sheet_name, full_df)
-                        st.success("✅ Changes saved to sheet.")
+                        st.success(f"✅ Changes to '{title}' saved successfully.")
     
                 if term == "1st Term":
                     cadet1, df1, err1 = get_pft_data(pft_sheet_map)
@@ -487,7 +490,6 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"PFT load error: {e}")
-
 
         with t4:
             try:
