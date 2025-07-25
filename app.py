@@ -30,6 +30,20 @@ with tabs[active_index]:
             except Exception as e:
                 st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
 
+def clean_column_names(df):
+    df.columns = [c.strip().upper() for c in df.columns]
+    return df
+
+def evaluate_status(grade):
+    try:
+        val = float(grade)
+        return "Proficient" if val >= 7 else "DEFICIENT"
+    except:
+        return "N/A"
+
+def clean_cadet_name_for_comparison(name):
+    return name.strip().upper()
+
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
