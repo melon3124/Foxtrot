@@ -436,21 +436,24 @@ if st.session_state.mode == "class" and cls:
                         st.subheader(title)
         
                         df_view = pd.DataFrame(table)
+                        session_key = f"edit_{title}"
+                        if session_key not in st.session_state:
+                            st.session_state[session_key] = df_view.copy()
         
                         edited_df = st.data_editor(
-                            df_view,
+                            st.session_state[session_key],
                             use_container_width=True,
-                            key=title,
+                            key=session_key,
                             column_config={
                                 "Exercise": st.column_config.TextColumn("Exercise", disabled=True),
-                                "Repetitions": st.column_config.NumberColumn("Repetitions", step=1, required=True),
-                                "Grade": st.column_config.NumberColumn("Grade", step=0.1, required=True),
+                                "Repetitions": st.column_config.NumberColumn("Repetitions", step=1),
+                                "Grade": st.column_config.NumberColumn("Grade", step=0.1),
                                 "Status": st.column_config.TextColumn("Status", disabled=True),
                             }
                         )
         
                         if st.button(f"💾 Save Changes for {title}"):
-                            for idx, row in edited_df.iterrows():
+                            for idx, row in st.session_state[session_key].iterrows():
                                 raw_col = next((rc for l, rc, gc in exercises if l == row["Exercise"]), None)
                                 grade_col = next((gc for l, rc, gc in exercises if l == row["Exercise"]), None)
                                 if raw_col and grade_col:
@@ -466,7 +469,31 @@ if st.session_state.mode == "class" and cls:
                                         pass
                                     full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = rep_val
                                     full_df.loc[full_df["NAME_CLEANED"] == name_clean, grade_col] = grade_val
+        
                             update_sheet(sheet_name, full_df)
+        
+                            # Refresh session state with new data
+                            cadet_updated = full_df[full_df["NAME_CLEANED"] == name_clean].iloc[0]
+                            updated_table = []
+                            for label, raw_col, grade_col in exercises:
+                                reps = cadet_updated.get(raw_col, "")
+                                grade = cadet_updated.get(grade_col, "N/A")
+                                grade_str = str(grade).strip()
+                                status = "N/A"
+                                if grade_str.replace(".", "", 1).isdigit():
+                                    try:
+                                        grade_val = float(grade_str)
+                                        status = "Passed" if grade_val >= 7 else "Failed"
+                                    except:
+                                        status = "N/A"
+                                updated_table.append({
+                                    "Exercise": label,
+                                    "Repetitions": reps,
+                                    "Grade": grade,
+                                    "Status": status
+                                })
+                            st.session_state[session_key] = pd.DataFrame(updated_table)
+        
                             st.success(f"✅ Changes to '{title}' saved successfully.")
         
                     if term == "1st Term":
@@ -495,7 +522,6 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"PFT load error: {e}")
-
 
         with t4:
             try:
