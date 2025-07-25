@@ -601,6 +601,7 @@ if st.session_state.mode == "class" and cls:
                                         status = "Proficient" if grade_val >= 7 else "DEFICIENT"
                                     except:
                                         status = "N/A"
+        
                                     df = pd.DataFrame([{
                                         "Name": name_disp,
                                         "BOS": bos,
@@ -608,15 +609,19 @@ if st.session_state.mode == "class" and cls:
                                         "Status": status
                                     }])
         
-                                    edited_df = st.data_editor(df, hide_index=True, disabled=["Status", "Name", "BOS"])
+                                    edited_df = st.data_editor(df, hide_index=True, disabled=["Name", "BOS", "Status"])
         
                                     if st.button("Update Grades to Google Sheet"):
                                         try:
                                             new_grade = edited_df.at[0, "Grade"]
                                             mil.loc[mil["NAME_CLEANED"] == name_clean, "GRADE"] = new_grade
                                             mil.drop(columns=["NAME_CLEANED"], inplace=True)
+        
+                                            # Debug view
+                                            st.write("Final DataFrame to sync:")
+                                            st.dataframe(mil)
+        
                                             update_gsheet(sheet_name, mil)
-                                            st.success("Google Sheet updated successfully!")
                                         except Exception as e:
                                             st.error(f"Failed to update sheet: {e}")
         
@@ -636,9 +641,9 @@ if st.session_state.mode == "class" and cls:
                                             "Grade": grade,
                                             "Status": status
                                         })
-                                    df = pd.DataFrame(rows)
         
-                                    edited_df = st.data_editor(df, hide_index=True, disabled=["Status", "Name", "Subject"])
+                                    df = pd.DataFrame(rows)
+                                    edited_df = st.data_editor(df, hide_index=True, disabled=["Name", "Subject", "Status"])
         
                                     if st.button("Update Grades to Google Sheet"):
                                         try:
@@ -646,8 +651,11 @@ if st.session_state.mode == "class" and cls:
                                                 new_grade = edited_df.at[i, "Grade"]
                                                 mil.loc[mil["NAME_CLEANED"] == name_clean, subj] = new_grade
                                             mil.drop(columns=["NAME_CLEANED"], inplace=True)
+        
+                                            st.write("Final DataFrame to sync:")
+                                            st.dataframe(mil)
+        
                                             update_gsheet(sheet_name, mil)
-                                            st.success("Google Sheet updated successfully!")
                                         except Exception as e:
                                             st.error(f"Failed to update sheet: {e}")
         
@@ -658,21 +666,25 @@ if st.session_state.mode == "class" and cls:
                                         status = "Proficient" if grade_val >= 7 else "DEFICIENT"
                                     except:
                                         status = "N/A"
+        
                                     df = pd.DataFrame([{
                                         "Name": name_disp,
                                         "Grade": grade,
                                         "Status": status
                                     }])
         
-                                    edited_df = st.data_editor(df, hide_index=True, disabled=["Status", "Name"])
+                                    edited_df = st.data_editor(df, hide_index=True, disabled=["Name", "Status"])
         
                                     if st.button("Update Grades to Google Sheet"):
                                         try:
                                             new_grade = edited_df.at[0, "Grade"]
                                             mil.loc[mil["NAME_CLEANED"] == name_clean, "MS231"] = new_grade
                                             mil.drop(columns=["NAME_CLEANED"], inplace=True)
+        
+                                            st.write("Final DataFrame to sync:")
+                                            st.dataframe(mil)
+        
                                             update_gsheet(sheet_name, mil)
-                                            st.success("Google Sheet updated successfully!")
                                         except Exception as e:
                                             st.error(f"Failed to update sheet: {e}")
         
