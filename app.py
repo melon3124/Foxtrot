@@ -455,12 +455,12 @@ if st.session_state.mode == "class" and cls:
     
                     if submitted and grid['data'] is not None and not grid['data'].equals(df_view):
                         edited = grid['data']
-                        for row in edited.itertuples():
-                            raw_col = next((rc for l, rc, gc in exercises if l == row.Exercise), None)
-                            grade_col = next((gc for l, rc, gc in exercises if l == row.Exercise), None)
+                        for idx, row in edited.iterrows():
+                            raw_col = next((rc for l, rc, gc in exercises if l == row["Exercise"]), None)
+                            grade_col = next((gc for l, rc, gc in exercises if l == row["Exercise"]), None)
                             if raw_col and grade_col:
-                                rep_val = getattr(row, "Repetitions", "")
-                                grade_val = getattr(row, "Grade", "")
+                                rep_val = row.get("Repetitions", "")
+                                grade_val = row.get("Grade", "")
     
                                 try:
                                     rep_val = int(rep_val)
