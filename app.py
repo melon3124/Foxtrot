@@ -8,7 +8,7 @@ import unicodedata
 import time
 import json
 import pygsheets
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMod
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
