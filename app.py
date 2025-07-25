@@ -394,7 +394,7 @@ if st.session_state.mode == "class" and cls:
                             st.info("📝 No detected grade changes yet. Try editing a cell.")
         
             except Exception as e:
-                st.error(f"❌ Unexpected academic error: {e}"
+                st.error(f"❌ Unexpected academic error: {e}")
 
     with t3:
         try:
