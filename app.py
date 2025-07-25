@@ -6,6 +6,7 @@ import os
 import re
 import unicodedata
 import time
+import json
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 if st.session_state.get("pft_refresh_triggered"):
