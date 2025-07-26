@@ -578,7 +578,6 @@ if st.session_state.mode == "class" and cls:
                 if not sheet_name:
                     st.warning("Select a class to view military grades.")
                 else:
-                    # Load latest data from sheet
                     df = sheet_df(sheet_name)
                     if df is None or df.empty:
                         st.info(f"No military data found in '{sheet_name}'.")
@@ -588,55 +587,77 @@ if st.session_state.mode == "class" and cls:
                             st.error(f"Expected 'NAME' column not found in '{sheet_name}'. Got: {df.columns.tolist()}")
                         else:
                             df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_mask = df["NAME_CLEANED"] == name_clean
-                            cadet_df = df[cadet_mask].copy()
+                            cadet_df = df[df["NAME_CLEANED"] == name_clean].copy()
     
                             if cadet_df.empty:
                                 st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
                             else:
-                                st.subheader("📋 Military Grade Details")
-                                st.markdown(f"Cadet: **{name_disp}**")
+                                st.subheader("📋 Military Grade Summary")
     
-                                input_data = {}
-                                st.markdown("### ✏️ Edit Grades")
+                                display_rows = []
     
                                 if cls == "1CL":
-                                    bos = cadet_df.iloc[0].get("BOS", "")
-                                    grade = cadet_df.iloc[0].get("GRADE", "")
+                                    grade = cadet_df.iloc[0].get("GRADE", "N/A")
                                     try:
                                         status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
                                     except:
                                         status = "N/A"
-    
-                                    st.markdown(f"**BOS:** {bos}  \n**Status:** {status}")
-                                    input_data["GRADE"] = st.number_input("Grade", value=float(grade) if str(grade).replace('.', '', 1).isdigit() else 0.0, step=0.1)
+                                    display_rows.append({
+                                        "Name": name_disp,
+                                        "BOS": cadet_df.iloc[0].get("BOS", ""),
+                                        "GRADE": grade,
+                                        "Status": status
+                                    })
     
                                 elif cls == "2CL":
                                     for subj in ["AS", "NS", "AFS"]:
-                                        grade = cadet_df.iloc[0].get(subj, "")
+                                        grade = cadet_df.iloc[0].get(subj, "N/A")
                                         try:
                                             status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
                                         except:
                                             status = "N/A"
-    
-                                        st.markdown(f"**Subject:** {subj}  \n**Status:** {status}")
-                                        input_data[subj] = st.number_input(
-                                            f"{subj} Grade", value=float(grade) if str(grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
-                                        )
+                                        display_rows.append({
+                                            "Name": name_disp,
+                                            "Subject": subj,
+                                            "GRADE": grade,
+                                            "Status": status
+                                        })
     
                                 elif cls == "3CL":
-                                    grade = cadet_df.iloc[0].get("MS231", "")
+                                    grade = cadet_df.iloc[0].get("MS231", "N/A")
                                     try:
                                         status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
                                     except:
                                         status = "N/A"
+                                    display_rows.append({
+                                        "Name": name_disp,
+                                        "MS231": grade,
+                                        "Status": status
+                                    })
     
-                                    st.markdown(f"**MS231 Status:** {status}")
+                                st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
+    
+                                st.markdown("### ✏️ Edit Grades")
+                                input_data = {}
+    
+                                if cls == "1CL":
+                                    current_grade = cadet_df.iloc[0].get("GRADE", "")
+                                    input_data["GRADE"] = st.number_input("Grade", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1)
+    
+                                elif cls == "2CL":
+                                    for subj in ["AS", "NS", "AFS"]:
+                                        current_grade = cadet_df.iloc[0].get(subj, "")
+                                        input_data[subj] = st.number_input(
+                                            f"{subj} Grade", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
+                                        )
+    
+                                elif cls == "3CL":
+                                    current_grade = cadet_df.iloc[0].get("MS231", "")
                                     input_data["MS231"] = st.number_input(
-                                        "MS231 Grade", value=float(grade) if str(grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
+                                        "MS231 Grade", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
                                     )
     
-                                if st.button("📂 Submit Military Grades"):
+                                if st.button("📂 Submit Changes"):
                                     full_df = sheet_df(sheet_name)
                                     full_df.columns = [c.strip().upper() for c in full_df.columns]
                                     full_df["NAME_CLEANED"] = full_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
@@ -645,7 +666,6 @@ if st.session_state.mode == "class" and cls:
                                         full_df.loc[full_df["NAME_CLEANED"] == name_clean, col] = val
     
                                     full_df.drop(columns=["NAME_CLEANED"], inplace=True)
-    
                                     update_sheet(sheet_name, full_df)
                                     sheet_df.clear()
                                     st.success("✅ Military grades updated successfully.")
@@ -653,7 +673,6 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"Military tab error: {e}")
-
 
         with t5:
             try:
