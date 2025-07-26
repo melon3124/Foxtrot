@@ -143,6 +143,20 @@ if st.session_state["view"] == "summary":
     # ---------- Academic Report ----------
     with report_tabs[0]:
         st.subheader("🧠 Academic Summary Report")
+        
+
+        academic_df = st.session_state.get("academic_df")
+
+                # Example: load academic_df before using it
+        if "academic_df" not in st.session_state:
+            st.session_state["academic_df"] = pd.read_csv("your_academic_data.csv")
+        
+        academic_df = st.session_state["academic_df"]
+
+
+        if academic_df is None:
+            st.error("❌ Academic data not loaded. Please upload or load the dataset.")
+            st.stop()
 
         term = st.selectbox("Select Term", ["Term 1", "Term 2", "Term 3"])
         academic_term_df = academic_df[academic_df["TERM"] == term]
