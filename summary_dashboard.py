@@ -8,7 +8,7 @@ import json
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-service_account_info = json.loads(st.secrets["google_service_account"])
+service_account_info = st.secrets["google_service_account"]  # ✅ already a dict
 creds = Credentials.from_service_account_info(service_account_info)
 
 # -------------------- LOAD DATA --------------------
