@@ -14,10 +14,6 @@ from summary_dashboard import summary_dashboard_main
 
 
 def show_main_dashboard():
-    # Your existing cadet or admin dashboard logic here
-    st.title("Foxtrot Company Dashboard")
-    # (Other content: tabs, data, charts, etc.)
-
 
 if st.session_state.get("role") == "admin":
     st.sidebar.title("🛠 Admin Tools")
