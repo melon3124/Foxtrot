@@ -10,17 +10,17 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-if "cls" not in st.session_state:
-    st.session_state["cls"] = None
-if "name_clean" not in st.session_state:
-    st.session_state["name_clean"] = None
-if "name_disp" not in st.session_state:
-    st.session_state["name_disp"] = None
-if "role" not in st.session_state:
-    st.session_state["role"] = "user"  # or "admin"
-
 
 def main_dashboard():
+    if "cls" not in st.session_state:
+        st.session_state["cls"] = None
+    if "name_clean" not in st.session_state:
+        st.session_state["name_clean"] = None
+    if "name_disp" not in st.session_state:
+        st.session_state["name_disp"] = None
+    if "role" not in st.session_state:
+        st.session_state["role"] = "user"  # or "admin"
+
     if st.session_state.get("pft_refresh_triggered"):
         del st.session_state["pft_refresh_triggered"]
     
