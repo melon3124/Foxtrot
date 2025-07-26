@@ -580,120 +580,120 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"PFT load error: {e}")
 
-    with t4:
-        try:
-            mil_sheet_map = {
-                "1CL": "1CL MIL",
-                "2CL": "2CL MIL",
-                "3CL": "3CL MIL"
-            }
-    
-            mil2_sheet_map = {
-                "1CL": "1CL MIL 2",
-                "2CL": "2CL MIL 2",
-                "3CL": "3CL MIL 2"
-            }
-    
-            if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
-                st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
-            else:
-                term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="mil_term")
-    
-                sheet_name = mil_sheet_map.get(cls) if term == "1st Term" else mil2_sheet_map.get(cls)
-                if not sheet_name:
-                    st.warning(f"No sheet mapped for class {cls} in {term}.")
+        with t4:
+            try:
+                mil_sheet_map = {
+                    "1CL": "1CL MIL",
+                    "2CL": "2CL MIL",
+                    "3CL": "3CL MIL"
+                }
+        
+                mil2_sheet_map = {
+                    "1CL": "1CL MIL 2",
+                    "2CL": "2CL MIL 2",
+                    "3CL": "3CL MIL 2"
+                }
+        
+                if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
+                    st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
                 else:
-                    df = sheet_df(sheet_name)
-                    if df is None or df.empty:
-                        st.info(f"No military data found in '{sheet_name}'.")
+                    term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="mil_term")
+        
+                    sheet_name = mil_sheet_map.get(cls) if term == "1st Term" else mil2_sheet_map.get(cls)
+                    if not sheet_name:
+                        st.warning(f"No sheet mapped for class {cls} in {term}.")
                     else:
-                        df.columns = [c.strip().upper() for c in df.columns]
-                        df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                        cadet_df = df[df["NAME_CLEANED"] == name_clean].copy()
-    
-                        if cadet_df.empty:
-                            st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                        df = sheet_df(sheet_name)
+                        if df is None or df.empty:
+                            st.info(f"No military data found in '{sheet_name}'.")
                         else:
-                            st.subheader(f"📋 Military Grade Summary – {term}")
-                            display_rows = []
-    
-                            if cls == "1CL":
-                                grade = cadet_df.iloc[0].get("GRADE", "N/A")
-                                try:
-                                    status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
-                                except:
-                                    status = "N/A"
-                                display_rows.append({
-                                    "Name": name_disp,
-                                    "BOS": cadet_df.iloc[0].get("BOS", ""),
-                                    "GRADE": grade,
-                                    "Status": status
-                                })
-    
-                            elif cls == "2CL":
-                                for subj in ["AS", "NS", "AFS"]:
-                                    grade = cadet_df.iloc[0].get(subj, "N/A")
+                            df.columns = [c.strip().upper() for c in df.columns]
+                            df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_df = df[df["NAME_CLEANED"] == name_clean].copy()
+        
+                            if cadet_df.empty:
+                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                            else:
+                                st.subheader(f"📋 Military Grade Summary – {term}")
+                                display_rows = []
+        
+                                if cls == "1CL":
+                                    grade = cadet_df.iloc[0].get("GRADE", "N/A")
                                     try:
                                         status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
                                     except:
                                         status = "N/A"
                                     display_rows.append({
                                         "Name": name_disp,
-                                        "Subject": subj,
+                                        "BOS": cadet_df.iloc[0].get("BOS", ""),
                                         "GRADE": grade,
                                         "Status": status
                                     })
-    
-                            elif cls == "3CL":
-                                grade = cadet_df.iloc[0].get("MS231", "N/A")
-                                try:
-                                    status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
-                                except:
-                                    status = "N/A"
-                                display_rows.append({
-                                    "Name": name_disp,
-                                    "MS231": grade,
-                                    "Status": status
-                                })
-    
-                            st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
-    
-                            st.markdown(f"### ✏️ Edit Grades – {term}")
-                            input_data = {}
-    
-                            if cls == "1CL":
-                                current_grade = cadet_df.iloc[0].get("GRADE", "")
-                                input_data["GRADE"] = st.number_input(f"{term} Grade", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1)
-    
-                            elif cls == "2CL":
-                                for subj in ["AS", "NS", "AFS"]:
-                                    current_grade = cadet_df.iloc[0].get(subj, "")
-                                    input_data[subj] = st.number_input(
-                                        f"{subj} Grade – {term}", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
+        
+                                elif cls == "2CL":
+                                    for subj in ["AS", "NS", "AFS"]:
+                                        grade = cadet_df.iloc[0].get(subj, "N/A")
+                                        try:
+                                            status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                        except:
+                                            status = "N/A"
+                                        display_rows.append({
+                                            "Name": name_disp,
+                                            "Subject": subj,
+                                            "GRADE": grade,
+                                            "Status": status
+                                        })
+        
+                                elif cls == "3CL":
+                                    grade = cadet_df.iloc[0].get("MS231", "N/A")
+                                    try:
+                                        status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                    except:
+                                        status = "N/A"
+                                    display_rows.append({
+                                        "Name": name_disp,
+                                        "MS231": grade,
+                                        "Status": status
+                                    })
+        
+                                st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
+        
+                                st.markdown(f"### ✏️ Edit Grades – {term}")
+                                input_data = {}
+        
+                                if cls == "1CL":
+                                    current_grade = cadet_df.iloc[0].get("GRADE", "")
+                                    input_data["GRADE"] = st.number_input(f"{term} Grade", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1)
+        
+                                elif cls == "2CL":
+                                    for subj in ["AS", "NS", "AFS"]:
+                                        current_grade = cadet_df.iloc[0].get(subj, "")
+                                        input_data[subj] = st.number_input(
+                                            f"{subj} Grade – {term}", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
+                                        )
+        
+                                elif cls == "3CL":
+                                    current_grade = cadet_df.iloc[0].get("MS231", "")
+                                    input_data["MS231"] = st.number_input(
+                                        f"MS231 Grade – {term}", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
                                     )
-    
-                            elif cls == "3CL":
-                                current_grade = cadet_df.iloc[0].get("MS231", "")
-                                input_data["MS231"] = st.number_input(
-                                    f"MS231 Grade – {term}", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1
-                                )
-    
-                            if st.button(f"📂 Submit Changes – {term}"):
-                                full_df = sheet_df(sheet_name)
-                                full_df.columns = [c.strip().upper() for c in full_df.columns]
-                                full_df["NAME_CLEANED"] = full_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-    
-                                for col, val in input_data.items():
-                                    full_df.loc[full_df["NAME_CLEANED"] == name_clean, col] = val
-    
-                                full_df.drop(columns=["NAME_CLEANED"], inplace=True)
-                                update_sheet(sheet_name, full_df)
-                                sheet_df.clear()
-                                st.success(f"✅ {term} military grades updated successfully.")
-                                st.rerun()
-    
-        except Exception as e:
-            st.error(f"Military tab error: {e}")
+        
+                                if st.button(f"📂 Submit Changes – {term}"):
+                                    full_df = sheet_df(sheet_name)
+                                    full_df.columns = [c.strip().upper() for c in full_df.columns]
+                                    full_df["NAME_CLEANED"] = full_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+        
+                                    for col, val in input_data.items():
+                                        full_df.loc[full_df["NAME_CLEANED"] == name_clean, col] = val
+        
+                                    full_df.drop(columns=["NAME_CLEANED"], inplace=True)
+                                    update_sheet(sheet_name, full_df)
+                                    sheet_df.clear()
+                                    st.success(f"✅ {term} military grades updated successfully.")
+                                    st.rerun()
+        
+            except Exception as e:
+                st.error(f"Military tab error: {e}")
 
 
         with t5:
