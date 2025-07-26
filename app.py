@@ -10,7 +10,25 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+if "cls" not in st.session_state:
+    st.session_state["cls"] = None
+if "name_clean" not in st.session_state:
+    st.session_state["name_clean"] = None
+if "name_disp" not in st.session_state:
+    st.session_state["name_disp"] = None
+if "role" not in st.session_state:
+    st.session_state["role"] = "user"  # Default role
 
+if not st.session_state["cls"] or not st.session_state["name_disp"]:
+    with st.sidebar:
+        st.info("Please provide your identity first:")
+        st.session_state["cls"] = st.selectbox("Select Class Level", ["1CL", "2CL", "3CL"])
+        st.session_state["name_disp"] = st.text_input("Enter Display Name")
+        st.session_state["name_clean"] = st.session_state["name_disp"].strip().lower().replace(" ", "_")
+
+    st.warning("Please complete your information to load the dashboard.")
+    st.stop()
+    
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
 
@@ -818,18 +836,10 @@ if role == "admin":
     admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
 
     if admin_page == "Summary Dashboard":
-        from summary_dashboard import summary_dashboard_main
         summary_dashboard_main()
+        st.stop()
     else:
-        # 🚨 Check required session variables first
-        if all(k in st.session_state for k in ["cls", "name_clean", "name_disp"]):
-            show_main_dashboard()
-        else:
-            st.warning("Please select a class level first to view the main dashboard.")
-else:
-    # Same protection for non-admins
-    if all(k in st.session_state for k in ["cls", "name_clean", "name_disp"]):
         show_main_dashboard()
-    else:
-        st.warning("Please select a class level first.")
+else:
+    show_main_dashboard()
 
