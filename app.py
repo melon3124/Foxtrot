@@ -811,20 +811,13 @@ def main_dashboard():
 
 role = st.session_state.get("role", "user")
 
-if role == "admin":
+if st.session_state.get("role") == "admin":
     st.sidebar.title("🛠 Admin Tools")
     admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
 
     if admin_page == "Summary Dashboard":
-        from summary_dashboard import summary_dashboard_main
         summary_dashboard_main()
     else:
-        if all(k in st.session_state for k in ["cls", "name_clean", "name_disp"]):
-            show_main_dashboard()
-        else:
-            show_class_selector()
+        main_dashboard()
 else:
-    if all(k in st.session_state for k in ["cls", "name_clean", "name_disp"]):
-        show_main_dashboard()
-    else:
-        show_class_selector()
+    main_dashboard()
