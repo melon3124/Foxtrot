@@ -115,7 +115,7 @@ def run_foxtrot_dashboard():
         st.stop()
     
     # --- Logged In ---
-    st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
+    .success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
     
     # Optional logout
     if st.sidebar.button("🔓 Logout"):
@@ -246,6 +246,7 @@ def run_foxtrot_dashboard():
                         if st.button(name_display, key=f"cadet_{name_cleaned}_{cls}"):
                             st.session_state.selected_cadet_display_name = name_display
                             st.session_state.selected_cadet_cleaned_name = name_cleaned
+                            st.session_state["name_clean"] = re.sub(r"[^A-Za-z0-9]", "", st.session_state["name_disp"]).lower()
                             st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
     
