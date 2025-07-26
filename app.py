@@ -9,7 +9,6 @@ import time
 import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-from summary_dashboard import summary_dashboard_main
 
 
 if st.session_state.get("pft_refresh_triggered"):
