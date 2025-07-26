@@ -140,7 +140,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-def show_main_dashboard():
+def main_dashboard():
     st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
     # -------------------- GOOGLE SHEETS --------------------
     scope = [
@@ -813,13 +813,13 @@ def show_main_dashboard():
 
     role = st.session_state.get("role", "user")
     
-    if role == "admin":
-        st.sidebar.title("🛠 Admin Tools")
-        admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
-        
-        if admin_page == "Summary Dashboard":
-            summary_dashboard_main()
-        else:
-            show_main_dashboard()
+if role == "admin":
+    st.sidebar.title("🛠 Admin Tools")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
+    
+    if admin_page == "Summary Dashboard":
+        summary_dashboard_main()
     else:
-        show_main_dashboard()
+        main_dashboard()
+else:
+    main_dashboard()
