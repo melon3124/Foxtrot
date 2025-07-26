@@ -8,7 +8,14 @@ import json
 
 def show_summary_dashboard():
     st.title("📊 Foxtrot CIS – Summary Dashboard")
+
+    # Add your charts and tables here
     st.info("This is where your summary tables and charts will be.")
+
+    # Back button to return to the main dashboard
+    if st.button("🔙 Back to Main Dashboard"):
+        st.session_state["show_summary"] = False
+        st.rerun()
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
