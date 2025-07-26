@@ -3,15 +3,11 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import altair as alt
+import os
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
-# -------------------- GOOGLE SHEETS SETUP (using st.secrets) --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
-creds = Credentials.from_service_account_info(
-    st.secrets["google_service_account"],
-    scopes=scope
-)
+creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
 client = gspread.authorize(creds)
 
 # -------------------- LOAD DATA --------------------
@@ -98,16 +94,34 @@ def conduct_summary_admin():
     st.header("Conduct Summary")
     st.info("Conduct summary report will go here.")
 
-# -------------------- MAIN ENTRY --------------------
-def summary_dashboard_main():
-    st.title("📊 Summary Dashboard (Admin Only)")
-    tab = st.selectbox("Select Summary Type", ["Academic", "PFT", "Military", "Conduct"], key="summary_tab")
-    if tab == "Academic":
-        academic_summary_admin()
-    elif tab == "PFT":
-        pft_summary_admin()
-    elif tab == "Military":
-        military_summary_admin()
-    elif tab == "Conduct":
-        conduct_summary_admin()
+# -------------------- MAIN DASHBOARD FUNCTION --------------------
+def show_main_dashboard():
+    with st.spinner("Loading data..."):
+        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
+        with t1:
+            pic, info = st.columns([1, 2])
+            with pic:
+                name_disp = st.session_state.get("name", "default")
+                img_path = f"profile_pics/{name_disp}.jpg"
+                st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
+            with info:
+                st.write("Cadet Info")  # Replace with actual display logic
+
+# -------------------- DASHBOARD ROUTER --------------------
+from summary_dashboard import summary_dashboard_main
+
+if "role" not in st.session_state:
+    st.warning("Not logged in.")
+    st.stop()
+
+if st.session_state.get("role") == "admin":
+    st.sidebar.title("🛠 Admin Tools")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
+
+    if admin_page == "Summary Dashboard":
+        summary_dashboard_main()
+    else:
+        show_main_dashboard()
+else:
+    show_main_dashboard()
