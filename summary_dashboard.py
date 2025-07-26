@@ -4,6 +4,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import altair as alt
 import os
+import json
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
