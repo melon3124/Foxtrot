@@ -89,7 +89,7 @@ def show_top_performers(df):
     ).reset_index(drop=True)
     st.dataframe(top_performers[["Class", "Subject", "Name", "Grade"]].sort_values(by=["Class", "Subject", "Grade"], ascending=[True, True, False]))
 
-def academic_summary_admin():
+def academic_summary_admin(client):
     st.header("Academic Summary")
     term = st.selectbox("Select Term", options=["1st Term", "2nd Term"], key="acad_term")
     acad_data = load_all_history(term)
