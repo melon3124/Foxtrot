@@ -14,9 +14,10 @@ from summary_dashboard import summary_dashboard_main
 
 
 def show_main_dashboard():
-    if st.session_state.get("role") == "admin":
-        st.sidebar.title("🛠 Admin Tools")
-        admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
+    
+if st.session_state.get("role") == "admin":
+    st.sidebar.title("🛠 Admin Tools")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
     
         if admin_page == "Summary Dashboard":
             summary_dashboard_main()
