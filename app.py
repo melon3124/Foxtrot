@@ -10,6 +10,28 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+if "cls" not in st.session_state:
+    st.session_state["cls"] = None
+if "name_clean" not in st.session_state:
+    st.session_state["name_clean"] = None
+if "name_disp" not in st.session_state:
+    st.session_state["name_disp"] = None
+if "role" not in st.session_state:
+    st.session_state["role"] = "user"  # or "admin"
+
+# Prompt user for input if required variables are not set
+if not st.session_state["cls"] or not st.session_state["name_disp"]:
+    st.sidebar.info("Please identify yourself to access the dashboard.")
+    st.session_state["cls"] = st.sidebar.selectbox("Select Class Level", ["1CL", "2CL", "3CL"])
+    st.session_state["name_disp"] = st.sidebar.text_input("Enter your Display Name")
+    
+    if st.session_state["name_disp"]:
+        st.session_state["name_clean"] = st.session_state["name_disp"].strip().lower().replace(" ", "_")
+
+    st.warning("Please complete the information to proceed.")
+    st.stop()
+
+
 def main_dashboard():
     if st.session_state.get("pft_refresh_triggered"):
         del st.session_state["pft_refresh_triggered"]
