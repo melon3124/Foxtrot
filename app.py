@@ -10,6 +10,27 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+def build_master_academic_df(acad_sheet_map, term: str):
+    combined_data = []
+
+    for cls, term_map in acad_sheet_map.items():
+        try:
+            sheet_name = term_map[term]
+            df = sheet_df(sheet_name)  # your function to load sheet as DataFrame
+            df.columns = [c.strip().upper() for c in df.columns]
+            df["TERM"] = term
+            df["CLASS"] = cls
+            combined_data.append(df)
+        except Exception as e:
+            st.warning(f"⚠️ Failed to load {cls} {term}: {e}")
+
+    if combined_data:
+        full_df = pd.concat(combined_data, ignore_index=True)
+        return full_df
+    else:
+        return pd.DataFrame()  # empty fallback
+
+
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
 
@@ -143,9 +164,15 @@ if st.session_state["view"] == "summary":
     # ---------- Academic Report ----------
     with report_tabs[0]:
         st.subheader("🧠 Academic Summary Report")
-        
 
         academic_df = st.session_state.get("academic_df")
+        
+        if academic_df is not None and not academic_df.empty:
+            st.dataframe(academic_df.head())  # test it
+            # Proceed with generating charts, filters, reports, etc.
+        else:
+            st.warning("⚠️ No academic data available.")
+
 
         if academic_df is None:
             st.error("❌ Academic data not loaded. Please upload or define 'academic_df'.")
@@ -398,6 +425,10 @@ if st.session_state.mode == "class" and cls:
                     "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
                     "3CL": {"1st Term": "3CL ACAD HISTORY", "2nd Term": "3CL ACAD HISTORY 2"}
                 }
+
+                # Build and store the master academic DataFrame for summary report use
+                st.session_state["academic_df"] = build_master_academic_df(acad_sheet_map, term)
+
         
                 possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
         
