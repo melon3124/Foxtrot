@@ -218,15 +218,6 @@ if st.session_state["view"] == "summary":
         st.session_state["view"] = "main"
         st.rerun()
 
-# ------------------ MAIN APP VIEW ------------------
-elif st.session_state["view"] == "main":
-    st.title("🎓 Cadet Management Dashboard")
-
-    tab1 = st.selectbox("Choose Tab", ["Demographics", "Academic", "PFT", "Military", "Conduct"])
-    st.write(f"Showing content for: {tab1}")
-    # Add cadet-level views here
-
-
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
