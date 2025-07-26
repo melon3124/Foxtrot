@@ -115,7 +115,7 @@ def run_foxtrot_dashboard():
         st.stop()
     
     # --- Logged In ---
-    .success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
+    st.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
     
     # Optional logout
     if st.sidebar.button("🔓 Logout"):
