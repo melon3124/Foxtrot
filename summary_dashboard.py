@@ -111,6 +111,3 @@ def summary_dashboard_main():
     elif tab == "Conduct":
         conduct_summary_admin()
 
-# -------------------- DISPLAY --------------------
-if st.session_state.get("role") == "admin":
-    summary_dashboard_main()
