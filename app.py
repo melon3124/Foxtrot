@@ -10,12 +10,12 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-def run_foxtrot_dashboard():
-    # Initialize required session state keys
-    for key in ["cls", "name_clean", "name_disp"]:
-        if key not in st.session_state:
-            st.session_state[key] = None
+# Initialize required session state keys
+for key in ["cls", "name_clean", "name_disp"]:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
+def run_foxtrot_dashboard():
     # Optionally generate `name_clean` from `name_disp`
     if not st.session_state["name_clean"]:
         st.session_state["name_clean"] = st.session_state["name_disp"].strip().upper()
