@@ -6,6 +6,10 @@ import altair as alt
 import os
 import json
 
+def show_summary_dashboard():
+    st.title("📊 Foxtrot CIS – Summary Dashboard")
+    st.info("This is where your summary tables and charts will be.")
+
 # -------------------- GOOGLE SHEETS SETUP --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 service_account_info = st.secrets["google_service_account"]  # ✅ already a dict
