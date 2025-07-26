@@ -83,10 +83,6 @@ if "role" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 
-# --- Summary Dashboard Trigger ---
-if st.session_state.get("show_summary"):
-    show_summary_dashboard()
-    st.stop()
 
 
 # --- Login Logic ---
