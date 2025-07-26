@@ -123,13 +123,6 @@ if "view" not in st.session_state:
     st.session_state["view"] = "main"  # always default to dashboard
 
 # ------------------ SIDEBAR ------------------
-# ------------------ SESSION SETUP ------------------
-if "role" not in st.session_state:
-    st.session_state["role"] = "admin"  # or "cadet"
-if "view" not in st.session_state:
-    st.session_state["view"] = "main"
-
-# ------------------ SIDEBAR ------------------
 st.sidebar.title("Navigation")
 
 if st.session_state["role"] == "admin":
