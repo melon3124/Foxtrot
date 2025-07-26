@@ -11,6 +11,17 @@ import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from summary_dashboard import show_summary_dashboard
 
+st.sidebar.markdown("### Admin Options")
+
+if st.sidebar.button("📊 Generate Summary Report"):
+    st.session_state["show_summary"] = True
+    st.rerun()
+
+# If summary dashboard is triggered
+if st.session_state.get("show_summary"):
+    show_summary_dashboard()
+    st.stop()
+
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
