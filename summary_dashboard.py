@@ -7,15 +7,24 @@ import os
 import json
 
 def show_summary_dashboard():
-    st.title("📊 Foxtrot CIS – Summary Dashboard")
+    st.title("📊 Summary Report Dashboard")
 
-    # Add your charts and tables here
-    st.info("This is where your summary tables and charts will be.")
+    tab = st.selectbox("Select Report Type", ["Academic", "PFT", "Military", "Conduct"], key="summary_tab")
 
-    # Back button to return to the main dashboard
+    # Back button to main dashboard
     if st.button("🔙 Back to Main Dashboard"):
         st.session_state["show_summary"] = False
         st.rerun()
+
+    if tab == "Academic":
+        academic_summary_admin()
+    elif tab == "PFT":
+        pft_summary_admin()
+    elif tab == "Military":
+        military_summary_admin()
+    elif tab == "Conduct":
+        conduct_summary_admin()
+
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
