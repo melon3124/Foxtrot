@@ -9,12 +9,10 @@ import time
 import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-from summary_dashboard import show_summary_dashboard
 
 
-
-# If summary dashboard is triggered
 if st.session_state.get("show_summary"):
+    from summary_dashboard import show_summary_dashboard
     show_summary_dashboard()
     st.stop()
 
