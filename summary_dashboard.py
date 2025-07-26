@@ -142,21 +142,3 @@ def show_main_dashboard():
     with t5:
         show_conduct_tab(cls, name_clean, name_disp)
 
-
-# -------------------- DASHBOARD ROUTER --------------------
-from summary_dashboard import summary_dashboard_main
-
-if "role" not in st.session_state:
-    st.warning("Not logged in.")
-    st.stop()
-
-if st.session_state.get("role") == "admin":
-    st.sidebar.title("🛠 Admin Tools")
-    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
-
-    if admin_page == "Summary Dashboard":
-        summary_dashboard_main()
-    else:
-        show_main_dashboard()
-else:
-    show_main_dashboard()
