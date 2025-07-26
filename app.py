@@ -681,14 +681,23 @@ if st.session_state.mode == "class" and cls:
 
         with t5:
             try:
-                # Map selected class to worksheet
+                # Sheet map per term
                 conduct_sheet_map = {
-                    "1CL": "1CL CONDUCT",
-                    "2CL": "2CL CONDUCT",
-                    "3CL": "3CL CONDUCT"
+                    "1st Term": {
+                        "1CL": "1CL CONDUCT",
+                        "2CL": "2CL CONDUCT",
+                        "3CL": "3CL CONDUCT"
+                    },
+                    "2nd Term": {
+                        "1CL": "1CL CONDUCT 2",
+                        "2CL": "2CL CONDUCT 2",
+                        "3CL": "3CL CONDUCT 2"
+                    }
                 }
         
-                sheet_name = conduct_sheet_map.get(cls)
+                term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="conduct_term")
+                sheet_name = conduct_sheet_map[term].get(cls)
+        
                 if not sheet_name:
                     st.warning("Please select a valid class to view conduct data.")
                 else:
@@ -700,16 +709,38 @@ if st.session_state.mode == "class" and cls:
                     if cadet_data.empty:
                         st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                     else:
-                        # --- Merits Summary ---
+                        # --- Merits Summary + Edit ---
                         st.subheader("Merits Summary")
-                        total_merits = cadet_data["merits"].astype(float).sum()
-                        status = "Failed" if total_merits < 0 else "Passed"
+        
+                        current_merits = cadet_data.iloc[0].get("merits", "0")
+                        merits_value = st.number_input(
+                            f"Edit Merits – {term}",
+                            value=float(current_merits) if str(current_merits).replace('.', '', 1).lstrip('-').isdigit() else 0.0,
+                            step=1.0
+                        )
+        
+                        status = "Failed" if merits_value < 0 else "Passed"
+        
                         merit_table = pd.DataFrame([{
                             "Name": name_disp,
-                            "Merits": total_merits,
+                            "Merits": merits_value,
                             "Status": status
                         }])
-                        st.dataframe(merit_table, hide_index=True)
+                        st.dataframe(merit_table, hide_index=True, use_container_width=True)
+        
+                        if st.button(f"💾 Save Merits – {term}"):
+                            try:
+                                full_df = sheet_df(sheet_name)
+                                full_df.columns = [c.strip().lower() for c in full_df.columns]
+                                full_df["name_cleaned"] = full_df["name"].astype(str).apply(clean_cadet_name_for_comparison)
+                                full_df.loc[full_df["name_cleaned"] == name_clean, "merits"] = merits_value
+                                full_df.drop(columns=["name_cleaned"], inplace=True)
+                                update_sheet(sheet_name, full_df)
+                                sheet_df.clear()
+                                st.success("✅ Merits updated successfully.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Failed to update merits: {e}")
         
                         # --- Conduct Reports Table ---
                         st.subheader("Conduct Reports")
@@ -758,7 +789,6 @@ if st.session_state.mode == "class" and cls:
                         if submitted:
                             try:
                                 time.sleep(0.5)  # Allow smoother API write
-        
                                 report_ws = SS.worksheet("REPORTS")
                                 new_row = [
                                     name_disp,
@@ -768,7 +798,6 @@ if st.session_state.mode == "class" and cls:
                                     str(new_demerits)
                                 ]
                                 report_ws.append_row(new_row, value_input_option="USER_ENTERED")
-        
                                 st.cache_data.clear()
                                 time.sleep(0.75)
                                 st.success("✅ Report submitted successfully.")
@@ -776,33 +805,5 @@ if st.session_state.mode == "class" and cls:
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
         
-                # Optional one-time header fix: Rename CLASS to NATURE
-                def rename_class_column_to_nature():
-                    try:
-                        report_ws = SS.worksheet("REPORTS")
-                        data = report_ws.get_all_values()
-        
-                        if not data:
-                            st.warning("REPORTS sheet is empty.")
-                            return
-        
-                        headers = data[0]
-                        if "CLASS" not in headers:
-                            st.info("✅ 'CLASS' column already renamed to 'NATURE'.")
-                            return
-        
-                        class_index = headers.index("CLASS")
-                        headers[class_index] = "NATURE"
-                        updated_data = [headers] + data[1:]
-        
-                        report_ws.clear()
-                        report_ws.update("A1", updated_data)
-                        st.success("✅ Renamed 'CLASS' column to 'NATURE' successfully.")
-                    except Exception as e:
-                        st.error(f"❌ Error updating 'REPORTS' sheet: {e}")
-        
             except Exception as e:
-                st.error(f"❌ Unexpected error in conduct report section: {e}")
-
-            except Exception as e:
-                st.error(f"Conduct tab error: {e}")
+                st.error(f"❌ Unexpected error in Conduct tab: {e}")
