@@ -126,6 +126,69 @@ if st.sidebar.button("🔓 Logout"):
 if st.session_state.role == "admin":
     st.sidebar.button("📊 Summary Reports")
 
+# ------------------ ADMIN SUMMARY REPORT ------------------
+if st.session_state.get("active_tab") == "admin_summary" and st.session_state.role == "admin":
+    st.title("📊 Academic Summary Report")
+
+    # Select Term
+    term = st.selectbox("Select Term", ["Term 1", "Term 2", "Term 3"])
+
+    academic_term_df = academic_df[academic_df["TERM"] == term]
+
+    # ------------------ Section 1: Deficiencies per Class, per Subject ------------------
+    st.subheader("📌 Deficiencies per Class, per Subject")
+    melted = academic_term_df.melt(id_vars=["NAME", "CLASS"], value_vars=["MATH", "ENGLISH", "SCIENCE", "HISTORY"],
+                                   var_name="Subject", value_name="Grade")
+    deficiency_melted = melted[melted["Grade"] < 7]
+
+    chart_data = deficiency_melted.groupby("Subject").size().reset_index(name="Deficiency Count")
+    st.bar_chart(chart_data.set_index("Subject"))
+    st.dataframe(deficiency_melted.sort_values(by="Grade"))
+
+    # ------------------ Section 2: Cadets With >2 Deficient Subjects ------------------
+    st.subheader("🚩 Cadets with More Than 2 Deficient Subjects")
+    def_count = deficiency_melted.groupby("NAME").size().reset_index(name="Def_Count")
+    def_2plus = def_count[def_count["Def_Count"] > 2]
+
+    joined = pd.merge(def_2plus, deficiency_melted, on="NAME")
+    st.dataframe(joined[["NAME", "Subject", "Grade"]])
+    st.bar_chart(def_count["Def_Count"].value_counts().sort_index())
+
+    # ------------------ Section 3: Cadets Who Became Proficient ------------------
+    st.subheader("📈 Cadets Who Became Proficient")
+    if "prev_term_df" in st.session_state:
+        prev_df = st.session_state["prev_term_df"]
+        current_df = academic_term_df
+
+        prev_melt = prev_df.melt(id_vars=["NAME"], value_vars=["MATH", "ENGLISH", "SCIENCE", "HISTORY"],
+                                 var_name="Subject", value_name="Prev_Grade")
+        curr_melt = current_df.melt(id_vars=["NAME"], value_vars=["MATH", "ENGLISH", "SCIENCE", "HISTORY"],
+                                    var_name="Subject", value_name="Curr_Grade")
+        merge = pd.merge(prev_melt, curr_melt, on=["NAME", "Subject"])
+        became_prof = merge[(merge["Prev_Grade"] < 7) & (merge["Curr_Grade"] >= 7)]
+        st.dataframe(became_prof)
+    else:
+        st.info("Previous term data not available for proficiency comparison.")
+
+    # ------------------ Section 4: Top Performing Cadets ------------------
+    st.subheader("🏆 Top Performing Cadets per Subject per Class")
+    top_performers = melted.copy()
+    top_performers = top_performers.sort_values(by=["CLASS", "Subject", "Grade"], ascending=[True, True, False])
+    top3 = top_performers.groupby(["CLASS", "Subject"]).head(3)
+    st.dataframe(top3)
+
+    # ------------------ Section 5: Export ------------------
+    st.subheader("📤 Export Summary Report")
+    export_df = deficiency_melted.merge(def_count, on="NAME", how="left")
+    to_export = export_df.sort_values(by="Subject")
+
+    csv = to_export.to_csv(index=False).encode('utf-8')
+    st.download_button("Download Excel Report", data=csv, file_name="academic_summary.csv", mime="text/csv")
+
+    # Optional: PDF export (placeholder)
+    st.button("Download PDF Report (coming soon)")
+
+
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
