@@ -134,11 +134,6 @@ if not st.session_state.auth_ok:
 # --- Logged In ---
 st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
 
-# --- Admin Sidebar Tools ---
-if st.session_state.role == "admin":
-    if st.sidebar.button("📊 Summary Report"):
-        st.session_state["show_summary"] = True
-        st.rerun()
         
 # Optional logout
 if st.sidebar.button("🔓 Logout"):
