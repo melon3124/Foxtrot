@@ -139,6 +139,8 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+def show_main_dashboard():
 st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
@@ -808,3 +810,16 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
+
+role = st.session_state.get("role", "user")
+
+if role == "admin":
+    st.sidebar.title("🛠 Admin Tools")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
+    
+    if admin_page == "Summary Dashboard":
+        summary_dashboard_main()
+    else:
+        show_main_dashboard()
+else:
+    show_main_dashboard()
