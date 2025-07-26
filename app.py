@@ -811,6 +811,8 @@ def main_dashboard():
                 except Exception as e:
                     st.error(f"❌ Unexpected error in Conduct tab: {e}")
 
+role = st.session_state.get("role", "user")
+
 if role == "admin":
     st.sidebar.title("🛠 Admin Tools")
     admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
