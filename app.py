@@ -122,12 +122,17 @@ if "view" not in st.session_state:
     st.session_state["view"] = "main"
 
 # ------------------ SIDEBAR ------------------
+# ------------------ SIDEBAR ------------------
 st.sidebar.title("Navigation")
 
 if st.session_state.role == "admin":
     if st.sidebar.button("📊 Summary Reports"):
         st.session_state["view"] = "summary"
         st.rerun()
+
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.clear()
+        st.experimental_rerun()
 
 # ------------------ SUMMARY REPORT VIEW ------------------
 if st.session_state["view"] == "summary":
