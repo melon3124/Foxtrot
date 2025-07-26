@@ -252,6 +252,8 @@ if st.session_state.mode == "class" and cls:
     if name_clean:
         row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
         st.markdown(f"## Showing details for: {name_disp}")
+    def show_main_dashboard():
+    with st.spinner("Loading data..."):
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
         with t1:
@@ -807,3 +809,16 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
+                
+from summary_dashboard import summary_dashboard_main
+
+if st.session_state.get("role") == "admin":
+    st.sidebar.title("🛠 Admin Tools")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
+
+    if admin_page == "Summary Dashboard":
+        summary_dashboard_main()
+    else:
+        show_main_dashboard()
+else:
+    show_main_dashboard()
