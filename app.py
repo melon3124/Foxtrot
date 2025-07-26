@@ -476,6 +476,22 @@ if st.session_state.mode == "class" and cls:
                         df["STATUS"] = df["CURRENT GRADE"].apply(
                             lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
                         )
+
+                        if "academic_df" not in st.session_state:
+                            try:
+                                # Combine and tag both term DataFrames for filtering later
+                                prev_df["TERM"] = "1st Term" if term == "1st Term" else "2nd Term"
+                                curr_df["TERM"] = "1st Term" if term == "1st Term" else "2nd Term"
+                                
+                                combined_df = pd.concat([prev_df, curr_df], ignore_index=True)
+                        
+                                # Standardize column names
+                                combined_df.columns = [c.strip().upper() for c in combined_df.columns]
+                                
+                                st.session_state["academic_df"] = combined_df
+                            except Exception as e:
+                                st.warning(f"⚠️ Could not store full academic data for summary report: {e}")
+
         
                         st.subheader("📝 Editable Grades Table")
                         gb = GridOptionsBuilder.from_dataframe(df)
