@@ -9,6 +9,188 @@ import time
 import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+import matplotlib.pyplot as plt
+import seaborn as sns
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from io import BytesIO
+from fpdf import FPDF
+
+# Helper: Clean cadet names for comparison
+def normalize_name(name):
+    return re.sub(r'\s+', ' ', str(name)).strip().upper()
+
+# Load sheet data using Streamlit secrets
+@st.cache_data(ttl=3600)
+def sheet_df(sheet_name):
+    try:
+        creds_dict = st.secrets["gcp_service_account"]
+        gc = pygsheets.authorize(service_account_info=json.loads(json.dumps(creds_dict)))
+        sh = gc.open("Foxtrot CIS")
+        wks = sh.worksheet_by_title(sheet_name)
+        df = wks.get_as_df()
+        return df
+    except Exception as e:
+        st.error(f"Error loading sheet {sheet_name}: {e}")
+        return pd.DataFrame()
+
+# PDF Export Helper
+def create_pdf_from_df(title, df):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=title, ln=True, align='C')
+    pdf.ln(10)
+    col_width = 190 / len(df.columns)
+    for col in df.columns:
+        pdf.cell(col_width, 10, txt=str(col), border=1)
+    pdf.ln()
+    for _, row in df.iterrows():
+        for val in row:
+            pdf.cell(col_width, 10, txt=str(val), border=1)
+        pdf.ln()
+    return pdf.output(dest='S').encode('latin-1')
+
+# ---- Summary Logic Functions ----
+def get_becoming_proficient_cadets(cls):
+    try:
+        df1 = sheet_df("Academic 1st Term")
+        df2 = sheet_df("Academic 2nd Term")
+        if df1.empty or df2.empty:
+            return pd.DataFrame(), "Missing academic data."
+
+        df1["Cadet"] = df1["Cadet"].apply(normalize_name)
+        df2["Cadet"] = df2["Cadet"].apply(normalize_name)
+        merged = pd.merge(df1, df2, on=["Cadet", "Subject", "Class"], suffixes=("_1st", "_2nd"))
+        filtered = merged[(merged["Class"].str.upper() == cls.upper()) &
+                          (merged["Grade_1st"] < 7) &
+                          (merged["Grade_2nd"] >= 7)]
+        return filtered[["Cadet", "Subject", "Grade_1st", "Grade_2nd"]], None
+    except Exception as e:
+        return pd.DataFrame(), str(e)
+
+def get_pft_summary(cls, term):
+    try:
+        df = sheet_df("PFT")
+        if df.empty:
+            return pd.DataFrame(), "No PFT data available."
+        filtered = df[(df["Class"].str.upper() == cls.upper()) &
+                      (df["Term"].str.lower() == term.lower()) &
+                      (df["REMARKS"].str.upper() == "SMC")]
+        return filtered[["Cadet", "Exercise", "Score", "REMARKS"]], None
+    except Exception as e:
+        return pd.DataFrame(), str(e)
+
+def get_military_summary(cls):
+    try:
+        df1 = sheet_df("Military 1st Term")
+        df2 = sheet_df("Military 2nd Term")
+        if df1.empty or df2.empty:
+            return pd.DataFrame(), "Missing military data."
+
+        df1["Cadet"] = df1["Cadet"].apply(normalize_name)
+        df2["Cadet"] = df2["Cadet"].apply(normalize_name)
+        merged = pd.merge(df1, df2, on=["Cadet", "Subject", "Class"], suffixes=("_1st", "_2nd"))
+        filtered = merged[(merged["Class"].str.upper() == cls.upper()) &
+                          (merged["Grade_1st"] < 7) &
+                          (merged["Grade_2nd"] >= 7)]
+        return filtered[["Cadet", "Subject", "Grade_1st", "Grade_2nd"]], None
+    except Exception as e:
+        return pd.DataFrame(), str(e)
+
+def get_conduct_summary(cls, term):
+    try:
+        df = sheet_df("Conduct")
+        if df.empty:
+            return pd.DataFrame(), "No conduct data available."
+        filtered = df[(df["Class"].str.upper() == cls.upper()) &
+                      (df["Term"].str.lower() == term.lower()) &
+                      (df["MERITS"] < 20)]
+        return filtered[["Cadet", "MERITS"]], None
+    except Exception as e:
+        return pd.DataFrame(), str(e)
+
+# ---- UI Setup and Admin Interface ----
+st.set_page_config(layout="wide")
+st.title("Foxtrot Cadet Information System Dashboard")
+
+if st.session_state.get("role") == "admin":
+    st.sidebar.title("📊 Admin Summary Reports")
+    cls = st.sidebar.selectbox("Select Class Level", ["1CL", "2CL", "3CL"])
+    term = st.sidebar.selectbox("Select Term", ["1st", "2nd"])
+
+    st.header("📘 Academic Summary")
+    df_acad, err = get_becoming_proficient_cadets(cls)
+    if err:
+        st.warning(err)
+    elif not df_acad.empty:
+        st.subheader("Cadets Who Became Proficient")
+        st.dataframe(df_acad)
+        st.bar_chart(df_acad["Cadet"].value_counts())
+
+        csv = df_acad.to_csv(index=False).encode('utf-8')
+        st.download_button("⬇️ Download Excel", csv, "academic_summary.csv")
+        pdf = create_pdf_from_df("Academic Summary", df_acad)
+        st.download_button("⬇️ Download PDF", pdf, "academic_summary.pdf", mime="application/pdf")
+
+    st.header("🏋️ PFT Summary")
+    df_pft, err = get_pft_summary(cls, term)
+    if err:
+        st.warning(err)
+    elif not df_pft.empty:
+        st.subheader("Cadets Who Are SMC (Failed)")
+        st.dataframe(df_pft)
+        fig, ax = plt.subplots()
+        sns.countplot(data=df_pft, y="Exercise", ax=ax)
+        st.pyplot(fig)
+
+        st.download_button("⬇️ Download Excel", df_pft.to_csv(index=False).encode('utf-8'), "pft_summary.csv")
+        st.download_button("⬇️ Download PDF", create_pdf_from_df("PFT Summary", df_pft), "pft_summary.pdf", mime="application/pdf")
+
+    st.header("🪖 Military Summary")
+    df_mil, err = get_military_summary(cls)
+    if err:
+        st.warning(err)
+    elif not df_mil.empty:
+        st.subheader("Cadets Who Became Proficient in Military")
+        st.dataframe(df_mil)
+        st.bar_chart(df_mil["Cadet"].value_counts())
+
+        st.download_button("⬇️ Download Excel", df_mil.to_csv(index=False).encode('utf-8'), "military_summary.csv")
+        st.download_button("⬇️ Download PDF", create_pdf_from_df("Military Summary", df_mil), "military_summary.pdf", mime="application/pdf")
+
+    st.header("📝 Conduct Summary")
+    df_conduct, err = get_conduct_summary(cls, term)
+    if err:
+        st.warning(err)
+    elif not df_conduct.empty:
+        st.subheader("Cadets On the Red (< 20 Merits)")
+        st.dataframe(df_conduct)
+        fig, ax = plt.subplots()
+        sns.histplot(data=df_conduct, x="MERITS", bins=10, kde=True, ax=ax)
+        st.pyplot(fig)
+
+        st.download_button("⬇️ Download Excel", df_conduct.to_csv(index=False).encode('utf-8'), "conduct_summary.csv")
+        st.download_button("⬇️ Download PDF", create_pdf_from_df("Conduct Summary", df_conduct), "conduct_summary.pdf", mime="application/pdf")
+
+    if st.button("⬇️ Download Consolidated PDF Report"):
+        dfs = [("Academic", df_acad), ("PFT", df_pft), ("Military", df_mil), ("Conduct", df_conduct)]
+        pdf_combined = FPDF()
+        for section, data in dfs:
+            if not data.empty:
+                pdf_combined.add_page()
+                pdf_combined.set_font("Arial", size=12)
+                pdf_combined.cell(200, 10, txt=f"{section} Summary - {cls}", ln=True, align='C')
+                pdf_combined.ln(10)
+                col_width = 190 / len(data.columns)
+                for col in data.columns:
+                    pdf_combined.cell(col_width, 10, txt=str(col), border=1)
+                pdf_combined.ln()
+                for _, row in data.iterrows():
+                    for val in row:
+                        pdf_combined.cell(col_width, 10, txt=str(val), border=1)
+                    pdf_combined.ln()
+        pdf_bytes = pdf_combined.output(dest='S').encode('latin-1')
+        st.download_button("📄 Download Combined PDF Report", data=pdf_bytes, file_name=f"{cls}_consolidated_report.pdf", mime="application/pdf")
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
