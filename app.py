@@ -9,6 +9,8 @@ import time
 import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from summary_dashboard import show_summary_dashboard
+
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
@@ -81,6 +83,12 @@ if "role" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 
+# --- Summary Dashboard Trigger ---
+if st.session_state.get("show_summary"):
+    show_summary_dashboard()
+    st.stop()
+
+
 # --- Login Logic ---
 if not st.session_state.auth_ok:
     st.title("🦊 Foxtrot CIS Login")
@@ -115,12 +123,20 @@ if not st.session_state.auth_ok:
 # --- Logged In ---
 st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
 
+# --- Admin Sidebar Tools ---
+if st.session_state.role == "admin":
+    if st.sidebar.button("📊 Summary Report"):
+        st.session_state["show_summary"] = True
+        st.rerun()
+        
 # Optional logout
 if st.sidebar.button("🔓 Logout"):
     st.session_state.auth_ok = False
     st.session_state.role = None
     st.session_state.username = None
+    st.session_state.show_summary = False
     st.rerun()
+
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
