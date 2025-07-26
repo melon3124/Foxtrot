@@ -358,16 +358,19 @@ if st.session_state.mode == "class" and cls:
                         df["DEF/PROF POINTS"] = 0.0  # or prefill with saved values if available
 
         
+                        row_curr = pd.Series()  # Empty fallback
+                        
                         if curr_name_col and not curr_df.empty:
                             curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                            row_curr = curr_df[curr_df["NAME_CLEANED"] == name_clean]
-                            if not row_curr.empty:
-                                row_curr = row_curr.iloc[0]
+                            match = curr_df[curr_df["NAME_CLEANED"] == name_clean]
+                            if not match.empty:
+                                row_curr = match.iloc[0]
                                 df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects]
                             else:
                                 df["CURRENT GRADE"] = None
                         else:
                             df["CURRENT GRADE"] = None
+
         
                         df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
                         df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(
