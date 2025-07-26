@@ -11,14 +11,6 @@ import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from summary_dashboard import summary_dashboard_main
 
-if st.session_state.get("role") == "admin":
-    st.sidebar.title("🛠 Admin Tools")
-    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
-
-    if admin_page == "Summary Dashboard":
-        summary_dashboard_main()
-        st.stop()  # prevent Streamlit from executing the rest of the file
-
 
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
