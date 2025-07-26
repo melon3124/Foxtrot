@@ -1,87 +1,87 @@
+import streamlit as st
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
+import os
+import re
+import unicodedata
+import time
+import json
+import pygsheets
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+
+if st.session_state.get("pft_refresh_triggered"):
+    del st.session_state["pft_refresh_triggered"]
+
+if "active_tab" not in st.session_state:
+    st.session_state["active_tab"] = "t3"
+
+def clean_column_names(df):
+    df.columns = [c.strip().upper() for c in df.columns]
+    return df
+
+def evaluate_status(grade):
+    try:
+        val = float(grade)
+        return "Proficient" if val >= 7 else "DEFICIENT"
+    except:
+        return "N/A"
+
+def clean_cadet_name_for_comparison(name):
+    return name.strip().upper()
+
+def update_gsheet(sheet_name, df):
+    try:
+        client = get_gsheet_client()
+        sh = client.open("FOXTROT DASHBOARD V2")  # Replace with your sheet name
+        worksheet = sh.worksheet_by_title(sheet_name)
+        worksheet.clear()
+        worksheet.set_dataframe(df, (1, 1))
+        st.success("Sheet update successful.")
+    except Exception as e:
+        st.error(f"Failed to update sheet: {e}")
+
+
+def get_gsheet_client():
+    return pygsheets.authorize(service_account_info=st.secrets["google_service_account"])
+
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# ✅ Create credentials object from secrets
+credentials = Credentials.from_service_account_info(
+    st.secrets["google_service_account"],
+    scopes=scopes
+)
+
+# ✅ Authorize gspread with the credentials instance
+gc = gspread.authorize(credentials)
+
+# ✅ Open your spreadsheet
+sh = gc.open("FOXTROT DASHBOARD V2")  # Replace with actual name
+
+# ✅ Paste your update_sheet function here
+def update_sheet(sheet_name, updated_df):
+    try:
+        worksheet = sh.worksheet(sheet_name)
+        worksheet.clear()
+        worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
+    except Exception as e:
+        st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
+        
+if "last_report_fetch" not in st.session_state:
+    st.session_state["last_report_fetch"] = 0
+# --- Session State Initialization ---
+if "auth_ok" not in st.session_state:
+    st.session_state.auth_ok = False
+if "role" not in st.session_state:
+    st.session_state.role = None
+if "username" not in st.session_state:
+    st.session_state.username = None
+
 def main_dashboard():
-    import streamlit as st
-    import pandas as pd
-    import gspread
-    from google.oauth2.service_account import Credentials
-    import os
-    import re
-    import unicodedata
-    import time
-    import json
-    import pygsheets
-    from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-    
-    if st.session_state.get("pft_refresh_triggered"):
-        del st.session_state["pft_refresh_triggered"]
-    
-    if "active_tab" not in st.session_state:
-        st.session_state["active_tab"] = "t3"
-    
-    def clean_column_names(df):
-        df.columns = [c.strip().upper() for c in df.columns]
-        return df
-    
-    def evaluate_status(grade):
-        try:
-            val = float(grade)
-            return "Proficient" if val >= 7 else "DEFICIENT"
-        except:
-            return "N/A"
-    
-    def clean_cadet_name_for_comparison(name):
-        return name.strip().upper()
-    
-    def update_gsheet(sheet_name, df):
-        try:
-            client = get_gsheet_client()
-            sh = client.open("FOXTROT DASHBOARD V2")  # Replace with your sheet name
-            worksheet = sh.worksheet_by_title(sheet_name)
-            worksheet.clear()
-            worksheet.set_dataframe(df, (1, 1))
-            st.success("Sheet update successful.")
-        except Exception as e:
-            st.error(f"Failed to update sheet: {e}")
-    
-    
-    def get_gsheet_client():
-        return pygsheets.authorize(service_account_info=st.secrets["google_service_account"])
-    
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    
-    # ✅ Create credentials object from secrets
-    credentials = Credentials.from_service_account_info(
-        st.secrets["google_service_account"],
-        scopes=scopes
-    )
-    
-    # ✅ Authorize gspread with the credentials instance
-    gc = gspread.authorize(credentials)
-    
-    # ✅ Open your spreadsheet
-    sh = gc.open("FOXTROT DASHBOARD V2")  # Replace with actual name
-    
-    # ✅ Paste your update_sheet function here
-    def update_sheet(sheet_name, updated_df):
-        try:
-            worksheet = sh.worksheet(sheet_name)
-            worksheet.clear()
-            worksheet.update([updated_df.columns.values.tolist()] + updated_df.values.tolist())
-        except Exception as e:
-            st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
-            
-    if "last_report_fetch" not in st.session_state:
-        st.session_state["last_report_fetch"] = 0
-    # --- Session State Initialization ---
-    if "auth_ok" not in st.session_state:
-        st.session_state.auth_ok = False
-    if "role" not in st.session_state:
-        st.session_state.role = None
-    if "username" not in st.session_state:
-        st.session_state.username = None
-    
     # --- Login Logic ---
     if not st.session_state.auth_ok:
         st.title("🦊 Foxtrot CIS Login")
