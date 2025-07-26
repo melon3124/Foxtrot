@@ -5,8 +5,13 @@ from google.oauth2.service_account import Credentials
 import altair as alt
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
+# -------------------- GOOGLE SHEETS SETUP (using st.secrets) --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+
+creds = Credentials.from_service_account_info(
+    st.secrets["google_service_account"],
+    scopes=scope
+)
 client = gspread.authorize(creds)
 
 # -------------------- LOAD DATA --------------------
