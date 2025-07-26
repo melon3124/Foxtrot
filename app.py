@@ -250,11 +250,11 @@ if st.session_state.mode == "class" and cls:
                         st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    name_disp = st.session_state.selected_cadet_display_name
-    name_clean = st.session_state.selected_cadet_cleaned_name
-    if name_clean:
-        row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
-        st.markdown(f"## Showing details for: {name_disp}")
+name_disp = st.session_state.selected_cadet_display_name
+name_clean = st.session_state.selected_cadet_cleaned_name
+if name_clean:
+    row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
+    st.markdown(f"## Showing details for: {name_disp}")
 def show_main_dashboard():
     with st.spinner("Loading data..."):
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
