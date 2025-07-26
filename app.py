@@ -16,13 +16,6 @@ def run_foxtrot_dashboard():
         if key not in st.session_state:
             st.session_state[key] = None
 
-    # Prompt user if missing
-    if not st.session_state["cls"] or not st.session_state["name_disp"]:
-        st.sidebar.info("Please identify yourself to access the dashboard.")
-        st.session_state["cls"] = st.sidebar.selectbox("Select Class Level", ["1CL", "2CL", "3CL"])
-        st.session_state["name_disp"] = st.sidebar.text_input("Enter your Display Name")
-        st.stop()  # Prevents rest of the app from running until info is set
-
     # Optionally generate `name_clean` from `name_disp`
     if not st.session_state["name_clean"]:
         st.session_state["name_clean"] = st.session_state["name_disp"].strip().upper()
