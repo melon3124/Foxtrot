@@ -11,11 +11,7 @@ import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from summary_dashboard import show_summary_dashboard
 
-st.sidebar.markdown("### Admin Options")
 
-if st.sidebar.button("📊 Generate Summary Report"):
-    st.session_state["show_summary"] = True
-    st.rerun()
 
 # If summary dashboard is triggered
 if st.session_state.get("show_summary"):
@@ -134,7 +130,12 @@ if not st.session_state.auth_ok:
 # --- Logged In ---
 st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.session_state.role})")
 
-        
+st.sidebar.markdown("### Admin Options")
+
+if st.sidebar.button("📊 Generate Summary Report"):
+    st.session_state["show_summary"] = True
+    st.rerun()
+    
 # Optional logout
 if st.sidebar.button("🔓 Logout"):
     st.session_state.auth_ok = False
