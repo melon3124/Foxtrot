@@ -27,8 +27,6 @@ def run_foxtrot_dashboard():
     if not st.session_state["name_clean"]:
         st.session_state["name_clean"] = st.session_state["name_disp"].strip().upper()
 
-
-def run_foxtrot_dashboard():
     if st.session_state.get("pft_refresh_triggered"):
         del st.session_state["pft_refresh_triggered"]
     
