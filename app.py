@@ -824,8 +824,10 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
 
+# Import the summary dashboard function
+from summary_dashboard import show_summary_dashboard
+
+# Show summary dashboard if triggered
 if st.session_state.get("show_summary"):
-    from summary_dashboard import show_summary_dashboard
     show_summary_dashboard()
     st.stop()
-
