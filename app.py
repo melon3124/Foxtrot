@@ -12,19 +12,23 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import streamlit as st
 from summary_dashboard import summary_dashboard_main
 
-# Sidebar option (admin only)
 if st.session_state.get("role") == "admin":
     st.sidebar.title("🛠 Admin Tools")
-    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"], key="admin_view")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
 
     if admin_page == "Summary Dashboard":
         summary_dashboard_main()
     else:
-        # your existing main dashboard rendering logic here
         show_main_dashboard()
 else:
-    # cadet view
     show_main_dashboard()
+
+
+def show_main_dashboard():
+    # Your existing cadet or admin dashboard logic here
+    st.title("Foxtrot Company Dashboard")
+    # (Other content: tabs, data, charts, etc.)
+
 
 
 if st.session_state.get("pft_refresh_triggered"):
