@@ -17,12 +17,12 @@ def show_main_dashboard():
         st.sidebar.title("🛠 Admin Tools")
         admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
         
-            if admin_page == "Summary Dashboard":
-                summary_dashboard_main()
-            else:
-                show_main_dashboard()
+        if admin_page == "Summary Dashboard":
+            summary_dashboard_main()
         else:
             show_main_dashboard()
+    else:
+        show_main_dashboard()
 
 
 if st.session_state.get("pft_refresh_triggered"):
