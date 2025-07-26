@@ -124,17 +124,7 @@ if st.sidebar.button("🔓 Logout"):
     st.session_state.username = None
     st.rerun()
 
-if st.session_state.get("role") == "admin":
-    st.sidebar.title("🛠 Admin Tools")
-    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
 
-    if admin_page == "Summary Dashboard":
-        summary_dashboard_main()
-    else:
-        show_main_dashboard()
-else:
-    show_main_dashboard()
-    
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
@@ -823,3 +813,15 @@ if st.session_state.mode == "class" and cls:
                 
                     except Exception as e:
                         st.error(f"❌ Unexpected error in Conduct tab: {e}")
+
+if st.session_state.get("role") == "admin":
+    st.sidebar.title("🛠 Admin Tools")
+    admin_page = st.sidebar.radio("Select Admin View", ["Main Dashboard", "Summary Dashboard"])
+
+    if admin_page == "Summary Dashboard":
+        summary_dashboard_main()
+    else:
+        show_main_dashboard()
+else:
+    show_main_dashboard()
+    
