@@ -121,6 +121,11 @@ if st.sidebar.button("🔓 Logout"):
     st.session_state.role = None
     st.session_state.username = None
     st.rerun()
+
+# ✅ Admin-only: Summary Reports Button
+if st.session_state.role == "admin":
+    st.sidebar.button("📊 Summary Reports")
+
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
