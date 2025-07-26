@@ -259,6 +259,7 @@ if st.session_state.mode == "class" and cls:
             with t1:
                 pic, info = st.columns([1, 2])
                 with pic:
+                    name_disp = st.session_state.get("name", "default")
                     img_path = f"profile_pics/{name_disp}.jpg"
                     st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
                 with info:
