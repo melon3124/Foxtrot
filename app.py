@@ -312,6 +312,8 @@ if st.session_state.mode == "class" and cls:
                                 subj = r["SUBJECT"]
                                 val = str(r[grade_col]) if pd.notna(r[grade_col]) else ""
                                 row[subj_idx_map[subj]] = val
+                                val_points = str(r["DEF/PROF POINTS"]) if pd.notna(r["DEF/PROF POINTS"]) else ""
+                                row[subj_idx_map[subj] + 1] = val_points  # Save one column to the right, or handle structurally
                             updated = True
                             break
                     if not updated:
@@ -347,6 +349,14 @@ if st.session_state.mode == "class" and cls:
                         subjects = row_prev.index.tolist()
                         df = pd.DataFrame({"SUBJECT": subjects})
                         df["PREVIOUS GRADE"] = pd.to_numeric(row_prev.values, errors="coerce")
+                        df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects] if curr_name_col and not row_curr.empty else None
+                        df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
+                        df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️"))
+                        df["STATUS"] = df["CURRENT GRADE"].apply(lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else ""))
+                        
+                        # ✅ Add this new editable column
+                        df["DEF/PROF POINTS"] = 0.0  # or prefill with saved values if available
+
         
                         if curr_name_col and not curr_df.empty:
                             curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
@@ -374,6 +384,7 @@ if st.session_state.mode == "class" and cls:
                         gb.configure_column("CURRENT GRADE", editable=True)
                         gb.configure_column("INCREASE/DECREASE", editable=False)
                         gb.configure_column("STATUS", editable=False)
+                        gb.configure_column("DEF/PROF POINTS", editable=True, type=["numericColumn", "numberColumnFilter"])
                         grid_options = gb.build()
         
                         grid_response = AgGrid(
