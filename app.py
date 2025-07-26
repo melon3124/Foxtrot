@@ -10,6 +10,24 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+def show_summary_dashboard():
+    st.title("📊 Summary Report Dashboard")
+
+    tab = st.selectbox("Select Report Type", ["Academic", "PFT", "Military", "Conduct"], key="summary_tab")
+
+    # Back button to main dashboard
+    if st.button("🔙 Back to Main Dashboard"):
+        st.session_state["show_summary"] = False
+        st.rerun()
+
+    if tab == "Academic":
+        academic_summary_admin()
+    elif tab == "PFT":
+        pft_summary_admin()
+    elif tab == "Military":
+        military_summary_admin()
+    elif tab == "Conduct":
+        conduct_summary_admin()
 
 
 if st.session_state.get("pft_refresh_triggered"):
@@ -821,3 +839,9 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
 
 
+from summary_dashboard import show_summary_dashboard
+
+# Trigger either summary or main
+if st.session_state.get("show_summary"):
+    show_summary_dashboard()
+    st.stop()
