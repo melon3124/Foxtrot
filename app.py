@@ -117,9 +117,10 @@ st.sidebar.success(f"Logged in as **{st.session_state.username.upper()}** ({st.s
 
 # ------------------ STATE SETUP ------------------
 if "role" not in st.session_state:
-    st.session_state["role"] = "admin"  # Or your login logic
+    st.session_state["role"] = "admin"  # or "cadet"
+
 if "view" not in st.session_state:
-    st.session_state["view"] = "main"
+    st.session_state["view"] = "main"  # always default to dashboard
 
 # ------------------ SIDEBAR ------------------
 # ------------------ SESSION SETUP ------------------
