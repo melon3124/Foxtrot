@@ -97,17 +97,47 @@ def conduct_summary_admin():
 
 # -------------------- MAIN DASHBOARD FUNCTION --------------------
 def show_main_dashboard():
-    with st.spinner("Loading data..."):
-        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
+    # Ensure required context variables are set
+    if not st.session_state.get("cls") or not st.session_state.get("name_disp"):
+        st.sidebar.info("Please identify yourself to access the dashboard.")
+        st.session_state["cls"] = st.sidebar.selectbox("Select Class Level", ["1CL", "2CL", "3CL"])
+        st.session_state["name_disp"] = st.sidebar.text_input("Enter your Display Name")
 
-        with t1:
-            pic, info = st.columns([1, 2])
-            with pic:
-                name_disp = st.session_state.get("name", "default")
-                img_path = f"profile_pics/{name_disp}.jpg"
-                st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
-            with info:
-                st.write("Cadet Info")  # Replace with actual display logic
+        if st.session_state["name_disp"]:
+            st.session_state["name_clean"] = st.session_state["name_disp"].strip().lower().replace(" ", "_")
+
+        st.warning("Please complete the information to proceed.")
+        st.stop()
+
+    # Assign local variables for ease of use
+    cls = st.session_state["cls"]
+    name_disp = st.session_state["name_disp"]
+    name_clean = st.session_state["name_clean"]
+
+    # Tabs setup
+    t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
+
+    with t1:
+        pic, info = st.columns([1, 2])
+        with pic:
+            img_path = f"profile_pics/{name_disp}.jpg"
+            st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
+        with info:
+            st.write(f"**Cadet Name:** {name_disp}")
+            st.write(f"**Class:** {cls}")
+
+    with t2:
+        show_academics_tab(cls, name_clean, name_disp)
+
+    with t3:
+        show_pft_tab(cls, name_clean, name_disp)
+
+    with t4:
+        show_military_tab(cls, name_clean, name_disp)
+
+    with t5:
+        show_conduct_tab(cls, name_clean, name_disp)
+
 
 # -------------------- DASHBOARD ROUTER --------------------
 from summary_dashboard import summary_dashboard_main
