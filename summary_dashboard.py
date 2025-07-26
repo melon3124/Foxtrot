@@ -7,8 +7,8 @@ import os
 
 # -------------------- GOOGLE SHEETS SETUP --------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-client = gspread.authorize(creds)
+service_account_info = json.loads(st.secrets["google_service_account"])
+creds = Credentials.from_service_account_info(service_account_info)
 
 # -------------------- LOAD DATA --------------------
 def get_acad_history_data(gc, class_name, term):
