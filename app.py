@@ -100,7 +100,7 @@ def sheet_df(name: str) -> pd.DataFrame:
     try:
         worksheet = SS.worksheet(name)
         df = pd.DataFrame(worksheet.get_all_records())
-        return clean_column_names(df) # CORRECTED: Use clean_column_names here
+        return clean_column_names(df)
     except gspread.exceptions.WorksheetNotFound:
         st.warning(f"Worksheet '{name}' not found.")
         return pd.DataFrame()
@@ -403,10 +403,12 @@ if st.session_state.mode == "class" and cls:
                 grid_options['getRowStyle'] = {
                     "function": """
                         function(params) {
-                            if (params.data.Status === 'DEFICIENT') {
-                                return { 'background-color': '#FFCCCC' }; // Light red for deficient
-                            } else if (params.data.Status === 'PROFICIENT') {
-                                return { 'background-color': '#CCFFCC' }; // Light green for proficient
+                            if (params.data && params.data.Status) { // Safety check added
+                                if (params.data.Status === 'DEFICIENT') {
+                                    return { 'background-color': '#FFCCCC' }; // Light red for deficient
+                                } else if (params.data.Status === 'PROFICIENT') {
+                                    return { 'background-color': '#CCFFCC' }; // Light green for proficient
+                                }
                             }
                             return null;
                         }
@@ -603,10 +605,12 @@ if st.session_state.mode == "class" and cls:
                 pft_grid_options['getRowStyle'] = {
                     "function": """
                         function(params) {
-                            if (params.data.Status === 'DEFICIENT') {
-                                return { 'background-color': '#FFCCCC' };
-                            } else if (params.data.Status === 'Proficient') {
-                                return { 'background-color': '#CCFFCC' };
+                            if (params.data && params.data.Status) { // Safety check added
+                                if (params.data.Status === 'DEFICIENT') {
+                                    return { 'background-color': '#FFCCCC' };
+                                } else if (params.data.Status === 'Proficient') {
+                                    return { 'background-color': '#CCFFCC' };
+                                }
                             }
                             return null;
                         }
@@ -777,10 +781,12 @@ if st.session_state.mode == "class" and cls:
                 mil_grid_options['getRowStyle'] = {
                     "function": """
                         function(params) {
-                            if (params.data.Status === 'DEFICIENT') {
-                                return { 'background-color': '#FFCCCC' };
-                            } else if (params.data.Status === 'Proficient') {
-                                return { 'background-color': '#CCFFCC' };
+                            if (params.data && params.data.Status) { // Safety check added
+                                if (params.data.Status === 'DEFICIENT') {
+                                    return { 'background-color': '#FFCCCC' };
+                                } else if (params.data.Status === 'Proficient') {
+                                    return { 'background-color': '#CCFFCC' };
+                                }
                             }
                             return null;
                         }
