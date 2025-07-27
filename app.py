@@ -8,7 +8,7 @@ import unicodedata
 import time
 import json
 import pygsheets # Keeping this import, though primarily using gspread for updates
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
+# Removed: from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
 
 # --- Session State Initialization ---
 if "auth_ok" not in st.session_state:
@@ -163,7 +163,15 @@ st.markdown(
         .centered { display:flex; justify-content:center; gap:40px; margin-bottom:20px; }
         .stSelectbox, .stButton>button { width:300px !important; margin:auto; }
         h1 { text-align:center; }
-        .ag-theme-streamlit { --ag-odd-row-background-color: rgba(255, 255, 255, .05); }
+        /* Custom CSS for data_editor status cells */
+        .st-emotion-table-cell-deficient {
+            background-color: #FFCCCC; /* Light red for deficient */
+            color: black !important; /* Ensure text is readable */
+        }
+        .st-emotion-table-cell-proficient {
+            background-color: #CCFFCC; /* Light green for proficient */
+            color: black !important; /* Ensure text is readable */
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -357,12 +365,6 @@ if st.session_state.mode == "class" and cls:
                     prev_grade = pd.to_numeric(row_prev.get(subj, pd.NA), errors="coerce")
                     curr_grade = pd.to_numeric(row_curr.get(subj, pd.NA), errors="coerce")
 
-                    # Fetch proficiency/deficiency from current sheet for this subject if it exists
-                    # For academic, let's assume P/D is tied to the current grade sheet, or overall.
-                    # If you want P/D per subject, the sheet structure needs 'SUBJECT_PROFICIENCY/DEFICIENCY' columns.
-                    # For now, we'll store the overall P/D from the current sheet.
-                    # We'll apply this to all rows in the AgGrid for display purposes,
-                    # but only save one overall P/D value if the sheet structure doesn't support per-subject P/D.
                     # Assuming an overall P/D column named "PROFICIENCY/DEFICIENCY" in acad_hist_map sheets
                     proficiency_deficiency_overall = str(row_curr.get("PROFICIENCY/DEFICIENCY", ""))
 
@@ -386,53 +388,113 @@ if st.session_state.mode == "class" and cls:
                 )
 
                 # Add a column for user input for Proficiency/Deficiency for each subject
-                # Initialize it with the overall P/D if available, or empty string
                 df_acad["Proficiency/Deficiency"] = proficiency_deficiency_overall
 
                 st.subheader("📝 Editable Grades Table")
-                gb = GridOptionsBuilder.from_dataframe(df_acad[['Subject', 'Previous Grade', 'Current Grade', 'Increase/Decrease', 'Status', 'Proficiency/Deficiency']])
-                gb.configure_column("Subject", editable=False, wrapText=True, autoHeight=True)
-                gb.configure_column("Previous Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                gb.configure_column("Current Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                gb.configure_column("Proficiency/Deficiency", editable=True, cellEditor='agLargeTextCellEditor', wrapText=True, autoHeight=True)
-                gb.configure_column("Increase/Decrease", editable=False)
-                gb.configure_column("Status", editable=False)
 
-                # Add cell styling for STATUS
-                grid_options = gb.build()
-                grid_options['getRowStyle'] = {
-                    "function": """
-                        function(params) {
-                            if (params.data && params.data.Status) { // Safety check added
-                                if (params.data.Status === 'DEFICIENT') {
-                                    return { 'background-color': '#FFCCCC' }; // Light red for deficient
-                                } else if (params.data.Status === 'PROFICIENT') {
-                                    return { 'background-color': '#CCFFCC' }; // Light green for proficient
-                                }
-                            }
-                            return null;
-                        }
-                    """
+                # Define column configuration for st.data_editor
+                column_configuration_acad = {
+                    "Subject": st.column_config.Column(
+                        "Subject",
+                        help="Academic Subject",
+                        width="medium",
+                        disabled=True
+                    ),
+                    "Previous Grade": st.column_config.NumberColumn(
+                        "Previous Grade",
+                        help="Previous Term Grade",
+                        format="%0.2f",
+                        min_value=0.0,
+                        max_value=10.0, # Assuming max grade of 10
+                        step=0.01,
+                    ),
+                    "Current Grade": st.column_config.NumberColumn(
+                        "Current Grade",
+                        help="Current Term Grade",
+                        format="%0.2f",
+                        min_value=0.0,
+                        max_value=10.0, # Assuming max grade of 10
+                        step=0.01,
+                    ),
+                    "Increase/Decrease": st.column_config.Column(
+                        "Increase/Decrease",
+                        help="Change from Previous to Current Grade",
+                        width="small",
+                        disabled=True
+                    ),
+                    "Status": st.column_config.Column(
+                        "Status",
+                        help="Proficiency Status",
+                        width="small",
+                        disabled=True,
+                        # Apply cell background color based on status
+                        # Requires Streamlit 1.34.0+ for cell_background directly.
+                        # For older versions, you'd need a more complex CSS approach with Streamlit 1.23+.
+                        cell_background=True # This enables the callback below
+                    ),
+                    "Proficiency/Deficiency": st.column_config.TextColumn(
+                        "Proficiency/Deficiency",
+                        help="Overall Proficiency/Deficiency notes for Academics",
+                        width="large",
+                        max_chars=500
+                    ),
+                    "Subject_Column": st.column_config.Column(
+                        "Subject_Column",
+                        help="Original subject column name for update (hidden)",
+                        disabled=True,
+                        width="column_config.Column.HIDDEN" # Hide this column
+                    )
                 }
 
-                grid_response = AgGrid(
-                    df_acad[['Subject', 'Previous Grade', 'Current Grade', 'Proficiency/Deficiency', 'Increase/Decrease', 'Status', 'Subject_Column']], # Include hidden column
-                    gridOptions=grid_options,
-                    data_return_mode="AS_INPUT", # Return the dataframe with edits
-                    update_mode=GridUpdateMode.VALUE_CHANGED,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    height=400,
-                    reload_data=True,
-                    key="acad_grid"
+                # Function to apply conditional styling based on Status
+                # This function will be passed to st.data_editor's column_config for 'Status'
+                def apply_status_style(row):
+                    if row["Status"] == 'DEFICIENT':
+                        return "st-emotion-table-cell-deficient" # Custom CSS class for deficient
+                    elif row["Status"] == 'PROFICIENT':
+                        return "st-emotion-table-cell-proficient" # Custom CSS class for proficient
+                    return "" # No custom class
+
+                edited_df = st.data_editor(
+                    df_acad,
+                    column_config=column_configuration_acad,
+                    hide_index=True,
+                    num_rows="dynamic",
+                    key="acad_data_editor"
                 )
 
-                edited_df = grid_response["data"]
+                # Re-calculate status and increase/decrease after edits for display purposes
+                # This ensures the status and arrow update visually as user types
+                edited_df["Increase/Decrease"] = edited_df["Current Grade"] - edited_df["Previous Grade"]
+                edited_df["Increase/Decrease"] = edited_df["Increase/Decrease"].apply(
+                    lambda x: "⬆️" if pd.notna(x) and x > 0 else ("⬇️" if pd.notna(x) and x < 0 else "➡️" if pd.notna(x) else "")
+                )
+                edited_df["Status"] = edited_df["Current Grade"].apply(
+                    lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "N/A")
+                )
+
+                # Apply styling to the displayed (and potentially edited) DataFrame
+                # Use a styler with applymap for cell-specific coloring
+                def color_status_acad(val):
+                    if val == 'DEFICIENT':
+                        return 'background-color: #FFCCCC; color: black;'
+                    elif val == 'PROFICIENT':
+                        return 'background-color: #CCFFCC; color: black;'
+                    return ''
+
+                # Display the data editor with styling
+                # Note: st.data_editor doesn't directly support applymap for styling.
+                # The styling is best handled via column_config with `cell_background`
+                # or custom CSS classes as set up above.
+                # If you need to see the colored cells immediately after edit in the editor itself,
+                # the `cell_background` in `column_config` is the way.
+                # The `apply_status_style` function (and corresponding CSS) in the `st.markdown` block
+                # will provide that visual feedback within the editor.
 
                 # Check if grades or proficiency/deficiency actually changed
                 acad_changes_detected = False
                 # If the overall Proficiency/Deficiency (which is propagated to all rows) has changed
-                if not edited_df.empty and edited_df.iloc[0]["Proficiency/Deficiency"] != proficiency_deficiency_overall:
+                if not edited_df.empty and (edited_df.iloc[0]["Proficiency/Deficiency"] != proficiency_deficiency_overall):
                     acad_changes_detected = True
                 else: # Check if any grade changed
                     for idx, row in edited_df.iterrows():
@@ -446,7 +508,7 @@ if st.session_state.mode == "class" and cls:
 
                 if acad_changes_detected or st.session_state.get("force_show_acad_submit", False):
                     st.success("✅ Detected changes. Click below to apply updates.")
-                    if st.button("📤 Submit All Academic Changes"):
+                    if st.button("📤 Submit All Academic Changes", key="submit_acad_changes"):
                         st.session_state["force_show_acad_submit"] = False
                         try:
                             # 1. Update Current Grades (History) sheet
@@ -567,7 +629,7 @@ if st.session_state.mode == "class" and cls:
                     cadet_pft_data["_TEMP_NAME_CLEANED"] = name_clean # Add for internal use
 
 
-                # Prepare data for AgGrid
+                # Prepare data for st.data_editor
                 pft_records = []
                 exercises_config = [
                     ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
@@ -595,40 +657,60 @@ if st.session_state.mode == "class" and cls:
                 pft_display_df = pd.DataFrame(pft_records)
 
                 st.subheader(f"🏋️ PFT Data – {term}")
-                gb_pft = GridOptionsBuilder.from_dataframe(pft_display_df[['Exercise', 'Repetitions', 'Grade', 'Status']])
-                gb_pft.configure_column("Exercise", editable=False, wrapText=True, autoHeight=True)
-                gb_pft.configure_column("Repetitions", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
-                gb_pft.configure_column("Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                gb_pft.configure_column("Status", editable=False)
 
-                pft_grid_options = gb_pft.build()
-                pft_grid_options['getRowStyle'] = {
-                    "function": """
-                        function(params) {
-                            if (params.data && params.data.Status) { // Safety check added
-                                if (params.data.Status === 'DEFICIENT') {
-                                    return { 'background-color': '#FFCCCC' };
-                                } else if (params.data.Status === 'Proficient') {
-                                    return { 'background-color': '#CCFFCC' };
-                                }
-                            }
-                            return null;
-                        }
-                    """
+                column_configuration_pft = {
+                    "Exercise": st.column_config.Column(
+                        "Exercise",
+                        help="PFT Exercise",
+                        width="medium",
+                        disabled=True
+                    ),
+                    "Repetitions": st.column_config.NumberColumn(
+                        "Repetitions",
+                        help="Number of Repetitions/Time",
+                        format="%d",
+                        min_value=0,
+                        step=1,
+                    ),
+                    "Grade": st.column_config.NumberColumn(
+                        "Grade",
+                        help="Score/Grade for Exercise",
+                        format="%0.2f",
+                        min_value=0.0,
+                        max_value=10.0,
+                        step=0.01,
+                    ),
+                    "Status": st.column_config.Column(
+                        "Status",
+                        help="Proficiency Status",
+                        width="small",
+                        disabled=True,
+                        cell_background=True # Enables conditional styling
+                    ),
+                    "Rep_Column": st.column_config.Column(
+                        "Rep_Column",
+                        disabled=True,
+                        width="column_config.Column.HIDDEN"
+                    ),
+                    "Grade_Column": st.column_config.Column(
+                        "Grade_Column",
+                        disabled=True,
+                        width="column_config.Column.HIDDEN"
+                    )
                 }
 
-                pft_grid_response = AgGrid(
-                    pft_display_df[['Exercise', 'Repetitions', 'Grade', 'Status', 'Rep_Column', 'Grade_Column']],
-                    gridOptions=pft_grid_options,
-                    data_return_mode="AS_INPUT",
-                    update_mode=GridUpdateMode.VALUE_CHANGED,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    height=300,
-                    reload_data=True,
-                    key="pft_grid"
+                edited_pft_df = st.data_editor(
+                    pft_display_df,
+                    column_config=column_configuration_pft,
+                    hide_index=True,
+                    num_rows="dynamic",
+                    key="pft_data_editor"
                 )
-                edited_pft_df = pft_grid_response["data"]
+
+                # Re-calculate status after edits for display purposes
+                edited_pft_df["Status"] = edited_pft_df["Grade"].apply(
+                    lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "N/A")
+                )
 
                 # Add proficiency/deficiency input
                 edited_pft_proficiency_deficiency = st.text_area(
@@ -654,7 +736,7 @@ if st.session_state.mode == "class" and cls:
 
                 if pft_changes_detected or st.session_state.get("force_show_pft_submit", False):
                     st.success("✅ Detected changes in PFT data. Click below to apply updates.")
-                    if st.button(f"📤 Submit PFT Changes ({term})"):
+                    if st.button(f"📤 Submit PFT Changes ({term})", key="submit_pft_changes"):
                         st.session_state["force_show_pft_submit"] = False
 
                         # Find the row index for the cadet in the full pft_df
@@ -772,39 +854,48 @@ if st.session_state.mode == "class" and cls:
                 mil_display_df = pd.DataFrame(mil_grades_list)
 
                 st.subheader(f"📋 Military Grades – {term}")
-                gb_mil = GridOptionsBuilder.from_dataframe(mil_display_df[['Metric', 'Grade', 'Status']])
-                gb_mil.configure_column("Metric", editable=False, wrapText=True, autoHeight=True)
-                gb_mil.configure_column("Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                gb_mil.configure_column("Status", editable=False)
 
-                mil_grid_options = gb_mil.build()
-                mil_grid_options['getRowStyle'] = {
-                    "function": """
-                        function(params) {
-                            if (params.data && params.data.Status) { // Safety check added
-                                if (params.data.Status === 'DEFICIENT') {
-                                    return { 'background-color': '#FFCCCC' };
-                                } else if (params.data.Status === 'Proficient') {
-                                    return { 'background-color': '#CCFFCC' };
-                                }
-                            }
-                            return null;
-                        }
-                    """
+                column_configuration_mil = {
+                    "Metric": st.column_config.Column(
+                        "Metric",
+                        help="Military Metric",
+                        width="medium",
+                        disabled=True
+                    ),
+                    "Grade": st.column_config.NumberColumn(
+                        "Grade",
+                        help="Score/Grade for Military Metric",
+                        format="%0.2f",
+                        min_value=0.0,
+                        max_value=10.0,
+                        step=0.01,
+                    ),
+                    "Status": st.column_config.Column(
+                        "Status",
+                        help="Proficiency Status",
+                        width="small",
+                        disabled=True,
+                        cell_background=True # Enables conditional styling
+                    ),
+                    "Column_Name": st.column_config.Column(
+                        "Column_Name",
+                        disabled=True,
+                        width="column_config.Column.HIDDEN"
+                    )
                 }
 
-                mil_grid_response = AgGrid(
-                    mil_display_df[['Metric', 'Grade', 'Status', 'Column_Name']],
-                    gridOptions=mil_grid_options,
-                    data_return_mode="AS_INPUT",
-                    update_mode=GridUpdateMode.VALUE_CHANGED,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    height=min(250, (len(mil_grades_list) + 1) * 35), # Adjust height dynamically
-                    reload_data=True,
-                    key="mil_grid"
+                edited_mil_df = st.data_editor(
+                    mil_display_df,
+                    column_config=column_configuration_mil,
+                    hide_index=True,
+                    num_rows="dynamic",
+                    key="mil_data_editor"
                 )
-                edited_mil_df = mil_grid_response["data"]
+
+                # Re-calculate status after edits for display purposes
+                edited_mil_df["Status"] = edited_mil_df["Grade"].apply(
+                    lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "N/A")
+                )
 
                 # Add proficiency/deficiency input
                 edited_mil_proficiency_deficiency = st.text_area(
@@ -826,7 +917,7 @@ if st.session_state.mode == "class" and cls:
 
                 if mil_changes_detected or st.session_state.get("force_show_mil_submit", False):
                     st.success("✅ Detected changes in Military data. Click below to apply updates.")
-                    if st.button(f"📤 Submit Military Changes ({term})"):
+                    if st.button(f"📤 Submit Military Changes ({term})", key="submit_mil_changes"):
                         st.session_state["force_show_mil_submit"] = False
 
                         cadet_row_idx_in_full_df = mil_df[mil_df["_TEMP_NAME_CLEANED"] == name_clean].index
