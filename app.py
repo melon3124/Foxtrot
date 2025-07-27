@@ -7,7 +7,7 @@ import re
 import unicodedata
 import time
 import json
-import pygsheets # Keeping this import, though primarily using gspread for updates
+# Removed: import pygsheets # Keeping this import, though primarily using gspread for updates
 # Removed: from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
 
 # --- Session State Initialization ---
@@ -31,7 +31,7 @@ def evaluate_status(grade):
     """Evaluates proficiency status based on a numerical grade."""
     try:
         val = float(grade)
-        return "Proficient" if val >= 7 else "DEFICIENT"
+        return "PROFICIENT" if val >= 7 else "DEFICIENT" # Changed to match string used in CSS
     except (ValueError, TypeError):
         return "N/A"
 
@@ -54,6 +54,19 @@ def normalize_column_name(col: str) -> str:
     col = col.replace("\xa0", "").replace("\u202f", "").replace("\u2009", "").replace(" ", "")
     col = re.sub(r'[^\w\-/ ]+', '', col).strip() # Allow hyphens and slashes
     return col.upper()
+
+# --- CSS Class Helper for st.data_editor Status Column ---
+def get_status_css_class(row_data):
+    """
+    Returns a CSS class name based on the 'Status' value in the row.
+    This function is called by st.data_editor for each cell in the 'Status' column.
+    """
+    status_value = row_data["Status"] # Access the 'Status' key from the row data
+    if status_value == 'DEFICIENT':
+        return "status-deficient"
+    elif status_value == 'PROFICIENT':
+        return "status-proficient"
+    return "" # No special class for N/A or others
 
 # --- Google Sheets Authorization (moved up for early access) ---
 scopes = [
@@ -164,12 +177,12 @@ st.markdown(
         .stSelectbox, .stButton>button { width:300px !important; margin:auto; }
         h1 { text-align:center; }
         /* Custom CSS for data_editor status cells */
-        .st-emotion-table-cell-deficient {
-            background-color: #FFCCCC; /* Light red for deficient */
+        .status-deficient { /* Using a custom class name for deficient status */
+            background-color: #FFCCCC; /* Light red */
             color: black !important; /* Ensure text is readable */
         }
-        .st-emotion-table-cell-proficient {
-            background-color: #CCFFCC; /* Light green for proficient */
+        .status-proficient { /* Using a custom class name for proficient status */
+            background-color: #CCFFCC; /* Light green */
             color: black !important; /* Ensure text is readable */
         }
     </style>
@@ -427,10 +440,7 @@ if st.session_state.mode == "class" and cls:
                         help="Proficiency Status",
                         width="small",
                         disabled=True,
-                        # Apply cell background color based on status
-                        # Requires Streamlit 1.34.0+ for cell_background directly.
-                        # For older versions, you'd need a more complex CSS approach with Streamlit 1.23+.
-                        cell_background=True # This enables the callback below
+                        css_class=get_status_css_class # Using CSS class for styling
                     ),
                     "Proficiency/Deficiency": st.column_config.TextColumn(
                         "Proficiency/Deficiency",
@@ -445,15 +455,6 @@ if st.session_state.mode == "class" and cls:
                         width="column_config.Column.HIDDEN" # Hide this column
                     )
                 }
-
-                # Function to apply conditional styling based on Status
-                # This function will be passed to st.data_editor's column_config for 'Status'
-                def apply_status_style(row):
-                    if row["Status"] == 'DEFICIENT':
-                        return "st-emotion-table-cell-deficient" # Custom CSS class for deficient
-                    elif row["Status"] == 'PROFICIENT':
-                        return "st-emotion-table-cell-proficient" # Custom CSS class for proficient
-                    return "" # No custom class
 
                 edited_df = st.data_editor(
                     df_acad,
@@ -472,24 +473,6 @@ if st.session_state.mode == "class" and cls:
                 edited_df["Status"] = edited_df["Current Grade"].apply(
                     lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "N/A")
                 )
-
-                # Apply styling to the displayed (and potentially edited) DataFrame
-                # Use a styler with applymap for cell-specific coloring
-                def color_status_acad(val):
-                    if val == 'DEFICIENT':
-                        return 'background-color: #FFCCCC; color: black;'
-                    elif val == 'PROFICIENT':
-                        return 'background-color: #CCFFCC; color: black;'
-                    return ''
-
-                # Display the data editor with styling
-                # Note: st.data_editor doesn't directly support applymap for styling.
-                # The styling is best handled via column_config with `cell_background`
-                # or custom CSS classes as set up above.
-                # If you need to see the colored cells immediately after edit in the editor itself,
-                # the `cell_background` in `column_config` is the way.
-                # The `apply_status_style` function (and corresponding CSS) in the `st.markdown` block
-                # will provide that visual feedback within the editor.
 
                 # Check if grades or proficiency/deficiency actually changed
                 acad_changes_detected = False
@@ -685,7 +668,7 @@ if st.session_state.mode == "class" and cls:
                         help="Proficiency Status",
                         width="small",
                         disabled=True,
-                        cell_background=True # Enables conditional styling
+                        css_class=get_status_css_class # Using CSS class for styling
                     ),
                     "Rep_Column": st.column_config.Column(
                         "Rep_Column",
@@ -875,7 +858,7 @@ if st.session_state.mode == "class" and cls:
                         help="Proficiency Status",
                         width="small",
                         disabled=True,
-                        cell_background=True # Enables conditional styling
+                        css_class=get_status_css_class # Using CSS class for styling
                     ),
                     "Column_Name": st.column_config.Column(
                         "Column_Name",
