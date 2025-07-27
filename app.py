@@ -7,7 +7,7 @@ import re
 import unicodedata
 import time
 import json
-import pygsheets # Keeping this import, but we'll primarily use gspread for updates
+import pygsheets # Keeping this import, though primarily using gspread for updates
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
 
 # --- Session State Initialization ---
@@ -23,7 +23,8 @@ if "active_tab" not in st.session_state:
 # --- Helper Functions ---
 def clean_column_names(df):
     """Cleans DataFrame column names by stripping, uppercasing."""
-    df.columns = [c.strip().upper() for c in df.columns]
+    # Ensure all column names are strings before applying .strip() and .upper()
+    df.columns = [str(c).strip().upper() for c in df.columns]
     return df
 
 def evaluate_status(grade):
@@ -79,11 +80,11 @@ def update_google_sheet(sheet_name, dataframe_to_write):
     """
     try:
         worksheet = SS.worksheet(sheet_name)
-        st.spinner(f"Updating '{sheet_name}' sheet...")
-        worksheet.clear()
-        # Convert DataFrame to list of lists, including headers
-        data_to_send = [dataframe_to_write.columns.values.tolist()] + dataframe_to_write.values.tolist()
-        worksheet.update("A1", data_to_send)
+        with st.spinner(f"Updating '{sheet_name}' sheet..."): # Use st.spinner as a context manager
+            worksheet.clear()
+            # Convert DataFrame to list of lists, including headers
+            data_to_send = [dataframe_to_write.columns.values.tolist()] + dataframe_to_write.values.tolist()
+            worksheet.update("A1", data_to_send)
         st.toast(f"✅ Google Sheet '{sheet_name}' updated successfully!", icon="🎉")
         st.cache_data.clear() # Clear cache after any write operation
         time.sleep(0.5) # Give toast time to show
@@ -99,7 +100,7 @@ def sheet_df(name: str) -> pd.DataFrame:
     try:
         worksheet = SS.worksheet(name)
         df = pd.DataFrame(worksheet.get_all_records())
-        return clean_df(df)
+        return clean_column_names(df) # CORRECTED: Use clean_column_names here
     except gspread.exceptions.WorksheetNotFound:
         st.warning(f"Worksheet '{name}' not found.")
         return pd.DataFrame()
@@ -177,16 +178,19 @@ if demo_df.empty:
 
 # Ensure 'FAMILY NAME', 'FIRST NAME', 'MIDDLE NAME', 'EXTN' columns exist for safety
 for col_name in ['FAMILY NAME', 'FIRST NAME', 'MIDDLE NAME', 'EXTN']:
-    if col_name not in demo_df.columns:
-        demo_df[col_name] = ""
+    if col_name.upper() not in [c.upper() for c in demo_df.columns]:
+        demo_df[col_name.upper()] = "" # Add in uppercase to match clean_column_names
+
+# Ensure the correct case for column access after cleaning
+demo_df.columns = [c.upper() for c in demo_df.columns]
 
 demo_df["FULL NAME"] = demo_df.apply(
     lambda r: clean_cadet_name_for_comparison(
-        f"{r['FAMILY NAME']}, {r['FIRST NAME']} {r['MIDDLE NAME']} {r['EXTN']}"
+        f"{r.get('FAMILY NAME', '')}, {r.get('FIRST NAME', '')} {r.get('MIDDLE NAME', '')} {r.get('EXTN', '')}"
     ), axis=1
 )
 demo_df["FULL NAME_DISPLAY"] = demo_df.apply(
-    lambda r: f"{r['FAMILY NAME']}, {r['FIRST NAME']} {r['MIDDLE NAME']} {r['EXTN']}".strip(), axis=1
+    lambda r: f"{r.get('FAMILY NAME', '')}, {r.get('FIRST NAME', '')} {r.get('MIDDLE NAME', '')} {r.get('EXTN', '')}".strip(), axis=1
 )
 
 classes = {
@@ -241,8 +245,12 @@ if st.session_state.mode == "class" and cls:
 
     if name_clean:
         # Fetch the most up-to-date cadet row
-        cadet_info_row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
-        st.markdown(f"## Showing details for: {name_disp}")
+        cadet_info_row_opt = demo_df[demo_df["FULL NAME"] == name_clean]
+        if cadet_info_row_opt.empty:
+            st.error(f"Could not find detailed information for cadet: {name_disp}")
+            st.stop() # Stop execution if cadet info isn't found
+        cadet_info_row = cadet_info_row_opt.iloc[0]
+
 
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
@@ -254,6 +262,7 @@ if st.session_state.mode == "class" and cls:
                 st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
             with info:
                 left, right = st.columns(2)
+                # Filter out the internal 'FULL NAME' columns and 'CLASS'
                 display_data = {k: v for k, v in cadet_info_row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}
                 for idx, (k, v) in enumerate(display_data.items()):
                     (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
@@ -301,14 +310,15 @@ if st.session_state.mode == "class" and cls:
                 prev_df_raw = sheet_df(prev_sheet_name)
                 curr_df_raw = sheet_df(curr_sheet_name)
 
+                # If prev_df_raw is empty, create a dummy to prevent errors
                 if prev_df_raw.empty:
                     st.warning(f"⚠️ No valid previous academic data found in '{prev_sheet_name}'.")
-                    st.stop()
+                    prev_df_raw = pd.DataFrame(columns=['NAME'])
+
+                # If curr_df_raw is empty, create a dummy to prevent errors
                 if curr_df_raw.empty:
-                    st.warning(f"⚠️ No valid current academic data found in '{curr_sheet_name}'.")
-                    # If current sheet is empty, initialize it with previous data for editing
-                    # This assumes previous sheet has relevant columns to copy.
-                    # For simplicity, we'll proceed and let the merge handle missing data.
+                    st.info(f"⚠️ No valid current academic data found in '{curr_sheet_name}'. A new row will be created upon submission.")
+                    curr_df_raw = pd.DataFrame(columns=['NAME'])
 
                 # Normalize columns for consistency across both DataFrames
                 prev_df = clean_column_names(prev_df_raw.copy())
@@ -317,63 +327,85 @@ if st.session_state.mode == "class" and cls:
                 prev_name_col = find_name_column(prev_df.columns)
                 curr_name_col = find_name_column(curr_df.columns)
 
+                # Ensure name columns exist in the processed DFs
                 if prev_name_col is None:
-                    st.error(f"❌ Could not find a 'NAME' column in '{prev_sheet_name}'.")
-                    st.stop()
+                    prev_df.insert(0, "NAME", "")
+                    prev_name_col = "NAME"
                 if curr_name_col is None:
-                    st.warning(f"⚠️ Could not find a 'NAME' column in '{curr_sheet_name}'. Will create if needed.")
+                    curr_df.insert(0, "NAME", "")
+                    curr_name_col = "NAME"
 
-
+                # Add temporary cleaned name columns for merging/lookup
                 prev_df["_TEMP_NAME_CLEANED"] = prev_df[prev_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                row_prev = prev_df[prev_df["_TEMP_NAME_CLEANED"] == name_clean].iloc[0]
+                curr_df["_TEMP_NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
 
-                # Identify subject columns dynamically from previous data (excluding name and temp clean col)
-                subject_cols = [col for col in row_prev.index if col not in [prev_name_col.upper(), "_TEMP_NAME_CLEANED"]]
+                # Get cadet's previous academic data
+                row_prev_opt = prev_df[prev_df["_TEMP_NAME_CLEANED"] == name_clean]
+                row_prev = row_prev_opt.iloc[0] if not row_prev_opt.empty else pd.Series(dtype='object')
+
+                # Get cadet's current academic data
+                row_curr_opt = curr_df[curr_df["_TEMP_NAME_CLEANED"] == name_clean]
+                row_curr = row_curr_opt.iloc[0] if not row_curr_opt.empty else pd.Series(dtype='object')
+
+                # Identify all unique subject columns from both previous and current data
+                # Exclude internal columns and potential existing 'STATUS' or 'PROFICIENCY/DEFICIENCY'
+                excluded_cols = {prev_name_col.upper(), curr_name_col.upper(), "_TEMP_NAME_CLEANED", "STATUS", "PROFICIENCY/DEFICIENCY"}
+                all_subject_cols = sorted(list(set(prev_df.columns) | set(curr_df.columns) - excluded_cols))
+
                 subjects_data = []
-
-                for subj in subject_cols:
+                for subj in all_subject_cols:
                     prev_grade = pd.to_numeric(row_prev.get(subj, pd.NA), errors="coerce")
-                    curr_grade = pd.NA
+                    curr_grade = pd.to_numeric(row_curr.get(subj, pd.NA), errors="coerce")
 
-                    if curr_name_col is not None:
-                        curr_df["_TEMP_NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                        row_curr_opt = curr_df[curr_df["_TEMP_NAME_CLEANED"] == name_clean]
-                        if not row_curr_opt.empty:
-                            curr_grade = pd.to_numeric(row_curr_opt.iloc[0].get(subj, pd.NA), errors="coerce")
+                    # Fetch proficiency/deficiency from current sheet for this subject if it exists
+                    # For academic, let's assume P/D is tied to the current grade sheet, or overall.
+                    # If you want P/D per subject, the sheet structure needs 'SUBJECT_PROFICIENCY/DEFICIENCY' columns.
+                    # For now, we'll store the overall P/D from the current sheet.
+                    # We'll apply this to all rows in the AgGrid for display purposes,
+                    # but only save one overall P/D value if the sheet structure doesn't support per-subject P/D.
+                    # Assuming an overall P/D column named "PROFICIENCY/DEFICIENCY" in acad_hist_map sheets
+                    proficiency_deficiency_overall = str(row_curr.get("PROFICIENCY/DEFICIENCY", ""))
+
 
                     subjects_data.append({
-                        "SUBJECT": subj,
-                        "PREVIOUS GRADE": prev_grade,
-                        "CURRENT GRADE": curr_grade
+                        "Subject": subj,
+                        "Previous Grade": prev_grade,
+                        "Current Grade": curr_grade,
+                        "Subject_Column": subj # Store original column name for update
                     })
 
                 df_acad = pd.DataFrame(subjects_data)
 
-                # Calculate Increase/Decrease and Status
-                df_acad["INCREASE/DECREASE"] = df_acad["CURRENT GRADE"] - df_acad["PREVIOUS GRADE"]
-                df_acad["INCREASE/DECREASE"] = df_acad["INCREASE/DECREASE"].apply(
+                # Calculate Increase/Decrease and Status (for display only)
+                df_acad["Increase/Decrease"] = df_acad["Current Grade"] - df_acad["Previous Grade"]
+                df_acad["Increase/Decrease"] = df_acad["Increase/Decrease"].apply(
                     lambda x: "⬆️" if pd.notna(x) and x > 0 else ("⬇️" if pd.notna(x) and x < 0 else "➡️" if pd.notna(x) else "")
                 )
-                df_acad["STATUS"] = df_acad["CURRENT GRADE"].apply(
+                df_acad["Status"] = df_acad["Current Grade"].apply(
                     lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "N/A")
                 )
 
+                # Add a column for user input for Proficiency/Deficiency for each subject
+                # Initialize it with the overall P/D if available, or empty string
+                df_acad["Proficiency/Deficiency"] = proficiency_deficiency_overall
+
                 st.subheader("📝 Editable Grades Table")
-                gb = GridOptionsBuilder.from_dataframe(df_acad)
-                gb.configure_column("SUBJECT", editable=False, wrapText=True, autoHeight=True)
-                gb.configure_column("PREVIOUS GRADE", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                gb.configure_column("CURRENT GRADE", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                gb.configure_column("INCREASE/DECREASE", editable=False)
-                gb.configure_column("STATUS", editable=False)
+                gb = GridOptionsBuilder.from_dataframe(df_acad[['Subject', 'Previous Grade', 'Current Grade', 'Increase/Decrease', 'Status', 'Proficiency/Deficiency']])
+                gb.configure_column("Subject", editable=False, wrapText=True, autoHeight=True)
+                gb.configure_column("Previous Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
+                gb.configure_column("Current Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
+                gb.configure_column("Proficiency/Deficiency", editable=True, cellEditor='agLargeTextCellEditor', wrapText=True, autoHeight=True)
+                gb.configure_column("Increase/Decrease", editable=False)
+                gb.configure_column("Status", editable=False)
 
                 # Add cell styling for STATUS
                 grid_options = gb.build()
                 grid_options['getRowStyle'] = {
                     "function": """
                         function(params) {
-                            if (params.data.STATUS === 'DEFICIENT') {
+                            if (params.data.Status === 'DEFICIENT') {
                                 return { 'background-color': '#FFCCCC' }; // Light red for deficient
-                            } else if (params.data.STATUS === 'PROFICIENT') {
+                            } else if (params.data.Status === 'PROFICIENT') {
                                 return { 'background-color': '#CCFFCC' }; // Light green for proficient
                             }
                             return null;
@@ -382,7 +414,7 @@ if st.session_state.mode == "class" and cls:
                 }
 
                 grid_response = AgGrid(
-                    df_acad,
+                    df_acad[['Subject', 'Previous Grade', 'Current Grade', 'Proficiency/Deficiency', 'Increase/Decrease', 'Status', 'Subject_Column']], # Include hidden column
                     gridOptions=grid_options,
                     data_return_mode="AS_INPUT", # Return the dataframe with edits
                     update_mode=GridUpdateMode.VALUE_CHANGED,
@@ -395,61 +427,86 @@ if st.session_state.mode == "class" and cls:
 
                 edited_df = grid_response["data"]
 
-                # Check if grades actually changed from the initial fetched state
-                grades_changed = not edited_df[["PREVIOUS GRADE", "CURRENT GRADE"]].equals(df_acad[["PREVIOUS GRADE", "CURRENT GRADE"]])
+                # Check if grades or proficiency/deficiency actually changed
+                acad_changes_detected = False
+                # If the overall Proficiency/Deficiency (which is propagated to all rows) has changed
+                if not edited_df.empty and edited_df.iloc[0]["Proficiency/Deficiency"] != proficiency_deficiency_overall:
+                    acad_changes_detected = True
+                else: # Check if any grade changed
+                    for idx, row in edited_df.iterrows():
+                        original_row = df_acad.loc[idx]
+                        if pd.notna(row['Previous Grade']) and pd.notna(original_row['Previous Grade']) and row['Previous Grade'] != original_row['Previous Grade']:
+                            acad_changes_detected = True
+                            break
+                        if pd.notna(row['Current Grade']) and pd.notna(original_row['Current Grade']) and row['Current Grade'] != original_row['Current Grade']:
+                            acad_changes_detected = True
+                            break
 
-                if grades_changed or st.session_state.get("force_show_acad_submit", False):
+                if acad_changes_detected or st.session_state.get("force_show_acad_submit", False):
                     st.success("✅ Detected changes. Click below to apply updates.")
                     if st.button("📤 Submit All Academic Changes"):
                         st.session_state["force_show_acad_submit"] = False
                         try:
-                            # Update both sheets: Previous Grades and Current Grades (History)
                             # 1. Update Current Grades (History) sheet
-                            if curr_name_col is None: # If history sheet didn't have a name col, add it
-                                curr_df.insert(0, "NAME", "")
-                                curr_name_col = "NAME" # Set it for future updates
-                                st.warning(f"Added 'NAME' column to '{curr_sheet_name}'.")
+                            # Find the row index for the cadet in the full curr_df
+                            cadet_curr_row_idx = curr_df[curr_df["_TEMP_NAME_CLEANED"] == name_clean].index
 
-                            curr_row_idx = curr_df[curr_df["_TEMP_NAME_CLEANED"] == name_clean].index
-                            if not curr_row_idx.empty:
-                                for _, r in edited_df.iterrows():
-                                    if r["SUBJECT"] not in curr_df.columns:
-                                        curr_df[r["SUBJECT"]] = "" # Add new subject column if it doesn't exist
-                                    curr_df.loc[curr_row_idx, r["SUBJECT"]] = str(r["CURRENT GRADE"]) if pd.notna(r["CURRENT GRADE"]) else ""
-                            else: # Add new row if cadet not found in current sheet
-                                new_row_data = {col: "" for col in curr_df.columns}
-                                new_row_data[curr_name_col] = name_disp # Use display name for new entry
-                                for _, r in edited_df.iterrows():
-                                    if r["SUBJECT"] not in curr_df.columns:
-                                        curr_df[r["SUBJECT"]] = "" # Add new subject column if it doesn't exist
-                                    new_row_data[r["SUBJECT"]] = str(r["CURRENT GRADE"]) if pd.notna(r["CURRENT GRADE"]) else ""
-                                curr_df = pd.concat([curr_df, pd.DataFrame([new_row_data])], ignore_index=True)
+                            if cadet_curr_row_idx.empty:
+                                # Cadet not found, create a new row
+                                new_cadet_row = {col: "" for col in curr_df.columns}
+                                new_cadet_row[curr_name_col] = name_disp # Use display name for new entry
+                                curr_df = pd.concat([curr_df, pd.DataFrame([new_cadet_row])], ignore_index=True)
+                                cadet_curr_row_idx = curr_df.index[-1:] # Get index of newly added row
+                                st.toast(f"Created new Academic History record for {name_disp}.")
 
-                            update_google_sheet(curr_sheet_name, curr_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore'))
+                            # Apply edited values to the current DataFrame
+                            for _, r in edited_df.iterrows():
+                                subject_col_name = r["Subject_Column"] # Use the original subject column name
+
+                                # Ensure subject column exists in the main DataFrame before assigning
+                                if subject_col_name not in curr_df.columns:
+                                    curr_df[subject_col_name] = ""
+                                curr_df.loc[cadet_curr_row_idx, subject_col_name] = str(r["Current Grade"]) if pd.notna(r["Current Grade"]) else ""
+
+                            # Update Proficiency/Deficiency column
+                            # Assuming a single P/D column per cadet in acad history sheet for now
+                            if "PROFICIENCY/DEFICIENCY" not in curr_df.columns:
+                                curr_df["PROFICIENCY/DEFICIENCY"] = ""
+                            if not edited_df.empty:
+                                # Take the P/D from the first row of the edited df, assuming it's uniform
+                                curr_df.loc[cadet_curr_row_idx, "PROFICIENCY/DEFICIENCY"] = edited_df.iloc[0]["Proficiency/Deficiency"]
+
+
+                            # Drop the temporary cleaned name column before saving
+                            curr_df_to_save = curr_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore')
+                            update_google_sheet(curr_sheet_name, curr_df_to_save)
 
 
                             # 2. Update Previous Grades sheet (if they were edited)
-                            prev_row_idx = prev_df[prev_df["_TEMP_NAME_CLEANED"] == name_clean].index
-                            if not prev_row_idx.empty:
+                            cadet_prev_row_idx = prev_df[prev_df["_TEMP_NAME_CLEANED"] == name_clean].index
+                            if not cadet_prev_row_idx.empty:
                                 for _, r in edited_df.iterrows():
+                                    subject_col_name = r["Subject_Column"]
                                     # Only update if previous grade was actually changed in the grid
-                                    if not pd.isna(r["PREVIOUS GRADE"]) and \
-                                       pd.to_numeric(prev_df.loc[prev_row_idx, r["SUBJECT"]].iloc[0], errors='coerce') != r["PREVIOUS GRADE"]:
-                                        if r["SUBJECT"] not in prev_df.columns:
-                                            prev_df[r["SUBJECT"]] = "" # Add new subject column if it doesn't exist
-                                        prev_df.loc[prev_row_idx, r["SUBJECT"]] = str(r["PREVIOUS GRADE"]) if pd.notna(r["PREVIOUS GRADE"]) else ""
-                                        st.toast(f"Updated PREVIOUS GRADE for {r['SUBJECT']} in {prev_sheet_name}")
+                                    if pd.notna(r["Previous Grade"]) and \
+                                       pd.to_numeric(prev_df.loc[cadet_prev_row_idx, subject_col_name].iloc[0], errors='coerce') != r["Previous Grade"]:
+                                        if subject_col_name not in prev_df.columns:
+                                            prev_df[subject_col_name] = "" # Add new subject column if it doesn't exist
+                                        prev_df.loc[cadet_prev_row_idx, subject_col_name] = str(r["Previous Grade"]) if pd.notna(r["Previous Grade"]) else ""
+                                        st.toast(f"Updated PREVIOUS GRADE for {r['Subject']} in {prev_sheet_name}")
 
-                                update_google_sheet(prev_sheet_name, prev_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore'))
+                                prev_df_to_save = prev_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore')
+                                update_google_sheet(prev_sheet_name, prev_df_to_save)
                             else:
                                 st.warning(f"Cadet {name_disp} not found in '{prev_sheet_name}' for previous grade update.")
 
+                            st.session_state["active_tab"] = "t2" # Keep Academics tab active
                             st.rerun() # Re-render to show updated data and clear success message
                         except Exception as e:
                             st.error(f"❌ Error saving academic changes: {e}")
                 else:
                     st.session_state["force_show_acad_submit"] = True
-                    st.info("📝 No detected grade changes yet. Try editing a cell.")
+                    st.info("📝 No detected grade or proficiency/deficiency changes yet. Try editing a cell.")
 
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
@@ -482,135 +539,159 @@ if st.session_state.mode == "class" and cls:
                 pft_df_raw = sheet_df(current_pft_sheet_name)
                 if pft_df_raw.empty:
                     st.info(f"No PFT data found in '{current_pft_sheet_name}'.")
-                else:
-                    pft_df = clean_column_names(pft_df_raw.copy())
-                    pft_name_col = find_name_column(pft_df.columns)
+                    # If empty, create a dummy one to allow new entries
+                    pft_df_raw = pd.DataFrame(columns=['NAME'])
 
-                    if pft_name_col is None:
-                        st.error(f"❌ Could not find a 'NAME' column in PFT sheet '{current_pft_sheet_name}'.")
-                    else:
-                        pft_df["_TEMP_NAME_CLEANED"] = pft_df[pft_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                        cadet_pft_data = pft_df[pft_df["_TEMP_NAME_CLEANED"] == name_clean].copy()
+                pft_df = clean_column_names(pft_df_raw.copy())
+                pft_name_col = find_name_column(pft_df.columns)
 
-                        if cadet_pft_data.empty:
-                            st.warning(f"No PFT record found for {name_disp} in '{current_pft_sheet_name}'. A new row will be created upon submission.")
-                            # Create a blank row for the cadet if not found
-                            new_row_pft = {col: "" for col in pft_df.columns}
-                            new_row_pft[pft_name_col] = name_disp
-                            # Initialize standard PFT columns if they don't exist
-                            for col in ["PUSHUPS", "SITUPS", "PULLUPS/FLEXARM", "RUN", "PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]:
-                                if col not in new_row_pft:
-                                    new_row_pft[col] = ""
-                            cadet_pft_data = pd.DataFrame([new_row_pft])
-                            cadet_pft_data["_TEMP_NAME_CLEANED"] = name_clean # Add for internal use
+                if pft_name_col is None:
+                    pft_df.insert(0, "NAME", "")
+                    pft_name_col = "NAME"
+
+                pft_df["_TEMP_NAME_CLEANED"] = pft_df[pft_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                cadet_pft_data = pft_df[pft_df["_TEMP_NAME_CLEANED"] == name_clean].copy()
+
+                if cadet_pft_data.empty:
+                    st.warning(f"No PFT record found for {name_disp} in '{current_pft_sheet_name}'. A new row will be created upon submission.")
+                    # Create a blank row for the cadet if not found
+                    new_row_pft = {col: "" for col in pft_df.columns}
+                    new_row_pft[pft_name_col] = name_disp
+                    # Initialize standard PFT columns if they don't exist
+                    for col in ["PUSHUPS", "SITUPS", "PULLUPS/FLEXARM", "RUN", "PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES", "PROFICIENCY/DEFICIENCY"]:
+                        if col.upper() not in [c.upper() for c in new_row_pft.keys()]: # Check case-insensitively
+                            new_row_pft[col.upper()] = "" # Use upper for consistency
+                    cadet_pft_data = pd.DataFrame([new_row_pft])
+                    cadet_pft_data["_TEMP_NAME_CLEANED"] = name_clean # Add for internal use
 
 
-                        # Prepare data for AgGrid
-                        pft_records = []
-                        exercises_config = [
-                            ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
-                            ("Situps", "SITUPS", "SITUPS_GRADES"),
-                            ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
-                            ("3.2KM Run", "RUN", "RUN_GRADES")
-                        ]
+                # Prepare data for AgGrid
+                pft_records = []
+                exercises_config = [
+                    ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
+                    ("Situps", "SITUPS", "SITUPS_GRADES"),
+                    ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
+                    ("3.2KM Run", "RUN", "RUN_GRADES")
+                ]
 
-                        for label, raw_col, grade_col in exercises_config:
-                            reps = pd.to_numeric(cadet_pft_data.iloc[0].get(raw_col, pd.NA), errors='coerce')
-                            grade = pd.to_numeric(cadet_pft_data.iloc[0].get(grade_col, pd.NA), errors='coerce')
-                            status = evaluate_status(grade)
-                            pft_records.append({
-                                "Exercise": label,
-                                "Repetitions": reps,
-                                "Grade": grade,
-                                "Rep_Column": raw_col, # Store original column names for update
-                                "Grade_Column": grade_col,
-                                "Status": status
-                            })
-                        pft_display_df = pd.DataFrame(pft_records)
+                # Retrieve the overall P/D for PFT if it exists
+                pft_proficiency_deficiency = str(cadet_pft_data.iloc[0].get("PROFICIENCY/DEFICIENCY", ""))
 
-                        st.subheader(f"🏋️ PFT Data – {term}")
-                        gb_pft = GridOptionsBuilder.from_dataframe(pft_display_df[['Exercise', 'Repetitions', 'Grade', 'Status']])
-                        gb_pft.configure_column("Exercise", editable=False, wrapText=True, autoHeight=True)
-                        gb_pft.configure_column("Repetitions", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
-                        gb_pft.configure_column("Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                        gb_pft.configure_column("Status", editable=False)
 
-                        pft_grid_options = gb_pft.build()
-                        pft_grid_options['getRowStyle'] = {
-                            "function": """
-                                function(params) {
-                                    if (params.data.Status === 'DEFICIENT') {
-                                        return { 'background-color': '#FFCCCC' };
-                                    } else if (params.data.Status === 'Proficient') {
-                                        return { 'background-color': '#CCFFCC' };
-                                    }
-                                    return null;
-                                }
-                            """
+                for label, raw_col, grade_col in exercises_config:
+                    reps = pd.to_numeric(cadet_pft_data.iloc[0].get(raw_col, pd.NA), errors='coerce')
+                    grade = pd.to_numeric(cadet_pft_data.iloc[0].get(grade_col, pd.NA), errors='coerce')
+                    status = evaluate_status(grade)
+                    pft_records.append({
+                        "Exercise": label,
+                        "Repetitions": reps,
+                        "Grade": grade,
+                        "Rep_Column": raw_col, # Store original column names for update
+                        "Grade_Column": grade_col,
+                        "Status": status
+                    })
+                pft_display_df = pd.DataFrame(pft_records)
+
+                st.subheader(f"🏋️ PFT Data – {term}")
+                gb_pft = GridOptionsBuilder.from_dataframe(pft_display_df[['Exercise', 'Repetitions', 'Grade', 'Status']])
+                gb_pft.configure_column("Exercise", editable=False, wrapText=True, autoHeight=True)
+                gb_pft.configure_column("Repetitions", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
+                gb_pft.configure_column("Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
+                gb_pft.configure_column("Status", editable=False)
+
+                pft_grid_options = gb_pft.build()
+                pft_grid_options['getRowStyle'] = {
+                    "function": """
+                        function(params) {
+                            if (params.data.Status === 'DEFICIENT') {
+                                return { 'background-color': '#FFCCCC' };
+                            } else if (params.data.Status === 'Proficient') {
+                                return { 'background-color': '#CCFFCC' };
+                            }
+                            return null;
                         }
+                    """
+                }
 
-                        pft_grid_response = AgGrid(
-                            pft_display_df[['Exercise', 'Repetitions', 'Grade', 'Status', 'Rep_Column', 'Grade_Column']],
-                            gridOptions=pft_grid_options,
-                            data_return_mode="AS_INPUT",
-                            update_mode=GridUpdateMode.VALUE_CHANGED,
-                            fit_columns_on_grid_load=True,
-                            allow_unsafe_jscode=True,
-                            height=300,
-                            reload_data=True,
-                            key="pft_grid"
-                        )
-                        edited_pft_df = pft_grid_response["data"]
+                pft_grid_response = AgGrid(
+                    pft_display_df[['Exercise', 'Repetitions', 'Grade', 'Status', 'Rep_Column', 'Grade_Column']],
+                    gridOptions=pft_grid_options,
+                    data_return_mode="AS_INPUT",
+                    update_mode=GridUpdateMode.VALUE_CHANGED,
+                    fit_columns_on_grid_load=True,
+                    allow_unsafe_jscode=True,
+                    height=300,
+                    reload_data=True,
+                    key="pft_grid"
+                )
+                edited_pft_df = pft_grid_response["data"]
 
-                        # Check for changes in Repetitions or Grade
-                        pft_changes_detected = False
-                        for idx, row in edited_pft_df.iterrows():
-                            original_row = pft_display_df.loc[idx]
-                            if pd.notna(row['Repetitions']) and pd.notna(original_row['Repetitions']) and row['Repetitions'] != original_row['Repetitions']:
-                                pft_changes_detected = True
-                                break
-                            if pd.notna(row['Grade']) and pd.notna(original_row['Grade']) and row['Grade'] != original_row['Grade']:
-                                pft_changes_detected = True
-                                break
+                # Add proficiency/deficiency input
+                edited_pft_proficiency_deficiency = st.text_area(
+                    "Proficiency/Deficiency for PFT (Overall)",
+                    value=pft_proficiency_deficiency,
+                    key="pft_pd_text_area",
+                    height=70
+                )
 
-                        if pft_changes_detected or st.session_state.get("force_show_pft_submit", False):
-                            st.success("✅ Detected changes in PFT data. Click below to apply updates.")
-                            if st.button(f"📤 Submit PFT Changes ({term})"):
-                                st.session_state["force_show_pft_submit"] = False
+                # Check for changes in Repetitions, Grade, or Proficiency/Deficiency
+                pft_changes_detected = False
+                if edited_pft_proficiency_deficiency != pft_proficiency_deficiency:
+                    pft_changes_detected = True
+                else:
+                    for idx, row in edited_pft_df.iterrows():
+                        original_row = pft_display_df.loc[idx]
+                        if pd.notna(row['Repetitions']) and pd.notna(original_row['Repetitions']) and row['Repetitions'] != original_row['Repetitions']:
+                            pft_changes_detected = True
+                            break
+                        if pd.notna(row['Grade']) and pd.notna(original_row['Grade']) and row['Grade'] != original_row['Grade']:
+                            pft_changes_detected = True
+                            break
 
-                                # Find the row index for the cadet in the full pft_df
-                                cadet_row_idx_in_full_df = pft_df[pft_df["_TEMP_NAME_CLEANED"] == name_clean].index
+                if pft_changes_detected or st.session_state.get("force_show_pft_submit", False):
+                    st.success("✅ Detected changes in PFT data. Click below to apply updates.")
+                    if st.button(f"📤 Submit PFT Changes ({term})"):
+                        st.session_state["force_show_pft_submit"] = False
 
-                                if cadet_row_idx_in_full_df.empty:
-                                    # Cadet not found, create a new row
-                                    new_cadet_row = {col: "" for col in pft_df.columns}
-                                    new_cadet_row[pft_name_col] = name_disp # Use display name for new entry
-                                    pft_df = pd.concat([pft_df, pd.DataFrame([new_cadet_row])], ignore_index=True)
-                                    cadet_row_idx_in_full_df = pft_df.index[-1:] # Get index of newly added row
-                                    st.toast(f"Created new PFT record for {name_disp}.")
+                        # Find the row index for the cadet in the full pft_df
+                        cadet_row_idx_in_full_df = pft_df[pft_df["_TEMP_NAME_CLEANED"] == name_clean].index
 
-                                # Apply edited values to the full DataFrame
-                                for _, r in edited_pft_df.iterrows():
-                                    reps_col = r["Rep_Column"]
-                                    grade_col = r["Grade_Column"]
+                        if cadet_row_idx_in_full_df.empty:
+                            # Cadet not found, create a new row
+                            new_cadet_row = {col: "" for col in pft_df.columns}
+                            new_cadet_row[pft_name_col] = name_disp # Use display name for new entry
+                            pft_df = pd.concat([pft_df, pd.DataFrame([new_cadet_row])], ignore_index=True)
+                            cadet_row_idx_in_full_df = pft_df.index[-1:] # Get index of newly added row
+                            st.toast(f"Created new PFT record for {name_disp}.")
 
-                                    # Ensure columns exist in the main DataFrame before assigning
-                                    if reps_col not in pft_df.columns:
-                                        pft_df[reps_col] = ""
-                                    if grade_col not in pft_df.columns:
-                                        pft_df[grade_col] = ""
+                        # Apply edited values to the full DataFrame
+                        for _, r in edited_pft_df.iterrows():
+                            reps_col = r["Rep_Column"]
+                            grade_col = r["Grade_Column"]
 
-                                    pft_df.loc[cadet_row_idx_in_full_df, reps_col] = str(r["Repetitions"]) if pd.notna(r["Repetitions"]) else ""
-                                    pft_df.loc[cadet_row_idx_in_full_df, grade_col] = str(r["Grade"]) if pd.notna(r["Grade"]) else ""
+                            # Ensure columns exist in the main DataFrame before assigning
+                            if reps_col.upper() not in [c.upper() for c in pft_df.columns]:
+                                pft_df[reps_col.upper()] = ""
+                            if grade_col.upper() not in [c.upper() for c in pft_df.columns]:
+                                pft_df[grade_col.upper()] = ""
 
-                                # Drop the temporary cleaned name column before saving
-                                pft_df_to_save = pft_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore')
-                                update_google_sheet(current_pft_sheet_name, pft_df_to_save)
-                                st.session_state["active_tab"] = "t3" # Keep PFT tab active
-                                st.rerun()
-                        else:
-                            st.session_state["force_show_pft_submit"] = True
-                            st.info("📝 No detected PFT changes yet. Try editing a cell.")
+                            pft_df.loc[cadet_row_idx_in_full_df, reps_col.upper()] = str(r["Repetitions"]) if pd.notna(r["Repetitions"]) else ""
+                            pft_df.loc[cadet_row_idx_in_full_df, grade_col.upper()] = str(r["Grade"]) if pd.notna(r["Grade"]) else ""
+
+                        # Update proficiency/deficiency
+                        if "PROFICIENCY/DEFICIENCY" not in pft_df.columns:
+                            pft_df["PROFICIENCY/DEFICIENCY"] = ""
+                        pft_df.loc[cadet_row_idx_in_full_df, "PROFICIENCY/DEFICIENCY"] = edited_pft_proficiency_deficiency
+
+
+                        # Drop the temporary cleaned name column before saving
+                        pft_df_to_save = pft_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore')
+                        update_google_sheet(current_pft_sheet_name, pft_df_to_save)
+                        st.session_state["active_tab"] = "t3" # Keep PFT tab active
+                        st.rerun()
+                else:
+                    st.session_state["force_show_pft_submit"] = True
+                    st.info("📝 No detected PFT changes yet. Try editing a cell.")
 
         # --- Tab 4: Military ---
         with t4:
@@ -640,108 +721,133 @@ if st.session_state.mode == "class" and cls:
                 mil_df_raw = sheet_df(current_mil_sheet_name)
                 if mil_df_raw.empty:
                     st.info(f"No Military data found in '{current_mil_sheet_name}'.")
-                else:
-                    mil_df = clean_column_names(mil_df_raw.copy())
-                    mil_name_col = find_name_column(mil_df.columns)
+                    mil_df_raw = pd.DataFrame(columns=['NAME'])
 
-                    if mil_name_col is None:
-                        st.error(f"❌ Could not find a 'NAME' column in Military sheet '{current_mil_sheet_name}'.")
-                    else:
-                        mil_df["_TEMP_NAME_CLEANED"] = mil_df[mil_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                        cadet_mil_data = mil_df[mil_df["_TEMP_NAME_CLEANED"] == name_clean].copy()
+                mil_df = clean_column_names(mil_df_raw.copy())
+                mil_name_col = find_name_column(mil_df.columns)
 
-                        if cadet_mil_data.empty:
-                            st.warning(f"No Military record found for {name_disp} in '{current_mil_sheet_name}'. A new row will be created upon submission.")
-                            # Create a blank row for the cadet if not found
-                            new_row_mil = {col: "" for col in mil_df.columns}
-                            new_row_mil[mil_name_col] = name_disp
-                            cadet_mil_data = pd.DataFrame([new_row_mil])
-                            cadet_mil_data["_TEMP_NAME_CLEANED"] = name_clean
+                if mil_name_col is None:
+                    mil_df.insert(0, "NAME", "")
+                    mil_name_col = "NAME"
 
-                        mil_grades_list = []
-                        mil_columns_to_edit = []
+                mil_df["_TEMP_NAME_CLEANED"] = mil_df[mil_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                cadet_mil_data = mil_df[mil_df["_TEMP_NAME_CLEANED"] == name_clean].copy()
 
-                        if cls == "1CL":
-                            mil_columns_to_edit = [("BOS", "BOS Grade")] # Assuming 'GRADE' is for 1CL overall
-                            grade_val = pd.to_numeric(cadet_mil_data.iloc[0].get("GRADE", pd.NA), errors='coerce')
-                            mil_grades_list.append({"Metric": "Overall Grade", "Grade": grade_val, "Column_Name": "GRADE", "Status": evaluate_status(grade_val)})
-                        elif cls == "2CL":
-                            mil_columns_to_edit = [("AS", "AS Grade"), ("NS", "NS Grade"), ("AFS", "AFS Grade")]
-                            for col_name, display_name in mil_columns_to_edit:
-                                grade_val = pd.to_numeric(cadet_mil_data.iloc[0].get(col_name, pd.NA), errors='coerce')
-                                mil_grades_list.append({"Metric": display_name, "Grade": grade_val, "Column_Name": col_name, "Status": evaluate_status(grade_val)})
-                        elif cls == "3CL":
-                            mil_columns_to_edit = [("MS231", "MS231 Grade")]
-                            grade_val = pd.to_numeric(cadet_mil_data.iloc[0].get("MS231", pd.NA), errors='coerce')
-                            mil_grades_list.append({"Metric": "MS231 Grade", "Grade": grade_val, "Column_Name": "MS231", "Status": evaluate_status(grade_val)})
+                if cadet_mil_data.empty:
+                    st.warning(f"No Military record found for {name_disp} in '{current_mil_sheet_name}'. A new row will be created upon submission.")
+                    # Create a blank row for the cadet if not found
+                    new_row_mil = {col: "" for col in mil_df.columns}
+                    new_row_mil[mil_name_col] = name_disp
+                    for col in ["GRADE", "AS", "NS", "AFS", "MS231", "PROFICIENCY/DEFICIENCY"]: # Ensure these exist
+                        if col.upper() not in [c.upper() for c in new_row_mil.keys()]:
+                            new_row_mil[col.upper()] = "" # Use upper for consistency
+                    cadet_mil_data = pd.DataFrame([new_row_mil])
+                    cadet_mil_data["_TEMP_NAME_CLEANED"] = name_clean
 
-                        mil_display_df = pd.DataFrame(mil_grades_list)
+                mil_grades_list = []
+                mil_columns_to_edit = []
 
-                        st.subheader(f"📋 Military Grades – {term}")
-                        gb_mil = GridOptionsBuilder.from_dataframe(mil_display_df[['Metric', 'Grade', 'Status']])
-                        gb_mil.configure_column("Metric", editable=False, wrapText=True, autoHeight=True)
-                        gb_mil.configure_column("Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                        gb_mil.configure_column("Status", editable=False)
+                mil_proficiency_deficiency = str(cadet_mil_data.iloc[0].get("PROFICIENCY/DEFICIENCY", ""))
 
-                        mil_grid_options = gb_mil.build()
-                        mil_grid_options['getRowStyle'] = {
-                            "function": """
-                                function(params) {
-                                    if (params.data.Status === 'DEFICIENT') {
-                                        return { 'background-color': '#FFCCCC' };
-                                    } else if (params.data.Status === 'Proficient') {
-                                        return { 'background-color': '#CCFFCC' };
-                                    }
-                                    return null;
-                                }
-                            """
+                if cls == "1CL":
+                    mil_columns_to_edit = [("GRADE", "Overall Grade")] # Assuming 'GRADE' is for 1CL overall
+                    for col_name, display_name in mil_columns_to_edit:
+                        grade_val = pd.to_numeric(cadet_mil_data.iloc[0].get(col_name, pd.NA), errors='coerce')
+                        mil_grades_list.append({"Metric": display_name, "Grade": grade_val, "Column_Name": col_name, "Status": evaluate_status(grade_val)})
+                elif cls == "2CL":
+                    mil_columns_to_edit = [("AS", "AS Grade"), ("NS", "NS Grade"), ("AFS", "AFS Grade")]
+                    for col_name, display_name in mil_columns_to_edit:
+                        grade_val = pd.to_numeric(cadet_mil_data.iloc[0].get(col_name, pd.NA), errors='coerce')
+                        mil_grades_list.append({"Metric": display_name, "Grade": grade_val, "Column_Name": col_name, "Status": evaluate_status(grade_val)})
+                elif cls == "3CL":
+                    mil_columns_to_edit = [("MS231", "MS231 Grade")]
+                    for col_name, display_name in mil_columns_to_edit:
+                        grade_val = pd.to_numeric(cadet_mil_data.iloc[0].get(col_name, pd.NA), errors='coerce')
+                        mil_grades_list.append({"Metric": display_name, "Grade": grade_val, "Column_Name": col_name, "Status": evaluate_status(grade_val)})
+
+                mil_display_df = pd.DataFrame(mil_grades_list)
+
+                st.subheader(f"📋 Military Grades – {term}")
+                gb_mil = GridOptionsBuilder.from_dataframe(mil_display_df[['Metric', 'Grade', 'Status']])
+                gb_mil.configure_column("Metric", editable=False, wrapText=True, autoHeight=True)
+                gb_mil.configure_column("Grade", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
+                gb_mil.configure_column("Status", editable=False)
+
+                mil_grid_options = gb_mil.build()
+                mil_grid_options['getRowStyle'] = {
+                    "function": """
+                        function(params) {
+                            if (params.data.Status === 'DEFICIENT') {
+                                return { 'background-color': '#FFCCCC' };
+                            } else if (params.data.Status === 'Proficient') {
+                                return { 'background-color': '#CCFFCC' };
+                            }
+                            return null;
                         }
+                    """
+                }
 
-                        mil_grid_response = AgGrid(
-                            mil_display_df[['Metric', 'Grade', 'Status', 'Column_Name']],
-                            gridOptions=mil_grid_options,
-                            data_return_mode="AS_INPUT",
-                            update_mode=GridUpdateMode.VALUE_CHANGED,
-                            fit_columns_on_grid_load=True,
-                            allow_unsafe_jscode=True,
-                            height=min(250, (len(mil_grades_list) + 1) * 35), # Adjust height dynamically
-                            reload_data=True,
-                            key="mil_grid"
-                        )
-                        edited_mil_df = mil_grid_response["data"]
+                mil_grid_response = AgGrid(
+                    mil_display_df[['Metric', 'Grade', 'Status', 'Column_Name']],
+                    gridOptions=mil_grid_options,
+                    data_return_mode="AS_INPUT",
+                    update_mode=GridUpdateMode.VALUE_CHANGED,
+                    fit_columns_on_grid_load=True,
+                    allow_unsafe_jscode=True,
+                    height=min(250, (len(mil_grades_list) + 1) * 35), # Adjust height dynamically
+                    reload_data=True,
+                    key="mil_grid"
+                )
+                edited_mil_df = mil_grid_response["data"]
 
-                        mil_changes_detected = False
-                        for idx, row in edited_mil_df.iterrows():
-                            original_row = mil_display_df.loc[idx]
-                            if pd.notna(row['Grade']) and pd.notna(original_row['Grade']) and row['Grade'] != original_row['Grade']:
-                                mil_changes_detected = True
-                                break
+                # Add proficiency/deficiency input
+                edited_mil_proficiency_deficiency = st.text_area(
+                    "Proficiency/Deficiency for Military (Overall)",
+                    value=mil_proficiency_deficiency,
+                    key="mil_pd_text_area",
+                    height=70
+                )
 
-                        if mil_changes_detected or st.session_state.get("force_show_mil_submit", False):
-                            st.success("✅ Detected changes in Military data. Click below to apply updates.")
-                            if st.button(f"📤 Submit Military Changes ({term})"):
-                                st.session_state["force_show_mil_submit"] = False
+                mil_changes_detected = False
+                if edited_mil_proficiency_deficiency != mil_proficiency_deficiency:
+                    mil_changes_detected = True
+                else:
+                    for idx, row in edited_mil_df.iterrows():
+                        original_row = mil_display_df.loc[idx]
+                        if pd.notna(row['Grade']) and pd.notna(original_row['Grade']) and row['Grade'] != original_row['Grade']:
+                            mil_changes_detected = True
+                            break
 
-                                cadet_row_idx_in_full_df = mil_df[mil_df["_TEMP_NAME_CLEANED"] == name_clean].index
+                if mil_changes_detected or st.session_state.get("force_show_mil_submit", False):
+                    st.success("✅ Detected changes in Military data. Click below to apply updates.")
+                    if st.button(f"📤 Submit Military Changes ({term})"):
+                        st.session_state["force_show_mil_submit"] = False
 
-                                if cadet_row_idx_in_full_df.empty:
-                                    new_cadet_row = {col: "" for col in mil_df.columns}
-                                    new_cadet_row[mil_name_col] = name_disp
-                                    mil_df = pd.concat([mil_df, pd.DataFrame([new_cadet_row])], ignore_index=True)
-                                    cadet_row_idx_in_full_df = mil_df.index[-1:]
-                                    st.toast(f"Created new Military record for {name_disp}.")
+                        cadet_row_idx_in_full_df = mil_df[mil_df["_TEMP_NAME_CLEANED"] == name_clean].index
+
+                        if cadet_row_idx_in_full_df.empty:
+                            new_cadet_row = {col: "" for col in mil_df.columns}
+                            new_cadet_row[mil_name_col] = name_disp
+                            mil_df = pd.concat([mil_df, pd.DataFrame([new_cadet_row])], ignore_index=True)
+                            cadet_row_idx_in_full_df = mil_df.index[-1:]
+                            st.toast(f"Created new Military record for {name_disp}.")
 
 
-                                for _, r in edited_mil_df.iterrows():
-                                    target_col = r["Column_Name"]
-                                    if target_col not in mil_df.columns:
-                                        mil_df[target_col] = "" # Add column if it doesn't exist
-                                    mil_df.loc[cadet_row_idx_in_full_df, target_col] = str(r["Grade"]) if pd.notna(r["Grade"]) else ""
+                        for _, r in edited_mil_df.iterrows():
+                            target_col = r["Column_Name"]
+                            if target_col.upper() not in [c.upper() for c in mil_df.columns]:
+                                mil_df[target_col.upper()] = "" # Add column if it doesn't exist
+                            mil_df.loc[cadet_row_idx_in_full_df, target_col.upper()] = str(r["Grade"]) if pd.notna(r["Grade"]) else ""
 
-                                mil_df_to_save = mil_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore')
-                                update_google_sheet(current_mil_sheet_name, mil_df_to_save)
-                                st.session_state["active_tab"] = "t4" # Keep Military tab active
-                                st.rerun()
-                        else:
-                            st.session_state["force_show_mil_submit"] = True
-                            st.info("📝 No detected Military changes yet. Try editing a cell.")
+                        # Update proficiency/deficiency
+                        if "PROFICIENCY/DEFICIENCY" not in mil_df.columns:
+                            mil_df["PROFICIENCY/DEFICIENCY"] = ""
+                        mil_df.loc[cadet_row_idx_in_full_df, "PROFICIENCY/DEFICIENCY"] = edited_mil_proficiency_deficiency
+
+                        mil_df_to_save = mil_df.drop(columns=["_TEMP_NAME_CLEANED"], errors='ignore')
+                        update_google_sheet(current_mil_sheet_name, mil_df_to_save)
+                        st.session_state["active_tab"] = "t4" # Keep Military tab active
+                        st.rerun()
+                else:
+                    st.session_state["force_show_mil_submit"] = True
+                    st.info("📝 No detected Military changes yet. Try editing a cell.")
