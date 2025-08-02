@@ -268,8 +268,10 @@ if st.session_state.view == "summary":
                 mil_df["AS"] = pd.to_numeric(mil_df.get("AS", pd.Series()), errors="coerce")
                 mil_df["NS"] = pd.to_numeric(mil_df.get("NS", pd.Series()), errors="coerce")
                 mil_df["AFS"] = pd.to_numeric(mil_df.get("AFS", pd.Series()), errors="coerce")
-                mil_proficient = mil_df["GRADE"].apply(lambda x: 1 if x >= 7 else 0).sum()
-                mil_deficient = mil_df["GRADE"].apply(lambda x: 1 if x < 7 else 0).sum()
+                proficient_cadets = mil_df[(mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)]
+                deficient_cadets = mil_df[(mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)]
+                mil_proficient = len(proficient_cadets)
+                mil_deficient = len(deficient_cadets)
             elif cls == "3CL":
                 mil_df["MS231"] = pd.to_numeric(mil_df.get("MS231", pd.Series()), errors="coerce")
                 mil_proficient = mil_df["MS231"].apply(lambda x: 1 if x >= 7 else 0).sum()
@@ -346,15 +348,18 @@ if st.session_state.view == "summary":
                 pft_df['NAME_CLEANED'] = pft_df['NAME'].str.upper().str.strip()
                 demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
                 merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', 'GENDER']], on='NAME_CLEANED', how='left')
-
-                merged_df['GRADE'] = pd.to_numeric(merged_df.get('GRADE', pd.Series()), errors='coerce')
-                smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
-                st.write("**SMC (Failed) Cadets:**")
-                if smc_cadets:
-                    st.write(f"{', '.join(smc_cadets)}")
-                else:
-                    st.write("None")
                 
+                if 'GRADE' in merged_df.columns:
+                    merged_df['GRADE'] = pd.to_numeric(merged_df['GRADE'], errors='coerce')
+                    smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
+                    st.write("**SMC (Failed) Cadets:**")
+                    if smc_cadets:
+                        st.write(f"{', '.join(smc_cadets)}")
+                    else:
+                        st.write("None")
+                else:
+                    st.warning(f"No 'GRADE' column found for {cls} PFT sheet. Cannot determine SMC cadets.")
+
                 merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
                 merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
                 merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
