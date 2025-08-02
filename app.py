@@ -357,26 +357,22 @@ if st.session_state.mode == "class" and cls:
             with pic:
                 img_path = f"profile_pics/{name_disp}.jpg"
                 st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
-            
+        
             with info:
-                # Use a smaller heading for the expander title
+                # Use an expander to group all cadet information
                 with st.expander("📝 Cadet Information", expanded=True):
-                    
-                    # Use columns to create a two-column layout for the key-value pairs
                     col1, col2 = st.columns(2)
                     
-                    # Filter out keys we don't want to show
                     info_to_display = {
                         k: v for k, v in row.items() 
                         if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]
                     }
                     
-                    # Iterate through the filtered items and place them in alternating columns
                     for idx, (k, v) in enumerate(info_to_display.items()):
                         target_col = col1 if idx % 2 == 0 else col2
                         target_col.markdown(f"**{k}:** {v}")
-                        
-                # Add a smaller info box
+        
+                # Add an information box for navigation
                 st.info("💡 More detailed data is available in the other tabs.")
         
         with t2:
