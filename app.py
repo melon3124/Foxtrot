@@ -284,7 +284,14 @@ if st.session_state.view == "summary":
                 pft_grades = pd.to_numeric(pft_grades, errors='coerce')
                 pft_proficient = pft_grades[pft_grades >= 7].shape[0]
                 pft_deficient = pft_grades[pft_grades < 7].shape[0]
-    
+            else: # Fix for missing 'GRADE' column
+                pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
+                if all(col in pft_df.columns for col in pft_grade_cols):
+                    pft_df[pft_grade_cols] = pft_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
+                    pft_df['AVG_GRADE'] = pft_df[pft_grade_cols].mean(axis=1)
+                    pft_proficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] >= 7].shape[0]
+                    pft_deficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] < 7].shape[0]
+
         conduct_df = sheet_df(conduct_sheet_map.get("1st Term", {}).get(cls))
         if not conduct_df.empty:
             conduct_df["MERITS"] = pd.to_numeric(conduct_df.get("MERITS", pd.Series()), errors="coerce")
@@ -356,46 +363,47 @@ if st.session_state.view == "summary":
             demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
             
             # Check for the correct gender column, accounting for the typo
-            gender_col = 'GENDER'
-            if gender_col not in demo_df.columns:
+            gender_col_in_demo = 'GENDER'
+            if gender_col_in_demo not in demo_df.columns:
                 if 'GBNDER' in demo_df.columns:
-                    gender_col = 'GBNDER'
+                    gender_col_in_demo = 'GBNDER'
             
-            if gender_col not in demo_df.columns:
+            if gender_col_in_demo not in demo_df.columns:
                 st.warning("⚠️ 'GENDER' column is missing from the DEMOGRAPHICS sheet. Cannot determine male/female data.")
                 merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED']], on='NAME_CLEANED', how='left')
                 merged_df['GENDER'] = 'N/A'  # Add a placeholder
             else:
-                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', gender_col]], on='NAME_CLEANED', how='left')
-                merged_df.rename(columns={gender_col: 'GENDER'}, inplace=True) # Normalize column name
+                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', gender_col_in_demo]], on='NAME_CLEANED', how='left')
+                merged_df.rename(columns={gender_col_in_demo: 'GENDER'}, inplace=True) # Normalize column name
                 
-            if 'GRADE' in merged_df.columns:
-                merged_df['GRADE'] = pd.to_numeric(merged_df['GRADE'], errors='coerce')
-                smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
+            pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
+            
+            if all(col in merged_df.columns for col in pft_grade_cols):
+                merged_df[pft_grade_cols] = merged_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
+                merged_df['PFT_AVG_GRADE'] = merged_df[pft_grade_cols].mean(axis=1)
+
+                # Determine SMC cadets based on average grade
+                smc_cadets = merged_df[merged_df['PFT_AVG_GRADE'] < 7]['NAME'].dropna().tolist()
                 st.write("**SMC (Failed) Cadets:**")
                 if smc_cadets:
                     st.write(f"{', '.join(smc_cadets)}")
                 else:
                     st.write("None")
+                
+                # Determine strongest cadets based on average grade
+                if 'GENDER' in merged_df.columns:
+                    strongest_male = merged_df[merged_df['GENDER'].str.upper() == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'].str.upper() == 'MALE'].empty else None
+                    strongest_female = merged_df[merged_df['GENDER'].str.upper() == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'].str.upper() == 'FEMALE'].empty else None
+    
+                    st.write("**Strongest Cadets (Highest Average Grade):**")
+                    if strongest_male is not None:
+                        st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
+                    if strongest_female is not None:
+                        st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
+                else:
+                    st.info("Could not determine strongest cadets due to missing gender or grade data.")
             else:
-                st.warning(f"No 'GRADE' column found for {cls_select} PFT sheet. Cannot determine SMC cadets.")
-            
-            pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
-            
-            if 'GENDER' in merged_df.columns and all(col in merged_df.columns for col in pft_grade_cols):
-                merged_df[pft_grade_cols] = merged_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
-                merged_df['PFT_AVG_GRADE'] = merged_df[pft_grade_cols].mean(axis=1)
-
-                strongest_male = merged_df[merged_df['GENDER'].str.upper() == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'].str.upper() == 'MALE'].empty else None
-                strongest_female = merged_df[merged_df['GENDER'].str.upper() == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'].str.upper() == 'FEMALE'].empty else None
-
-                st.write("**Strongest Cadets (Highest Average Grade):**")
-                if strongest_male is not None:
-                    st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
-                if strongest_female is not None:
-                    st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
-            else:
-                st.info("Could not determine strongest cadets due to missing gender or grade data.")
+                st.warning("Could not determine SMC or strongest cadets due to missing PFT grade columns (PUSHUPS_GRADES, etc.)")
     
     with t_mil:
         st.subheader("Military Summary")
@@ -734,20 +742,37 @@ else:
                             st.warning("⚠️ Could not find a valid name column in the PFT sheet.")
                         else:
                             pft_df["NAME_CLEANED"] = pft_df[name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_pft_data = pft_df[pft_df["NAME_CLEANED"] == name_clean].iloc[0]
+                            cadet_pft_data = pft_df[pft_df["NAME_CLEANED"] == name_clean]
                             
-                            pft_cols = ["PUSHUPS", "SITUPS", "PULLUPS/FLEXARM", "RUN"]
-                            grades_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
-                            
-                            pft_data_to_display = {
-                                "Push-ups": f"{cadet_pft_data.get('PUSHUPS', 'N/A')} (Grade: {cadet_pft_data.get('PUSHUPS_GRADES', 'N/A')})",
-                                "Sit-ups": f"{cadet_pft_data.get('SITUPS', 'N/A')} (Grade: {cadet_pft_data.get('SITUPS_GRADES', 'N/A')})",
-                                "Pull-ups/Flexed-arm Hang": f"{cadet_pft_data.get('PULLUPS/FLEXARM', 'N/A')} (Grade: {cadet_pft_data.get('PULLUPS_GRADES', 'N/A')})",
-                                "3.2km Run": f"{cadet_pft_data.get('RUN', 'N/A')} (Grade: {cadet_pft_data.get('RUN_GRADES', 'N/A')})",
-                            }
-                            
-                            for event, value in pft_data_to_display.items():
-                                st.write(f"**{event}**: {value}")
+                            if cadet_pft_data.empty:
+                                st.warning(f"No PFT data found for {name_disp}.")
+                            else:
+                                cadet_pft_data = cadet_pft_data.iloc[0].drop([name_col, "NAME_CLEANED"], errors='ignore')
+                                
+                                pft_cols = ["PUSHUPS", "SITUPS", "PULLUPS/FLEXARM", "RUN"]
+                                grades_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
+                                
+                                pft_data_to_display = {
+                                    "Push-ups": f"{cadet_pft_data.get('PUSHUPS', 'N/A')} (Grade: {cadet_pft_data.get('PUSHUPS_GRADES', 'N/A')})",
+                                    "Sit-ups": f"{cadet_pft_data.get('SITUPS', 'N/A')} (Grade: {cadet_pft_data.get('SITUPS_GRADES', 'N/A')})",
+                                    "Pull-ups/Flexed-arm Hang": f"{cadet_pft_data.get('PULLUPS/FLEXARM', 'N/A')} (Grade: {cadet_pft_data.get('PULLUPS_GRADES', 'N/A')})",
+                                    "3.2km Run": f"{cadet_pft_data.get('RUN', 'N/A')} (Grade: {cadet_pft_data.get('RUN_GRADES', 'N/A')})",
+                                }
+                                
+                                # Calculate overall PFT grade
+                                grades = [pd.to_numeric(cadet_pft_data.get(g), errors='coerce') for g in grades_cols]
+                                valid_grades = [g for g in grades if pd.notna(g)]
+                                
+                                if valid_grades:
+                                    avg_grade = sum(valid_grades) / len(valid_grades)
+                                    st.write(f"**Overall PFT Average Grade**: {avg_grade:.2f} ({'Proficient' if avg_grade >= 7 else 'Deficient'})")
+                                else:
+                                    st.write("**Overall PFT Average Grade**: N/A")
+                                
+                                st.markdown("---")
+                                
+                                for event, value in pft_data_to_display.items():
+                                    st.write(f"**{event}**: {value}")
 
                 except Exception as e:
                     st.error(f"An unexpected error occurred in PFT Dashboard: {e}")
