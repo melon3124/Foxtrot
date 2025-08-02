@@ -266,93 +266,93 @@ import pandas as pd
 # Assume 'sheet_df' and 'clean_cadet_name_for_comparison' and 'update_sheet' functions are already defined.
 # The `globals()` check is already in place, but I will include it for completeness.
 
-    with t1:
-        try:
-            # Initial check to make sure context variables are available
-            if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
-                st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
-            else:
-                dem_sheet_name = "DEMOGRAPHICS"
-                df_dem = sheet_df(dem_sheet_name)
-                
-                if df_dem is None or df_dem.empty:
-                    st.info("No demographics data found.")
+        with t1:
+            try:
+                # Initial check to make sure context variables are available
+                if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
+                    st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
                 else:
-                    # Clean column names and names for comparison
-                    df_dem.columns = [c.strip().upper() for c in df_dem.columns]
-                    df_dem["NAME_CLEANED"] = df_dem["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                    dem_sheet_name = "DEMOGRAPHICS"
+                    df_dem = sheet_df(dem_sheet_name)
                     
-                    # Filter for the selected cadet
-                    cadet_dem = df_dem[df_dem["NAME_CLEANED"] == name_clean].copy()
-                    
-                    if cadet_dem.empty:
-                        st.warning(f"No demographics record found for {name_disp}.")
+                    if df_dem is None or df_dem.empty:
+                        st.info("No demographics data found.")
                     else:
-                        st.subheader(f"👤 Demographics Data for {name_disp}")
+                        # Clean column names and names for comparison
+                        df_dem.columns = [c.strip().upper() for c in df_dem.columns]
+                        df_dem["NAME_CLEANED"] = df_dem["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                         
-                        # Use columns and metrics for key personal info
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Class", cadet_dem.iloc[0].get("CLASS", "N/A"))
-                        with col2:
-                            st.metric("Age", cadet_dem.iloc[0].get("AGE", "N/A"))
-                        with col3:
-                            st.metric("Cadet Status", cadet_dem.iloc[0].get("CADET_STATUS", "N/A"))
+                        # Filter for the selected cadet
+                        cadet_dem = df_dem[df_dem["NAME_CLEANED"] == name_clean].copy()
                         
-                        st.divider()
-                        st.markdown("##### 📝 Personal Details")
-                        
-                        # Display personal details in a more organized way
-                        st.write(f"**Contact Number:** {cadet_dem.iloc[0].get('CONTACT_NUMBER', 'N/A')}")
-                        st.write(f"**Address:** {cadet_dem.iloc[0].get('ADDRESS', 'N/A')}")
-                        st.write(f"**Email:** {cadet_dem.iloc[0].get('EMAIL', 'N/A')}")
-                        
-                        st.divider()
-                        st.markdown("##### 🏡 Family Background")
-                        
-                        col_f1, col_f2 = st.columns(2)
-                        with col_f1:
-                            st.write(f"**Father's Name:** {cadet_dem.iloc[0].get('FATHER_NAME', 'N/A')}")
-                            st.write(f"**Father's Occupation:** {cadet_dem.iloc[0].get('FATHER_OCCUPATION', 'N/A')}")
-                        with col_f2:
-                            st.write(f"**Mother's Name:** {cadet_dem.iloc[0].get('MOTHER_NAME', 'N/A')}")
-                            st.write(f"**Mother's Occupation:** {cadet_dem.iloc[0].get('MOTHER_OCCUPATION', 'N/A')}")
-                        
-                        st.divider()
-                        st.markdown("##### ✏️ Edit Demographics")
-                        
-                        with st.form("edit_demographics_form"):
-                            new_class = st.text_input("Class", value=cadet_dem.iloc[0].get("CLASS", ""))
-                            new_age = st.text_input("Age", value=cadet_dem.iloc[0].get("AGE", ""))
-                            new_contact = st.text_input("Contact Number", value=cadet_dem.iloc[0].get("CONTACT_NUMBER", ""))
-                            new_address = st.text_input("Address", value=cadet_dem.iloc[0].get("ADDRESS", ""))
-                            new_email = st.text_input("Email", value=cadet_dem.iloc[0].get("EMAIL", ""))
-                            new_father_name = st.text_input("Father's Name", value=cadet_dem.iloc[0].get("FATHER_NAME", ""))
-                            new_father_occupation = st.text_input("Father's Occupation", value=cadet_dem.iloc[0].get("FATHER_OCCUPATION", ""))
-                            new_mother_name = st.text_input("Mother's Name", value=cadet_dem.iloc[0].get("MOTHER_NAME", ""))
-                            new_mother_occupation = st.text_input("Mother's Occupation", value=cadet_dem.iloc[0].get("MOTHER_OCCUPATION", ""))
+                        if cadet_dem.empty:
+                            st.warning(f"No demographics record found for {name_disp}.")
+                        else:
+                            st.subheader(f"👤 Demographics Data for {name_disp}")
                             
-                            if st.form_submit_button("📤 Update Demographics"):
-                                # Update the DataFrame with new values
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "CLASS"] = new_class
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "AGE"] = new_age
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "CONTACT_NUMBER"] = new_contact
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "ADDRESS"] = new_address
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "EMAIL"] = new_email
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "FATHER_NAME"] = new_father_name
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "FATHER_OCCUPATION"] = new_father_occupation
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "MOTHER_NAME"] = new_mother_name
-                                df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "MOTHER_OCCUPATION"] = new_mother_occupation
+                            # Use columns and metrics for key personal info
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Class", cadet_dem.iloc[0].get("CLASS", "N/A"))
+                            with col2:
+                                st.metric("Age", cadet_dem.iloc[0].get("AGE", "N/A"))
+                            with col3:
+                                st.metric("Cadet Status", cadet_dem.iloc[0].get("CADET_STATUS", "N/A"))
+                            
+                            st.divider()
+                            st.markdown("##### 📝 Personal Details")
+                            
+                            # Display personal details in a more organized way
+                            st.write(f"**Contact Number:** {cadet_dem.iloc[0].get('CONTACT_NUMBER', 'N/A')}")
+                            st.write(f"**Address:** {cadet_dem.iloc[0].get('ADDRESS', 'N/A')}")
+                            st.write(f"**Email:** {cadet_dem.iloc[0].get('EMAIL', 'N/A')}")
+                            
+                            st.divider()
+                            st.markdown("##### 🏡 Family Background")
+                            
+                            col_f1, col_f2 = st.columns(2)
+                            with col_f1:
+                                st.write(f"**Father's Name:** {cadet_dem.iloc[0].get('FATHER_NAME', 'N/A')}")
+                                st.write(f"**Father's Occupation:** {cadet_dem.iloc[0].get('FATHER_OCCUPATION', 'N/A')}")
+                            with col_f2:
+                                st.write(f"**Mother's Name:** {cadet_dem.iloc[0].get('MOTHER_NAME', 'N/A')}")
+                                st.write(f"**Mother's Occupation:** {cadet_dem.iloc[0].get('MOTHER_OCCUPATION', 'N/A')}")
+                            
+                            st.divider()
+                            st.markdown("##### ✏️ Edit Demographics")
+                            
+                            with st.form("edit_demographics_form"):
+                                new_class = st.text_input("Class", value=cadet_dem.iloc[0].get("CLASS", ""))
+                                new_age = st.text_input("Age", value=cadet_dem.iloc[0].get("AGE", ""))
+                                new_contact = st.text_input("Contact Number", value=cadet_dem.iloc[0].get("CONTACT_NUMBER", ""))
+                                new_address = st.text_input("Address", value=cadet_dem.iloc[0].get("ADDRESS", ""))
+                                new_email = st.text_input("Email", value=cadet_dem.iloc[0].get("EMAIL", ""))
+                                new_father_name = st.text_input("Father's Name", value=cadet_dem.iloc[0].get("FATHER_NAME", ""))
+                                new_father_occupation = st.text_input("Father's Occupation", value=cadet_dem.iloc[0].get("FATHER_OCCUPATION", ""))
+                                new_mother_name = st.text_input("Mother's Name", value=cadet_dem.iloc[0].get("MOTHER_NAME", ""))
+                                new_mother_occupation = st.text_input("Mother's Occupation", value=cadet_dem.iloc[0].get("MOTHER_OCCUPATION", ""))
                                 
-                                update_sheet(dem_sheet_name, df_dem)
-                                
-                                # Clear the cache and rerun to show updated data
-                                sheet_df.clear()
-                                st.success("✅ Demographics updated successfully!")
-                                st.rerun()
-    
-        except Exception as e:
-            st.error(f"❌ Demographics data load error: {e}")
+                                if st.form_submit_button("📤 Update Demographics"):
+                                    # Update the DataFrame with new values
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "CLASS"] = new_class
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "AGE"] = new_age
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "CONTACT_NUMBER"] = new_contact
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "ADDRESS"] = new_address
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "EMAIL"] = new_email
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "FATHER_NAME"] = new_father_name
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "FATHER_OCCUPATION"] = new_father_occupation
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "MOTHER_NAME"] = new_mother_name
+                                    df_dem.loc[df_dem["NAME_CLEANED"] == name_clean, "MOTHER_OCCUPATION"] = new_mother_occupation
+                                    
+                                    update_sheet(dem_sheet_name, df_dem)
+                                    
+                                    # Clear the cache and rerun to show updated data
+                                    sheet_df.clear()
+                                    st.success("✅ Demographics updated successfully!")
+                                    st.rerun()
+        
+            except Exception as e:
+                st.error(f"❌ Demographics data load error: {e}")
 
         with t2:
             try:
