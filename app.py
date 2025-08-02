@@ -322,25 +322,30 @@ if st.session_state.view == "summary":
             for subj in subjects:
                 if subj in acad_df.columns:
                     acad_df[subj] = pd.to_numeric(acad_df[subj], errors="coerce")
-                    proficient = acad_df[acad_df[subj] >= 7]["NAME"].dropna().tolist()
-                    deficient = acad_df[acad_df[subj] < 7]["NAME"].dropna().tolist()
                     
+                    summary_data = []
+                    
+                    proficient_cadets = acad_df[acad_df[subj] >= 7]["NAME"].dropna().tolist()
+                    for cadet in proficient_cadets:
+                        summary_data.append({"Status": "✅ Proficient", "Cadet": cadet})
+                        
+                    deficient_cadets = acad_df[acad_df[subj] < 7]["NAME"].dropna().tolist()
+                    for cadet in deficient_cadets:
+                        summary_data.append({"Status": "❌ Deficient", "Cadet": cadet})
+                        
                     def_prof_points_series = acad_df.get("DEF/PROF POINTS")
+                    highest_deficiency = "N/A"
                     if def_prof_points_series is not None and not def_prof_points_series.empty:
                         numeric_points = pd.to_numeric(def_prof_points_series, errors='coerce').dropna()
                         highest_deficiency = numeric_points.max() if not numeric_points.empty else "N/A"
-                    else:
-                        highest_deficiency = "N/A"
                     
                     st.markdown(f"**Subject: {subj}**")
                     
-                    # Create and display the table for proficient and deficient cadets
-                    summary_table = pd.DataFrame({
-                        "Status": ["Proficient", "Deficient"],
-                        "Cadets": [', '.join(proficient) if proficient else "None", ', '.join(deficient) if deficient else "None"],
-                        "Count": [len(proficient), len(deficient)]
-                    })
-                    st.dataframe(summary_table, hide_index=True, use_container_width=True)
+                    summary_table = pd.DataFrame(summary_data)
+                    if not summary_table.empty:
+                        st.dataframe(summary_table, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("No cadets found for this subject.")
                     
                     st.write(f"**Highest Deficiency Points:** {highest_deficiency if pd.notna(highest_deficiency) else 'N/A'}")
                     st.markdown("---")
@@ -361,25 +366,31 @@ if st.session_state.view == "summary":
 
                 # Determine SMC cadets based on average grade
                 smc_cadets = pft_df[pft_df['PFT_AVG_GRADE'] < 7]['NAME'].dropna().tolist()
+                smc_data = [{"Status": "❌ Failed", "Cadet": c} for c in smc_cadets]
                 st.write("**SMC (Failed) Cadets:**")
-                if smc_cadets:
-                    st.write(f"{', '.join(smc_cadets)}")
+                if smc_data:
+                    st.dataframe(pd.DataFrame(smc_data), hide_index=True)
                 else:
                     st.write("None")
                 
                 # Determine strongest cadets based on average grade and gender
                 if 'GENDER' in pft_df.columns:
-                    # Map 'M' and 'F' to 'MALE' and 'FEMALE'
                     pft_df['GENDER'] = pft_df['GENDER'].str.upper().str.strip().map({'M': 'MALE', 'F': 'FEMALE'})
                     
                     strongest_male = pft_df[pft_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not pft_df[pft_df['GENDER'] == 'MALE'].empty else None
                     strongest_female = pft_df[pft_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not pft_df[pft_df['GENDER'] == 'FEMALE'].empty else None
+                    
+                    strongest_data = []
+                    if strongest_male is not None:
+                        strongest_data.append({"Rank": "👑 Strongest Male", "Cadet": strongest_male['NAME'], "Average Grade": f"{strongest_male['PFT_AVG_GRADE']:.2f}"})
+                    if strongest_female is not None:
+                        strongest_data.append({"Rank": "👑 Strongest Female", "Cadet": strongest_female['NAME'], "Average Grade": f"{strongest_female['PFT_AVG_GRADE']:.2f}"})
     
                     st.write("**Strongest Cadets (Highest Average Grade):**")
-                    if strongest_male is not None:
-                        st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
-                    if strongest_female is not None:
-                        st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
+                    if strongest_data:
+                        st.dataframe(pd.DataFrame(strongest_data), hide_index=True)
+                    else:
+                        st.write("None")
                 else:
                     st.warning("Could not determine strongest cadets due to missing 'GENDER' column in the PFT sheet.")
             else:
@@ -393,6 +404,9 @@ if st.session_state.view == "summary":
         st.markdown(f"#### {cls_select} Military")
         mil_df = sheet_df(mil_sheet_map.get(term, {}).get(cls_select))
         if not mil_df.empty:
+            proficient = []
+            deficient = []
+
             if cls_select == "1CL":
                 mil_df["GRADE"] = pd.to_numeric(mil_df.get("GRADE", pd.Series()), errors="coerce")
                 proficient = mil_df[mil_df["GRADE"] >= 7]["NAME"].dropna().tolist()
@@ -413,15 +427,18 @@ if st.session_state.view == "summary":
                 proficient = mil_df[mil_df["MS231"] >= 7]["NAME"].dropna().tolist()
                 deficient = mil_df[mil_df["MS231"] < 7]["NAME"].dropna().tolist()
             
-            st.write("**Proficient:**")
-            if proficient:
-                st.write(f"{', '.join(proficient)}")
+            proficient_data = [{"Status": "✅ Proficient", "Cadet": c} for c in proficient]
+            deficient_data = [{"Status": "❌ Deficient", "Cadet": c} for c in deficient]
+            
+            st.write("**Proficient Cadets:**")
+            if proficient_data:
+                st.dataframe(pd.DataFrame(proficient_data), hide_index=True)
             else:
                 st.write("None")
             
-            st.write("**Deficient:**")
-            if deficient:
-                st.write(f"{', '.join(deficient)}")
+            st.write("**Deficient Cadets:**")
+            if deficient_data:
+                st.dataframe(pd.DataFrame(deficient_data), hide_index=True)
             else:
                 st.write("None")
 
@@ -435,7 +452,6 @@ if st.session_state.view == "summary":
         reports_df = sheet_df("REPORTS")
         
         if not conduct_df.empty:
-            # Find the 'touring status' column, being flexible with naming
             touring_status_col = None
             for col in conduct_df.columns:
                 if "TOURING" in col.upper():
@@ -444,9 +460,10 @@ if st.session_state.view == "summary":
             
             if touring_status_col:
                 touring_cadets = conduct_df[conduct_df[touring_status_col].astype(str).str.lower().str.contains("touring", na=False)]["NAME"].dropna().tolist()
+                touring_data = [{"Status": "✈️ Touring", "Cadet": c} for c in touring_cadets]
                 st.write("**Touring Cadets:**")
-                if touring_cadets:
-                    st.write(f"{', '.join(touring_cadets)}")
+                if touring_data:
+                    st.dataframe(pd.DataFrame(touring_data), hide_index=True)
                 else:
                     st.write("None")
             else:
@@ -458,10 +475,11 @@ if st.session_state.view == "summary":
             demerits_per_cadet = reports_df.groupby("NAME")["DEMERITS"].sum()
             
             red_cadets = demerits_per_cadet[demerits_per_cadet >= 20].index.tolist()
-            
+            red_data = [{"Status": "🚨 On the Red", "Cadet": c, "Demerits": int(demerits_per_cadet[c])} for c in red_cadets]
+
             st.write("**Cadets with >= 20 Demerits (on the red):**")
-            if red_cadets:
-                st.write(f"{', '.join(red_cadets)}")
+            if red_data:
+                st.dataframe(pd.DataFrame(red_data), hide_index=True)
             else:
                 st.write("None")
 
