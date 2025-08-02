@@ -370,7 +370,7 @@ if st.session_state.mode == "class" and cls:
                 possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
                 
                 # These are the columns we want to remove from the subject list
-                cols_to_remove = ["PREVIOUS GRADE", "DEF/PROF POINTS"]
+                cols_to_remove = ["PREVIOUS GRADE", "DEF/PROF POINTS", "CURRENT GRADE", "INCREASE/DECREASE"]
 
                 def find_name_column(df):
                     upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
@@ -385,7 +385,7 @@ if st.session_state.mode == "class" and cls:
                             return ws
                     raise Exception(f"Worksheet '{name}' not found.")
                 
-                def update_sheet_rows(data, headers, name_idx, edited_df, name_clean, name_disp):
+                def update_sheet_rows(data, headers, name_idx, edited_df, name_clean, name_disp, target_column):
                     # Create a dictionary to hold the latest grades and points
                     updated_data = {
                         "GRADES": {},
@@ -462,11 +462,10 @@ if st.session_state.mode == "class" and cls:
                     else:
                         row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
                         
-                        # Filter out the rows we don't want to display
+                        # Filter out the columns we don't want to display
                         subjects = [s for s in row_prev.index.tolist() if s.upper() not in [c.upper() for c in cols_to_remove]]
 
                         df = pd.DataFrame({"SUBJECT": subjects})
-                        df["PREVIOUS GRADE"] = [pd.to_numeric(row_prev.get(subj, None), errors="coerce") for subj in subjects]
                         
                         # Add new columns with default values
                         df["CURRENT GRADE"] = None
@@ -479,11 +478,7 @@ if st.session_state.mode == "class" and cls:
                                 row_curr = row_curr.iloc[0]
                                 df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects]
                                 df["DEF/PROF POINTS"] = [row_curr.get("DEF/PROF POINTS", None)] * len(subjects)
-
-                        df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
-                        df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(
-                            lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️")
-                        )
+                        
                         df["STATUS"] = df["CURRENT GRADE"].apply(
                             lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
                         )
@@ -493,9 +488,7 @@ if st.session_state.mode == "class" and cls:
                             df,
                             column_config={
                                 "SUBJECT": st.column_config.Column("SUBJECT", disabled=True),
-                                "PREVIOUS GRADE": st.column_config.NumberColumn("PREVIOUS GRADE", format="%f", step=0.1),
                                 "CURRENT GRADE": st.column_config.NumberColumn("CURRENT GRADE", format="%f", step=0.1),
-                                "INCREASE/DECREASE": st.column_config.Column("INCREASE/DECREASE", disabled=True),
                                 "STATUS": st.column_config.Column("STATUS", disabled=True),
                                 "DEF/PROF POINTS": st.column_config.TextColumn("DEF/PROF POINTS"),
                             },
@@ -525,8 +518,8 @@ if st.session_state.mode == "class" and cls:
                                     if name_idx_hist is None or name_idx_prev is None:
                                         st.error("❌ 'NAME' column not found in one of the sheets.")
                                     else:
-                                        hist_data, headers_hist = update_sheet_rows(hist_data, headers_hist, name_idx_hist, edited_df, name_clean, name_disp)
-                                        prev_data, headers_prev = update_sheet_rows(prev_data, headers_prev, name_idx_prev, edited_df, name_clean, name_disp)
+                                        hist_data, headers_hist = update_sheet_rows(hist_data, headers_hist, name_idx_hist, edited_df, name_clean, name_disp, "CURRENT GRADE")
+                                        prev_data, headers_prev = update_sheet_rows(prev_data, headers_prev, name_idx_prev, edited_df, name_clean, name_disp, "PREVIOUS GRADE")
                                         
                                         hist_ws.clear()
                                         hist_ws.update(f"A1:{chr(64 + len(headers_hist))}{len(hist_data)}", [headers_hist] + hist_data[1:])
@@ -542,7 +535,6 @@ if st.session_state.mode == "class" and cls:
                             st.info("📝 No detected grade changes yet. Try editing a cell.")
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
-
         with t3:
             try:
                 pft_sheet_map = {
