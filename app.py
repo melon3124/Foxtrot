@@ -543,31 +543,35 @@ if st.session_state.mode == "class" and cls:
                         # ❌ Remove unwanted rows
                         df = df[~df["SUBJECT"].str.upper().isin(["PREVIOUS GRADE", "DEF/PROF POINTS"])]
         
-                        # ✏️ Edit grades (compact layout)
+                        # ✅ Show current table
+                        st.subheader("📋 Current Grades")
+                        st.dataframe(df[["SUBJECT", "CURRENT GRADE"]], hide_index=True, use_container_width=True)
+        
+                        # ✏️ Dropdown UI for editing grades
                         st.subheader("📝 Edit Grades")
                         edited_grades = []
-                        for i, row in df.iterrows():
-                            cols = st.columns([2, 1, 1])  # Subject | Grade | Indicator
+                        grade_choices = [round(x * 0.25, 2) for x in range(0, 41)]  # 0.00 to 10.00
         
-                            # Subject
+                        for i, row in df.iterrows():
+                            cols = st.columns([2, 1, 1])  # Subject | Grade | Badge
+        
+                            # Subject label
                             cols[0].markdown(f"**{row['SUBJECT']}**")
         
-                            # Grade input
+                            # Dropdown grade input
                             val = 0.0 if pd.isna(row["CURRENT GRADE"]) else float(row["CURRENT GRADE"])
-                            grade_input = cols[1].number_input(
+                            grade_input = cols[1].selectbox(
                                 label="",
-                                min_value=0.0,
-                                max_value=10.0,
-                                step=0.1,
-                                value=val,
-                                key=f"grade_input_{i}"
+                                options=grade_choices,
+                                index=grade_choices.index(round(val, 2)) if round(val, 2) in grade_choices else 0,
+                                key=f"grade_input_{i}
                             )
         
-                            # Grade status badge
+                            # Badge
                             if grade_input < 7:
-                                cols[2].markdown(f"<span style='color:red'>⬇️ {grade_input:.1f}</span>", unsafe_allow_html=True)
+                                cols[2].markdown(f"<span style='color:red'>⬇️ {grade_input:.2f}</span>", unsafe_allow_html=True)
                             else:
-                                cols[2].markdown(f"<span style='color:green'>✅ {grade_input:.1f}</span>", unsafe_allow_html=True)
+                                cols[2].markdown(f"<span style='color:green'>✅ {grade_input:.2f}</span>", unsafe_allow_html=True)
         
                             edited_grades.append(grade_input)
         
@@ -622,6 +626,7 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
+
 
             
         with t3:
