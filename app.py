@@ -261,27 +261,31 @@ if st.session_state.view == "summary":
         mil_df = sheet_df(mil_sheet_map.get("1st Term", {}).get(cls))
         if not mil_df.empty:
             if cls == "1CL":
-                mil_df["GRADE"] = pd.to_numeric(mil_df["GRADE"], errors="coerce")
+                mil_df["GRADE"] = pd.to_numeric(mil_df.get("GRADE", pd.Series()), errors="coerce")
                 mil_proficient = mil_df["GRADE"].apply(lambda x: 1 if x >= 7 else 0).sum()
                 mil_deficient = mil_df["GRADE"].apply(lambda x: 1 if x < 7 else 0).sum()
             elif cls == "2CL":
-                mil_df["GRADE"] = pd.to_numeric(mil_df["GRADE"], errors="coerce")
+                mil_df["AS"] = pd.to_numeric(mil_df.get("AS", pd.Series()), errors="coerce")
+                mil_df["NS"] = pd.to_numeric(mil_df.get("NS", pd.Series()), errors="coerce")
+                mil_df["AFS"] = pd.to_numeric(mil_df.get("AFS", pd.Series()), errors="coerce")
                 mil_proficient = mil_df["GRADE"].apply(lambda x: 1 if x >= 7 else 0).sum()
                 mil_deficient = mil_df["GRADE"].apply(lambda x: 1 if x < 7 else 0).sum()
             elif cls == "3CL":
-                mil_df["MS231"] = pd.to_numeric(mil_df["MS231"], errors="coerce")
+                mil_df["MS231"] = pd.to_numeric(mil_df.get("MS231", pd.Series()), errors="coerce")
                 mil_proficient = mil_df["MS231"].apply(lambda x: 1 if x >= 7 else 0).sum()
                 mil_deficient = mil_df["MS231"].apply(lambda x: 1 if x < 7 else 0).sum()
     
         pft_df = sheet_df(pft_sheet_map.get("1st Term", {}).get(cls))
         if not pft_df.empty:
-            pft_df['GRADE'] = pd.to_numeric(pft_df['GRADE'], errors='coerce')
-            pft_proficient = pft_df[pft_df['GRADE'] >= 7].shape[0]
-            pft_deficient = pft_df[pft_df['GRADE'] < 7].shape[0]
+            pft_grades = pft_df.get('GRADE', pd.Series())
+            if not pft_grades.empty:
+                pft_grades = pd.to_numeric(pft_grades, errors='coerce')
+                pft_proficient = pft_grades[pft_grades >= 7].shape[0]
+                pft_deficient = pft_grades[pft_grades < 7].shape[0]
     
         conduct_df = sheet_df(conduct_sheet_map.get("1st Term", {}).get(cls))
         if not conduct_df.empty:
-            conduct_df["MERITS"] = pd.to_numeric(conduct_df["MERITS"], errors="coerce")
+            conduct_df["MERITS"] = pd.to_numeric(conduct_df.get("MERITS", pd.Series()), errors="coerce")
             conduct_proficient = conduct_df["MERITS"].apply(lambda x: 1 if x >= 0 else 0).sum()
             conduct_deficient = conduct_df["MERITS"].apply(lambda x: 1 if x < 0 else 0).sum()
     
@@ -317,7 +321,7 @@ if st.session_state.view == "summary":
                         acad_df[subj] = pd.to_numeric(acad_df[subj], errors="coerce")
                         proficient = acad_df[acad_df[subj] >= 7]["NAME"].dropna().tolist()
                         deficient = acad_df[acad_df[subj] < 7]["NAME"].dropna().tolist()
-                        highest_deficiency = acad_df[acad_df[subj] < 7]["DEF/PROF POINTS"].max()
+                        highest_deficiency = acad_df.get("DEF/PROF POINTS", pd.Series()).max()
                         
                         st.markdown(f"**Subject: {subj}**")
                         if proficient:
@@ -343,7 +347,7 @@ if st.session_state.view == "summary":
                 demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
                 merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', 'GENDER']], on='NAME_CLEANED', how='left')
 
-                merged_df['GRADE'] = pd.to_numeric(merged_df['GRADE'], errors='coerce')
+                merged_df['GRADE'] = pd.to_numeric(merged_df.get('GRADE', pd.Series()), errors='coerce')
                 smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
                 st.write("**SMC (Failed) Cadets:**")
                 if smc_cadets:
@@ -351,10 +355,10 @@ if st.session_state.view == "summary":
                 else:
                     st.write("None")
                 
-                merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df['PUSHUPS_GRADES'], errors='coerce')
-                merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df['SITUPS_GRADES'], errors='coerce')
-                merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df['PULLUPS_GRADES'], errors='coerce')
-                merged_df['RUN_GRADES'] = pd.to_numeric(merged_df['RUN_GRADES'], errors='coerce')
+                merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
+                merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
+                merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
+                merged_df['RUN_GRADES'] = pd.to_numeric(merged_df.get('RUN_GRADES', pd.Series()), errors='coerce')
 
                 merged_df['PFT_AVG_GRADE'] = merged_df[['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']].mean(axis=1)
                 
