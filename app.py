@@ -308,7 +308,43 @@ if st.session_state.view == "summary":
     
     st.markdown("---")
     
-    # --- Your existing code with the improved t1 section integrated ---
+    # -------------------- SESSION STATE --------------------
+for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if key != "mode" else "class"
+
+# -------------------- UI --------------------
+st.markdown('<div class="centered">', unsafe_allow_html=True)
+initial_idx = ["", *classes.keys()].index(st.session_state.selected_class or "")
+selected = st.selectbox("Select Class Level", ["", *classes.keys()], index=initial_idx)
+if selected != st.session_state.selected_class:
+    st.session_state.update({"mode": "class", "selected_class": selected, "selected_cadet_display_name": None, "selected_cadet_cleaned_name": None})
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+# -------------------- CLASS VIEW --------------------
+cls = st.session_state.selected_class
+if st.session_state.mode == "class" and cls:
+    cadets = demo_df[demo_df["CLASS"] == cls]
+    if cadets.empty:
+        st.warning(f"No cadets for class {cls}.")
+    else:
+        st.markdown('<div class="centered">', unsafe_allow_html=True)
+        for i in range(0, len(cadets), 4):
+            cols = st.columns(4)
+            for j in range(4):
+                if i + j >= len(cadets):
+                    continue
+                name_display = cadets.iloc[i+j]["FULL NAME_DISPLAY"]
+                name_cleaned = cadets.iloc[i+j]["FULL NAME"]
+                with cols[j]:
+                    if st.button(name_display, key=f"cadet_{name_cleaned}_{cls}"):
+                        st.session_state.selected_cadet_display_name = name_display
+                        st.session_state.selected_cadet_cleaned_name = name_cleaned
+                        st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+# --- Your existing code with the improved t1 section integrated ---
     name_disp = st.session_state.selected_cadet_display_name
     name_clean = st.session_state.selected_cadet_cleaned_name
     if name_clean:
