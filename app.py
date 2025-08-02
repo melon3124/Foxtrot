@@ -320,9 +320,16 @@ if st.session_state.view == "summary":
                 top_female = pd.DataFrame()
 
             st.write("💪 Strongest Male Cadet")
-            st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
+            if not top_male.empty and all(col in top_male.columns for col in ["NAME", "AVG_GRADE"]):
+                st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
+            else:
+                st.warning("No male cadet data available.")
+
             st.write("💪 Strongest Female Cadet")
-            st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
+            if not top_female.empty and all(col in top_female.columns for col in ["NAME", "AVG_GRADE"]):
+                st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
+            else:
+                st.warning("No female cadet data available.")
 
     with mil_tab:
         st.subheader("🫦 Military Summary")
@@ -376,6 +383,7 @@ if st.session_state.view == "summary":
             st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
 
     st.stop()
+
 
     # -------------------- SESSION STATE --------------------
 for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
