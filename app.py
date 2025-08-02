@@ -411,11 +411,12 @@ if st.session_state.mode == "class" and cls:
         
                 possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
         
+                # FIXED: This function now correctly returns the integer index
                 def find_name_column(df):
                     upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
                     for col in possible_name_cols:
                         if col.upper() in upper_cols:
-                            return df.columns[upper_cols.get_loc(col.upper())]
+                            return upper_cols.get_loc(col.upper())
                     return None
         
                 # Fetch the grades data
@@ -477,14 +478,15 @@ if st.session_state.mode == "class" and cls:
                                     curr_data = curr_ws.get_all_values()
                                     headers_curr = curr_data[0]
                                     
-                                    # Find the name column index
-                                    curr_df_temp = pd.DataFrame(curr_data[1:], columns=headers_curr)
-                                    name_idx_curr = find_name_column(curr_df_temp)
+                                    # FIXED: name_idx_curr now correctly gets the integer index
+                                    name_idx_curr = find_name_column(pd.DataFrame(columns=headers_curr))
         
                                     if name_idx_curr is None:
                                         st.error("❌ 'NAME' column not found in the current grades sheet.")
                                     else:
-                                        for row_num, row_list in enumerate(curr_data[1:], start=1):
+                                        for row_num, row_list in enumerate(curr_data):
+                                            if row_num == 0: # Skip the header row
+                                                continue
                                             if clean_cadet_name_for_comparison(row_list[name_idx_curr]) == name_clean:
                                                 for idx, metric in edited_df.iterrows():
                                                     if metric["Metric"] in headers_curr:
