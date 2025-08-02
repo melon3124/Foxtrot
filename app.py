@@ -384,76 +384,58 @@ if st.session_state.mode == "class" and cls:
                 
                 def update_sheet_rows(data, headers, name_idx, edited_df, name_clean, name_disp, sheet_columns_to_update):
                     updated = False
-                    # Create a mapping from subject to its row in the edited DataFrame for quick lookup
                     edited_data_map = {row['SUBJECT']: row for _, row in edited_df.iterrows()}
-
-                    for row in data[1:]:
+                    
+                    # Find the row for the current cadet
+                    cadet_row = None
+                    cadet_row_index = -1
+                    for i, row in enumerate(data[1:], 1):
                         if clean_cadet_name_for_comparison(row[name_idx]) == name_clean:
-                            # Update existing row
-                            for subject, new_values in edited_data_map.items():
-                                try:
-                                    subj_idx = headers.index(subject)
-                                    row[subj_idx] = str(new_values['CURRENT GRADE']) if 'CURRENT GRADE' in new_values else ""
-                                except ValueError:
-                                    # Subject not in headers, handle if necessary (this scenario is less likely now with data_editor)
-                                    pass
-
-                            # Update the additional columns
-                            for col_name in sheet_columns_to_update:
-                                try:
-                                    col_idx = headers.index(col_name)
-                                    if col_name == "DEFICIENCY POINTS":
-                                        row[col_idx] = str(edited_df["DEFICIENCY POINTS"].iloc[0])
-                                    elif col_name == "PROFICIENCY POINTS":
-                                        row[col_idx] = str(edited_df["PROFICIENCY POINTS"].iloc[0])
-                                except ValueError:
-                                    # Add the new header and column value if it doesn't exist
-                                    headers.append(col_name)
-                                    new_idx = len(headers) - 1
-                                    row.extend([""] * (new_idx - len(row) + 1))
-                                    if col_name == "DEFICIENCY POINTS":
-                                        row[new_idx] = str(edited_df["DEFICIENCY POINTS"].iloc[0])
-                                    elif col_name == "PROFICIENCY POINTS":
-                                        row[new_idx] = str(edited_df["PROFICIENCY POINTS"].iloc[0])
-
-                            updated = True
+                            cadet_row = row
+                            cadet_row_index = i
                             break
                     
-                    if not updated:
-                        # Add new row if cadet wasn't found
-                        new_row = [""] * len(headers)
-                        new_row[name_idx] = name_disp
+                    if cadet_row is None:
+                        # Cadet not found, create a new row
+                        cadet_row = [""] * len(headers)
+                        cadet_row[name_idx] = name_disp
+                        data.append(cadet_row)
+                        cadet_row_index = len(data) - 1
+                    
+                    # Update subject-specific grades and points
+                    for subject in edited_data_map.keys():
+                        new_values = edited_data_map[subject]
+                        
+                        # Handle grade columns (CURRENT GRADE and PREVIOUS GRADE)
                         for col_name in sheet_columns_to_update:
-                            try:
-                                col_idx = headers.index(col_name)
-                                if col_name == "DEFICIENCY POINTS":
-                                    new_row[col_idx] = str(edited_df["DEFICIENCY POINTS"].iloc[0])
-                                elif col_name == "PROFICIENCY POINTS":
-                                    new_row[col_idx] = str(edited_df["PROFICIENCY POINTS"].iloc[0])
-                            except ValueError:
-                                headers.append(col_name)
-                                new_idx = len(headers) - 1
-                                new_row.extend([""] * (new_idx - len(new_row) + 1))
-                                if col_name == "DEFICIENCY POINTS":
-                                    new_row[new_idx] = str(edited_df["DEFICIENCY POINTS"].iloc[0])
-                                elif col_name == "PROFICIENCY POINTS":
-                                    new_row[new_idx] = str(edited_df["PROFICIENCY POINTS"].iloc[0])
-
-                        # Loop through subjects and add grades
-                        for _, r in edited_df.iterrows():
-                             try:
-                                subj_idx = headers.index(r["SUBJECT"])
-                                new_row[subj_idx] = str(r["CURRENT GRADE"])
-                             except ValueError:
-                                headers.append(r["SUBJECT"])
-                                new_idx = len(headers) - 1
-                                new_row.extend([""] * (new_idx - len(new_row) + 1))
-                                new_row[new_idx] = str(r["CURRENT GRADE"])
-
-                        data.append(new_row)
+                            if col_name in new_values:
+                                try:
+                                    col_idx = headers.index(col_name)
+                                except ValueError:
+                                    # Add new column if it doesn't exist
+                                    headers.append(col_name)
+                                    col_idx = len(headers) - 1
+                                    for i in range(len(data)):
+                                        data[i].extend([""] * (col_idx - len(data[i]) + 1))
+                                cadet_row[col_idx] = str(new_values[col_name]) if pd.notna(new_values[col_name]) else ""
+                                
+                        # Handle subject columns
+                        try:
+                            subj_idx = headers.index(subject)
+                        except ValueError:
+                            # Add new subject column if it doesn't exist
+                            headers.append(subject)
+                            subj_idx = len(headers) - 1
+                            for i in range(len(data)):
+                                data[i].extend([""] * (subj_idx - len(data[i]) + 1))
+                        
+                        cadet_row[subj_idx] = str(new_values['CURRENT GRADE']) if 'CURRENT GRADE' in new_values and pd.notna(new_values['CURRENT GRADE']) else ""
+                        
+                    data[cadet_row_index] = cadet_row
                     
                     return data, headers
-                
+
+
                 prev_df = sheet_df(acad_sheet_map[cls][term])
                 curr_df = sheet_df(acad_hist_map[cls][term])
 
@@ -463,18 +445,6 @@ if st.session_state.mode == "class" and cls:
                 prev_name_col = find_name_column(prev_df)
                 curr_name_col = find_name_column(curr_df)
                 
-                # Default values for points
-                def_points = 0
-                prof_points = 0
-                
-                # Try to get points from the current sheet, if available
-                if curr_name_col and not curr_df.empty:
-                    curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                    row_curr_points = curr_df[curr_df["NAME_CLEANED"] == name_clean].iloc[0] if not curr_df[curr_df["NAME_CLEANED"] == name_clean].empty else None
-                    if row_curr_points is not None:
-                        def_points = row_curr_points.get("DEFICIENCY POINTS", 0)
-                        prof_points = row_curr_points.get("PROFICIENCY POINTS", 0)
-
                 if prev_df.empty or prev_name_col is None:
                     st.warning("⚠️ No valid previous academic data or name column found.")
                 else:
@@ -490,17 +460,20 @@ if st.session_state.mode == "class" and cls:
                         df = pd.DataFrame({"SUBJECT": subjects})
                         df["PREVIOUS GRADE"] = pd.to_numeric(row_prev.values, errors="coerce")
                         
+                        # Add new columns with default values
+                        df["CURRENT GRADE"] = None
+                        df["DEFICIENCY POINTS"] = None
+                        df["PROFICIENCY POINTS"] = None
+                        
                         if curr_name_col and not curr_df.empty:
                             curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
                             row_curr = curr_df[curr_df["NAME_CLEANED"] == name_clean]
                             if not row_curr.empty:
                                 row_curr = row_curr.iloc[0]
                                 df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects]
-                            else:
-                                df["CURRENT GRADE"] = None
-                        else:
-                            df["CURRENT GRADE"] = None
-
+                                df["DEFICIENCY POINTS"] = [pd.to_numeric(row_curr.get("DEFICIENCY POINTS", 0), errors="coerce")] * len(subjects)
+                                df["PROFICIENCY POINTS"] = [pd.to_numeric(row_curr.get("PROFICIENCY POINTS", 0), errors="coerce")] * len(subjects)
+                        
                         df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
                         df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(
                             lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️")
@@ -509,15 +482,7 @@ if st.session_state.mode == "class" and cls:
                             lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
                         )
                         
-                        st.subheader("📝 Editable Grades Table")
-                        # Add the editable points at the end of the table
-                        with st.container(border=True):
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                def_points = st.number_input("Deficiency Points", value=float(def_points) if pd.notna(def_points) and str(def_points).replace('.', '', 1).isdigit() else 0, format="%f")
-                            with col2:
-                                prof_points = st.number_input("Proficiency Points", value=float(prof_points) if pd.notna(prof_points) and str(prof_points).replace('.', '', 1).isdigit() else 0, format="%f")
-
+                        st.subheader("📝 Editable Grades and Points Table")
                         # Use st.data_editor to create the editable table
                         edited_df = st.data_editor(
                             df,
@@ -527,13 +492,12 @@ if st.session_state.mode == "class" and cls:
                                 "CURRENT GRADE": st.column_config.NumberColumn("CURRENT GRADE", format="%f", step=0.1),
                                 "INCREASE/DECREASE": st.column_config.Column("INCREASE/DECREASE", disabled=True),
                                 "STATUS": st.column_config.Column("STATUS", disabled=True),
+                                "DEFICIENCY POINTS": st.column_config.NumberColumn("DEFICIENCY POINTS", format="%d", step=1),
+                                "PROFICIENCY POINTS": st.column_config.NumberColumn("PROFICIENCY POINTS", format="%d", step=1),
                             },
                             hide_index=True,
                             use_container_width=True
                         )
-                        
-                        edited_df['DEFICIENCY POINTS'] = def_points
-                        edited_df['PROFICIENCY POINTS'] = prof_points
 
                         grades_changed = not edited_df.equals(df)
                         
@@ -557,10 +521,11 @@ if st.session_state.mode == "class" and cls:
                                     if name_idx_hist is None or name_idx_prev is None:
                                         st.error("❌ 'NAME' column not found in one of the sheets.")
                                     else:
-                                        sheet_columns_to_update = ["DEFICIENCY POINTS", "PROFICIENCY POINTS"]
-
-                                        hist_data, headers_hist = update_sheet_rows(hist_data, headers_hist, name_idx_hist, edited_df, name_clean, name_disp, sheet_columns_to_update)
-                                        prev_data, headers_prev = update_sheet_rows(prev_data, headers_prev, name_idx_prev, edited_df, name_clean, name_disp, sheet_columns_to_update)
+                                        hist_cols_to_update = ["CURRENT GRADE", "DEFICIENCY POINTS", "PROFICIENCY POINTS"]
+                                        prev_cols_to_update = ["PREVIOUS GRADE", "DEFICIENCY POINTS", "PROFICIENCY POINTS"]
+                                        
+                                        hist_data, headers_hist = update_sheet_rows(hist_data, headers_hist, name_idx_hist, edited_df, name_clean, name_disp, hist_cols_to_update)
+                                        prev_data, headers_prev = update_sheet_rows(prev_data, headers_prev, name_idx_prev, edited_df, name_clean, name_disp, prev_cols_to_update)
                                         
                                         hist_ws.clear()
                                         hist_ws.update(f"A1:{chr(64 + len(headers_hist))}{len(hist_data)}", [headers_hist] + hist_data[1:])
