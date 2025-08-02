@@ -543,11 +543,11 @@ if st.session_state.mode == "class" and cls:
                         # ❌ Remove unwanted rows
                         df = df[~df["SUBJECT"].str.upper().isin(["PREVIOUS GRADE", "DEF/PROF POINTS"])]
         
-                        # ✅ Show current table
+                        # ✅ Show current grades table
                         st.subheader("📋 Current Grades")
                         st.dataframe(df[["SUBJECT", "CURRENT GRADE"]], hide_index=True, use_container_width=True)
         
-                        # ✏️ Dropdown UI for editing grades
+                        # ✏️ Grade editing dropdown UI
                         st.subheader("📝 Edit Grades")
                         edited_grades = []
                         grade_choices = [round(x * 0.25, 2) for x in range(0, 41)]  # 0.00 to 10.00
@@ -558,19 +558,13 @@ if st.session_state.mode == "class" and cls:
                             # Subject label
                             cols[0].markdown(f"**{row['SUBJECT']}**")
         
-                            # Dropdown grade input
+                            # Grade dropdown
                             val = 0.0 if pd.isna(row["CURRENT GRADE"]) else float(row["CURRENT GRADE"])
                             grade_input = cols[1].selectbox(
                                 label="",
                                 options=grade_choices,
                                 index=grade_choices.index(round(val, 2)) if round(val, 2) in grade_choices else 0,
-                                grade_input = cols[1].selectbox(
-                                    label="",
-                                    options=grade_choices,
-                                    index=grade_choices.index(round(val, 2)) if round(val, 2) in grade_choices else 0,
-                                    key=f"grade_input_{i}"  # ✅ fixed here
-)
-
+                                key=f"grade_input_{i}"
                             )
         
                             # Badge
@@ -632,6 +626,7 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
+
 
 
             
