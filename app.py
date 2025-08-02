@@ -540,6 +540,11 @@ if st.session_state.mode == "class" and cls:
                         df = pd.DataFrame({"SUBJECT": subjects})
                         df["CURRENT GRADE"] = [pd.to_numeric(row_prev.get(subj, None), errors="coerce") for subj in subjects]
         
+                        # Show readonly table
+                        st.subheader("📋 Current Grades Overview")
+                        st.dataframe(df[["SUBJECT", "CURRENT GRADE"]], hide_index=True, use_container_width=True)
+        
+                        # Editable input fields
                         st.subheader("📝 Edit Grades")
                         edited_grades = []
                         for i, row in df.iterrows():
@@ -551,7 +556,6 @@ if st.session_state.mode == "class" and cls:
                             edited_grades.append(new_grade)
         
                         df["UPDATED GRADE"] = pd.to_numeric(edited_grades, errors="coerce")
-        
                         grades_changed = not df["CURRENT GRADE"].equals(df["UPDATED GRADE"])
         
                         if grades_changed or st.session_state.get("force_show_submit", False):
@@ -602,6 +606,7 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
+
 
             
         with t3:
