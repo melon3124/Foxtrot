@@ -264,8 +264,10 @@ if st.session_state.view == "summary":
             subject_cols = [col for col in acad_df.columns if col not in ["NAME", "NAME_CLEANED", "CURRENT GRADE"]]
 
             for subject in subject_cols:
+                acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')  # convert safely
                 prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna()
                 defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna()
+
 
                 st.markdown(f"**Subject: {subject}**")
                 st.write("Proficient Cadets")
