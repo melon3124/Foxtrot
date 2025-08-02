@@ -508,7 +508,7 @@ else:
             t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
             with t1:
-            pic, info = st.columns([1, 2])
+                pic, info = st.columns([1, 2])
             with pic:
                 img_path = f"profile_pics/{name_disp}.jpg"
                 st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
