@@ -384,45 +384,88 @@ if st.session_state.mode == "class" and cls:
 
         
         with t2:
-            st.markdown("### 📚 Academic Grades")
+            st.markdown("### 🎖️ Military Grades")
             try:
-                if "selected_term" not in st.session_state:
-                    st.session_state.selected_term = "1st Term"
-        
-                term = st.radio(
-                    "Select Term",
-                    ["1st Term", "2nd Term"],
-                    index=["1st Term", "2nd Term"].index(st.session_state.selected_term),
-                    horizontal=True,
-                    help="Choose academic term"
-                )
-                st.session_state.selected_term = term
-        
-                acad_sheet_map = {
-                    "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD 2"},
-                    "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD 2"},
-                    "3CL": {"1st Term": "3CL ACAD", "2nd Term": "3CL ACAD 2"}
+                mil_sheet_map = {
+                    "1CL": "1CL MIL",
+                    "2CL": "2CL MIL",
+                    "3CL": "3CL MIL"
                 }
-                acad_hist_map = {
-                    "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
-                    "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
-                    "3CL": {"1st Term": "3CL ACAD HISTORY", "2-nd Term": "3CL ACAD HISTORY 2"}
+            
+                mil2_sheet_map = {
+                    "1CL": "1CL MIL 2",
+                    "2CL": "2CL MIL 2",
+                    "3CL": "3CL MIL 2"
                 }
-        
-                possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
-        
-                def find_name_column(df):
-                    upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
-                    for col in possible_name_cols:
-                        if col.upper() in upper_cols:
-                            return df.columns[upper_cols.get_loc(col.upper())]
-                    return None
-        
-                # The section that previously displayed and edited grades has been removed.
-                # Now, the page will only show the term selection radio button.
-        
+            
+                if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
+                    st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
+                else:
+                    term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="mil_term")
+            
+                    sheet_name = mil_sheet_map.get(cls) if term == "1st Term" else mil2_sheet_map.get(cls)
+                    if not sheet_name:
+                        st.warning(f"No sheet mapped for class {cls} in {term}.")
+                    else:
+                        df = sheet_df(sheet_name)
+                        if df is None or df.empty:
+                            st.info(f"No military data found in '{sheet_name}'.")
+                        else:
+                            df.columns = [c.strip().upper() for c in df.columns]
+                            df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_df = df[df["NAME_CLEANED"] == name_clean].copy()
+            
+                            if cadet_df.empty:
+                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
+                            else:
+                                st.markdown(f"### ✏️ Edit Grades – {term}")
+                                input_data = {}
+                                
+                                with st.form(f"edit_mil_form_{term}"):
+                                    # The input fields for editing the grades
+                                    if cls == "1CL":
+                                        current_grade = cadet_df.iloc[0].get("GRADE", "")
+                                        input_data["GRADE"] = st.number_input(
+                                            f"Current Grade",
+                                            value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0,
+                                            step=0.1
+                                        )
+                                        bos = cadet_df.iloc[0].get("BOS", "")
+                                        st.text_input("BOS", value=bos, disabled=True)
+            
+                                    elif cls == "2CL":
+                                        for subj in ["AS", "NS", "AFS"]:
+                                            current_grade = cadet_df.iloc[0].get(subj, "")
+                                            input_data[subj] = st.number_input(
+                                                f"{subj} Grade",
+                                                value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0,
+                                                step=0.1
+                                            )
+            
+                                    elif cls == "3CL":
+                                        current_grade = cadet_df.iloc[0].get("MS231", "")
+                                        input_data["MS231"] = st.number_input(
+                                            f"MS231 Grade",
+                                            value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0,
+                                            step=0.1
+                                        )
+            
+                                    if st.form_submit_button(f"📂 Submit Changes – {term}"):
+                                        full_df = sheet_df(sheet_name)
+                                        full_df.columns = [c.strip().upper() for c in full_df.columns]
+                                        full_df["NAME_CLEANED"] = full_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            
+                                        for col, val in input_data.items():
+                                            full_df.loc[full_df["NAME_CLEANED"] == name_clean, col] = val
+            
+                                        full_df.drop(columns=["NAME_CLEANED"], inplace=True)
+                                        update_sheet(sheet_name, full_df)
+                                        sheet_df.clear()
+                                        st.success(f"✅ {term} military grades updated successfully.")
+                                        st.rerun()
+            
             except Exception as e:
-                st.error(f"❌ Unexpected academic error: {e}")
+                st.error(f"Military tab error: {e}")
         
         with t3:
             st.markdown("### 🏃‍♂️ PFT Scores")
