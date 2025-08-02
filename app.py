@@ -279,18 +279,12 @@ if st.session_state.view == "summary":
     
         pft_df = sheet_df(pft_sheet_map.get("1st Term", {}).get(cls))
         if not pft_df.empty:
-            pft_grades = pft_df.get('GRADE', pd.Series())
-            if not pft_grades.empty:
-                pft_grades = pd.to_numeric(pft_grades, errors='coerce')
-                pft_proficient = pft_grades[pft_grades >= 7].shape[0]
-                pft_deficient = pft_grades[pft_grades < 7].shape[0]
-            else: # Fix for missing 'GRADE' column
-                pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
-                if all(col in pft_df.columns for col in pft_grade_cols):
-                    pft_df[pft_grade_cols] = pft_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
-                    pft_df['AVG_GRADE'] = pft_df[pft_grade_cols].mean(axis=1)
-                    pft_proficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] >= 7].shape[0]
-                    pft_deficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] < 7].shape[0]
+            pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
+            if all(col in pft_df.columns for col in pft_grade_cols):
+                pft_df[pft_grade_cols] = pft_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
+                pft_df['AVG_GRADE'] = pft_df[pft_grade_cols].mean(axis=1)
+                pft_proficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] >= 7].shape[0]
+                pft_deficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] < 7].shape[0]
 
         conduct_df = sheet_df(conduct_sheet_map.get("1st Term", {}).get(cls))
         if not conduct_df.empty:
@@ -359,41 +353,27 @@ if st.session_state.view == "summary":
         st.markdown(f"#### {cls_select} PFT")
         pft_df = sheet_df(pft_sheet_map.get(term, {}).get(cls_select))
         if not pft_df.empty:
-            pft_df['NAME_CLEANED'] = pft_df['NAME'].str.upper().str.strip()
-            demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
-            
-            # Check for the correct gender column, accounting for the typo
-            gender_col_in_demo = 'GENDER'
-            if gender_col_in_demo not in demo_df.columns:
-                if 'GBNDER' in demo_df.columns:
-                    gender_col_in_demo = 'GBNDER'
-            
-            if gender_col_in_demo not in demo_df.columns:
-                st.warning("⚠️ 'GENDER' column is missing from the DEMOGRAPHICS sheet. Cannot determine male/female data.")
-                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED']], on='NAME_CLEANED', how='left')
-                merged_df['GENDER'] = 'N/A'  # Add a placeholder
-            else:
-                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', gender_col_in_demo]], on='NAME_CLEANED', how='left')
-                merged_df.rename(columns={gender_col_in_demo: 'GENDER'}, inplace=True) # Normalize column name
-                
             pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
             
-            if all(col in merged_df.columns for col in pft_grade_cols):
-                merged_df[pft_grade_cols] = merged_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
-                merged_df['PFT_AVG_GRADE'] = merged_df[pft_grade_cols].mean(axis=1)
+            if all(col in pft_df.columns for col in pft_grade_cols):
+                pft_df[pft_grade_cols] = pft_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
+                pft_df['PFT_AVG_GRADE'] = pft_df[pft_grade_cols].mean(axis=1)
 
                 # Determine SMC cadets based on average grade
-                smc_cadets = merged_df[merged_df['PFT_AVG_GRADE'] < 7]['NAME'].dropna().tolist()
+                smc_cadets = pft_df[pft_df['PFT_AVG_GRADE'] < 7]['NAME'].dropna().tolist()
                 st.write("**SMC (Failed) Cadets:**")
                 if smc_cadets:
                     st.write(f"{', '.join(smc_cadets)}")
                 else:
                     st.write("None")
                 
-                # Determine strongest cadets based on average grade
-                if 'GENDER' in merged_df.columns:
-                    strongest_male = merged_df[merged_df['GENDER'].str.upper() == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'].str.upper() == 'MALE'].empty else None
-                    strongest_female = merged_df[merged_df['GENDER'].str.upper() == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'].str.upper() == 'FEMALE'].empty else None
+                # Determine strongest cadets based on average grade and gender
+                if 'GENDER' in pft_df.columns:
+                    # Map 'M' and 'F' to 'MALE' and 'FEMALE'
+                    pft_df['GENDER'] = pft_df['GENDER'].str.upper().str.strip().map({'M': 'MALE', 'F': 'FEMALE'})
+                    
+                    strongest_male = pft_df[pft_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not pft_df[pft_df['GENDER'] == 'MALE'].empty else None
+                    strongest_female = pft_df[pft_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not pft_df[pft_df['GENDER'] == 'FEMALE'].empty else None
     
                     st.write("**Strongest Cadets (Highest Average Grade):**")
                     if strongest_male is not None:
@@ -401,7 +381,7 @@ if st.session_state.view == "summary":
                     if strongest_female is not None:
                         st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
                 else:
-                    st.info("Could not determine strongest cadets due to missing gender or grade data.")
+                    st.warning("Could not determine strongest cadets due to missing 'GENDER' column in the PFT sheet.")
             else:
                 st.warning("Could not determine SMC or strongest cadets due to missing PFT grade columns (PUSHUPS_GRADES, etc.)")
     
