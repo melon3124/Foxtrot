@@ -258,7 +258,6 @@ if st.session_state.mode == "class" and cls:
             # This helper function creates a clean key-value display.
             def display_field(label, value):
                 """Displays a formatted label-value pair."""
-                # Use title case for labels and handle missing values gracefully.
                 display_label = str(label).replace("_", " ").title()
                 display_value = value if pd.notna(value) and str(value).strip() else 'N/A'
                 st.markdown(f"**{display_label}**\n\n{display_value}")
@@ -280,64 +279,62 @@ if st.session_state.mode == "class" and cls:
 
             # --- Start of UI ---
             with st.container(border=True):
-                pic_col, info_col = st.columns([1, 2])
-
+                # --- 1. Center the Photo using flanking columns ---
+                left_spacer, pic_col, right_spacer = st.columns([1, 1, 1])
                 with pic_col:
                     img_path = f"profile_pics/{name_disp}.jpg"
                     if os.path.exists(img_path):
-                        st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}")
+                        st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}", use_column_width=True)
                     else:
-                        st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available")
+                        st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available", use_column_width=True)
 
-                with info_col:
-                    # --- 1. Primary Info (Always at the top) ---
-                    st.title(name_disp)
-                    class_info = row.get('CLASS', 'N/A')
-                    afpsn_info = row.get('AFPSN', 'N/A')
-                    st.header(f"{class_info} | AFPSN: {afpsn_info}")
+                # --- 2. Centered Primary Info ---
+                st.markdown(f"<h1 style='text-align: center; color: white;'>{name_disp}</h1>", unsafe_allow_html=True)
+                class_info = row.get('CLASS', 'N/A')
+                afpsn_info = row.get('AFPSN', 'N/A')
+                st.markdown(f"<h3 style='text-align: center; color: #ffcccc;'>{class_info} | AFPSN: {afpsn_info}</h3>", unsafe_allow_html=True)
 
-                    # --- 2. Dynamically Categorize All Other Fields ---
+                
+                # --- 3. Dynamically Categorize and Display All Other Fields ---
+                
+                # Make a copy of the cadet's data to work with
+                details = row.to_dict()
+
+                # Define keywords for categorization
+                personal_keywords = ['DATE OF BIRTH', 'AGE', 'HEIGHT', 'WEIGHT', 'COURSE', 'RELIGION', 'ETHNICITY', 'GENDER']
+                contact_keywords = ['CONTACT', 'EMAIL', 'ADDRESS']
+                guardian_keywords = ['GUARDIAN']
+
+                # These are fields we've already displayed or are internal
+                keys_to_ignore = ['FULL NAME', 'FULL NAME_DISPLAY', 'CLASS', 'AFPSN', 'FAMILY NAME', 'FIRST NAME', 'MIDDLE NAME', 'EXTN']
+
+                # Prepare dictionaries to hold categorized fields
+                personal_fields = {}
+                contact_fields = {}
+                guardian_fields = {}
+                additional_fields = {}
+                
+                # Loop through all details from the spreadsheet row
+                for key, value in details.items():
+                    if key in keys_to_ignore:
+                        continue
                     
-                    # Make a copy of the cadet's data to work with
-                    details = row.to_dict()
+                    upper_key = key.upper()
 
-                    # Define keywords for categorization
-                    personal_keywords = ['DATE OF BIRTH', 'AGE', 'HEIGHT', 'WEIGHT', 'COURSE', 'RELIGION', 'ETHNICITY', 'GENDER']
-                    contact_keywords = ['CONTACT', 'EMAIL', 'ADDRESS']
-                    guardian_keywords = ['GUARDIAN']
+                    if any(keyword in upper_key for keyword in personal_keywords):
+                        personal_fields[key] = value
+                    elif any(keyword in upper_key for keyword in contact_keywords):
+                        contact_fields[key] = value
+                    elif any(keyword in upper_key for keyword in guardian_keywords):
+                        guardian_fields[key] = value
+                    else:
+                        additional_fields[key] = value
 
-                    # These are fields we've already displayed or are internal
-                    keys_to_ignore = ['FULL NAME', 'FULL NAME_DISPLAY', 'CLASS', 'AFPSN', 'FAMILY NAME', 'FIRST NAME', 'MIDDLE NAME', 'EXTN']
-
-                    # Prepare dictionaries to hold categorized fields
-                    personal_fields = {}
-                    contact_fields = {}
-                    guardian_fields = {}
-                    additional_fields = {}
-                    
-                    # Loop through all details from the spreadsheet row
-                    for key, value in details.items():
-                        if key in keys_to_ignore:
-                            continue
-                        
-                        # Convert key to uppercase for consistent matching
-                        upper_key = key.upper()
-
-                        if any(keyword in upper_key for keyword in personal_keywords):
-                            personal_fields[key] = value
-                        elif any(keyword in upper_key for keyword in contact_keywords):
-                            contact_fields[key] = value
-                        elif any(keyword in upper_key for keyword in guardian_keywords):
-                            guardian_fields[key] = value
-                        else:
-                            # Anything else goes into 'Additional Details'
-                            additional_fields[key] = value
-
-                    # --- 3. Display the Organized Sections ---
-                    create_section("👤 Personal Details", personal_fields)
-                    create_section("📞 Contact Information", contact_fields)
-                    create_section("👨‍👩‍👧 Guardian Information", guardian_fields)
-                    create_section("📋 Additional Details", additional_fields)
+                # Display the Organized Sections below the centered header
+                create_section("👤 Personal Details", personal_fields)
+                create_section("📞 Contact Information", contact_fields, num_columns=1) # Address looks better in one column
+                create_section("👨‍👩‍👧 Guardian Information", guardian_fields)
+                create_section("📋 Additional Details", additional_fields)
 
         with t2:
             try:
