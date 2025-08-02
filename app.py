@@ -308,10 +308,10 @@ top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=Fa
 top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
 
 
-            st.write("💪 Strongest Male Cadet")
-            st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
-            st.write("💪 Strongest Female Cadet")
-            st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
+st.write("💪 Strongest Male Cadet")
+st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
+st.write("💪 Strongest Female Cadet")
+st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
 
     with mil_tab:
         st.subheader("🪖 Military Summary")
