@@ -785,10 +785,10 @@ if st.session_state.mode == "class" and cls:
                         "3CL": "3CL CONDUCT 2"
                     }
                 }
-        
+            
                 term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="conduct_term")
                 sheet_name = conduct_sheet_map[term].get(cls)
-        
+            
                 if not sheet_name:
                     st.warning("Please select a valid class to view conduct data.")
                 else:
@@ -796,53 +796,67 @@ if st.session_state.mode == "class" and cls:
                     conduct.columns = [c.strip().lower() for c in conduct.columns]
                     conduct["name_cleaned"] = conduct["name"].astype(str).apply(clean_cadet_name_for_comparison)
                     cadet_data = conduct[conduct["name_cleaned"] == name_clean].copy()
-                    
-                    # Retrieve the touring status for the selected cadet
-                    touring_status = cadet_data.iloc[0].get("touring status", "Not Specified")
-        
+            
                     if cadet_data.empty:
                         st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                     else:
-                        # --- Merits Summary + Edit ---
-                        st.subheader("Merits Summary")
-        
+                        # --- Merits and Touring Summary + Edit ---
+                        st.subheader("Merits and Touring Summary")
+            
                         current_merits = cadet_data.iloc[0].get("merits", "0")
                         merits_value = st.number_input(
                             f"Edit Merits – {term}",
                             value=float(current_merits) if str(current_merits).replace('.', '', 1).lstrip('-').isdigit() else 0.0,
-                            step=1.0
+                            step=1.0,
+                            key="merits_input"
                         )
-        
+                        
+                        current_touring_status = cadet_data.iloc[0].get("touring status", "")
+                        new_touring_status = st.text_input(
+                            f"Edit Toured/Touring Status – {term}",
+                            value=current_touring_status,
+                            key="touring_status_input"
+                        )
+            
                         status = "Failed" if merits_value < 0 else "Passed"
-        
+            
                         merit_table = pd.DataFrame([{
                             "Name": name_disp,
                             "Merits": merits_value,
-                            "Status": status
+                            "Status": status,
+                            "Toured/Touring": new_touring_status
                         }])
                         st.dataframe(merit_table, hide_index=True, use_container_width=True)
-        
-                        if st.button(f"💾 Save Merits – {term}"):
+            
+                        if st.button(f"💾 Save Summary – {term}"):
                             try:
                                 full_df = sheet_df(sheet_name)
                                 full_df.columns = [c.strip().lower() for c in full_df.columns]
                                 full_df["name_cleaned"] = full_df["name"].astype(str).apply(clean_cadet_name_for_comparison)
+                                
+                                # Update merits
                                 full_df.loc[full_df["name_cleaned"] == name_clean, "merits"] = merits_value
+                                
+                                # Update touring status
+                                if "touring status" not in full_df.columns:
+                                    full_df["touring status"] = ""
+                                full_df.loc[full_df["name_cleaned"] == name_clean, "touring status"] = new_touring_status
+                                
                                 full_df.drop(columns=["name_cleaned"], inplace=True)
                                 update_sheet(sheet_name, full_df)
                                 st.cache_data.clear()
-                                st.success("✅ Merits updated successfully.")
+                                st.success("✅ Summary updated successfully.")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"❌ Failed to update merits: {e}")
-        
+                                st.error(f"❌ Failed to update summary: {e}")
+            
                         # --- Conduct Reports Table ---
                         st.subheader("Conduct Reports")
                         expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]
-        
+            
                         if "last_report_fetch" not in st.session_state:
                             st.session_state["last_report_fetch"] = 0
-        
+            
                         try:
                             now = time.time()
                             if now - st.session_state["last_report_fetch"] > 10:
@@ -853,28 +867,24 @@ if st.session_state.mode == "class" and cls:
                                 reports_df = st.session_state.get("last_report_df", pd.DataFrame(columns=expected_cols))
                                 
                             reports_df.columns = [c.strip().upper() for c in reports_df.columns]
-        
+            
                             if not set(expected_cols).issubset(set(reports_df.columns)):
                                 st.warning("⚠️ 'REPORTS' sheet is missing required columns. Showing empty table.")
                                 cadet_reports = pd.DataFrame(columns=expected_cols)
                             else:
                                 reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                                 cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
-        
+            
                         except Exception as e:
                             st.warning(f"⚠️ Could not load reports sheet: {e}")
                             cadet_reports = pd.DataFrame(columns=expected_cols)
-        
-                        # Add the new "TOURING STATUS" column to the reports table
-                        if not cadet_reports.empty:
-                            cadet_reports["TOURING STATUS"] = touring_status
-        
+            
                         st.dataframe(
-                            cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS", "TOURING STATUS"]],
+                            cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]],
                             use_container_width=True,
                             hide_index=True
                         )
-        
+            
                         # --- Add New Report Form ---
                         st.subheader("➕ Add New Conduct Report")
                         with st.form("report_form"):
@@ -883,7 +893,7 @@ if st.session_state.mode == "class" and cls:
                             new_nature = st.selectbox("Nature", ["I", "II", "III", "IV"])
                             new_demerits = st.number_input("Demerits", step=1)
                             submitted = st.form_submit_button("📤 Submit Report")
-        
+            
                         if submitted:
                             try:
                                 time.sleep(0.5)  # Allow smoother API write
@@ -896,6 +906,6 @@ if st.session_state.mode == "class" and cls:
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
-        
+            
             except Exception as e:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
