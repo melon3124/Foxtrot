@@ -316,7 +316,7 @@ if st.session_state.view == "summary":
                 top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
             else:
                 top_male = pd.DataFrame()
-                        if "GENDER" in merged.columns:
+            if "GENDER" in merged.columns:
                 top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
             else:
                 top_female = pd.DataFrame()
