@@ -220,96 +220,142 @@ for cls, (start, end) in classes.items():
     
 # --- SUMMARY DASHBOARD ---
 if st.session_state.view == "summary":
+    st.set_page_config(layout="wide")
     st.title("📊 Summary Dashboard")
-    
-    acad_hist_map = {
-        "1st Term": {"1CL": "1CL ACAD HISTORY", "2CL": "2CL ACAD HISTORY", "3CL": "3CL ACAD HISTORY"},
-        "2nd Term": {"1CL": "1CL ACAD HISTORY 2", "2CL": "2CL ACAD HISTORY 2", "3CL": "3CL ACAD HISTORY 2"}
-    }
-    mil_sheet_map = {
-        "1st Term": {"1CL": "1CL MIL", "2CL": "2CL MIL", "3CL": "3CL MIL"},
-        "2nd Term": {"1CL": "1CL MIL 2", "2CL": "2CL MIL 2", "3CL": "3CL MIL 2"}
-    }
-    pft_sheet_map = {
-        "1st Term": {"1CL": "1CL PFT", "2CL": "2CL PFT", "3CL": "3CL PFT"},
-        "2nd Term": {"1CL": "1CL PFT 2", "2CL": "2CL PFT 2", "3CL": "3CL PFT 2"}
-    }
-    conduct_sheet_map = {
-        "1st Term": {"1CL": "1CL CONDUCT", "2CL": "2CL CONDUCT", "3CL": "3CL CONDUCT"},
-        "2nd Term": {"1CL": "1CL CONDUCT 2", "2CL": "2CL CONDUCT 2", "3CL": "3CL CONDUCT 2"}
-    }
-    
-    st.subheader("CAMP Performance Table")
-    camp_data = []
-    
-    for cls in classes:
-        acad_proficient = 0
-        acad_deficient = 0
-        mil_proficient = 0
-        mil_deficient = 0
-        pft_proficient = 0
-        pft_deficient = 0
-        conduct_proficient = 0
-        conduct_deficient = 0
-    
-        acad_df = sheet_df(acad_hist_map.get("1st Term", {}).get(cls))
-        if not acad_df.empty:
-            acad_df["CURRENT GRADE"] = pd.to_numeric(acad_df.get("CURRENT GRADE", pd.Series()), errors="coerce")
-            acad_proficient = acad_df["CURRENT GRADE"].apply(lambda x: 1 if x >= 7 else 0).sum()
-            acad_deficient = acad_df["CURRENT GRADE"].apply(lambda x: 1 if x < 7 else 0).sum()
-    
-        mil_df = sheet_df(mil_sheet_map.get("1st Term", {}).get(cls))
-        if not mil_df.empty:
-            if cls == "1CL":
-                mil_df["GRADE"] = pd.to_numeric(mil_df.get("GRADE", pd.Series()), errors="coerce")
-                mil_proficient = mil_df["GRADE"].apply(lambda x: 1 if x >= 7 else 0).sum()
-                mil_deficient = mil_df["GRADE"].apply(lambda x: 1 if x < 7 else 0).sum()
-            elif cls == "2CL":
-                mil_df["AS"] = pd.to_numeric(mil_df.get("AS", pd.Series()), errors="coerce")
-                mil_df["NS"] = pd.to_numeric(mil_df.get("NS", pd.Series()), errors="coerce")
-                mil_df["AFS"] = pd.to_numeric(mil_df.get("AFS", pd.Series()), errors="coerce")
-                proficient_cadets = mil_df[(mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)]
-                deficient_cadets = mil_df[(mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)]
-                mil_proficient = len(proficient_cadets)
-                mil_deficient = len(deficient_cadets)
-            elif cls == "3CL":
-                mil_df["MS231"] = pd.to_numeric(mil_df.get("MS231", pd.Series()), errors="coerce")
-                mil_proficient = mil_df["MS231"].apply(lambda x: 1 if x >= 7 else 0).sum()
-                mil_deficient = mil_df["MS231"].apply(lambda x: 1 if x < 7 else 0).sum()
-    
-        pft_df = sheet_df(pft_sheet_map.get("1st Term", {}).get(cls))
-        if not pft_df.empty:
-            pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
-            if all(col in pft_df.columns for col in pft_grade_cols):
-                pft_df[pft_grade_cols] = pft_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
-                pft_df['AVG_GRADE'] = pft_df[pft_grade_cols].mean(axis=1)
-                pft_proficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] >= 7].shape[0]
-                pft_deficient = pft_df['AVG_GRADE'][pft_df['AVG_GRADE'] < 7].shape[0]
 
-        conduct_df = sheet_df(conduct_sheet_map.get("1st Term", {}).get(cls))
-        if not conduct_df.empty:
-            conduct_df["MERITS"] = pd.to_numeric(conduct_df.get("MERITS", pd.Series()), errors="coerce")
-            conduct_proficient = conduct_df["MERITS"].apply(lambda x: 1 if x >= 0 else 0).sum()
-            conduct_deficient = conduct_df["MERITS"].apply(lambda x: 1 if x < 0 else 0).sum()
-    
-        camp_data.append({
-            "Class": cls,
-            "Academics (Proficient)": acad_proficient,
-            "Academics (Deficient)": acad_deficient,
-            "PFT (Proficient)": pft_proficient,
-            "PFT (Deficient)": pft_deficient,
-            "Military (Proficient)": mil_proficient,
-            "Military (Deficient)": mil_deficient,
-            "Conduct (Proficient)": conduct_proficient,
-            "Conduct (Deficient)": conduct_deficient,
-        })
-    
-    st.dataframe(pd.DataFrame(camp_data).set_index("Class"), use_container_width=True)
-    
-    st.markdown("---")
-    
-    # Prevent Main Dashboard UI from rendering
+    term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="summary_term")
+
+    acad_hist_map = {
+        "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
+        "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
+        "3CL": {"1st Term": "3CL ACAD HISTORY", "2nd Term": "3CL ACAD HISTORY 2"}
+    }
+
+    pft_sheet_map = {
+        "1CL": {"1st Term": "1CL PFT", "2nd Term": "1CL PFT 2"},
+        "2CL": {"1st Term": "2CL PFT", "2nd Term": "2CL PFT 2"},
+        "3CL": {"1st Term": "3CL PFT", "2nd Term": "3CL PFT 2"}
+    }
+
+    mil_sheet_map = {
+        "1CL": {"1st Term": "1CL MIL", "2nd Term": "1CL MIL 2"},
+        "2CL": {"1st Term": "2CL MIL", "2nd Term": "2CL MIL 2"},
+        "3CL": {"1st Term": "3CL MIL", "2nd Term": "3CL MIL 2"}
+    }
+
+    conduct_sheet_map = {
+        "1CL": {"1st Term": "1CL CONDUCT", "2nd Term": "1CL CONDUCT 2"},
+        "2CL": {"1st Term": "2CL CONDUCT", "2nd Term": "2CL CONDUCT 2"},
+        "3CL": {"1st Term": "3CL CONDUCT", "2nd Term": "3CL CONDUCT 2"}
+    }
+
+    acad_tab, pft_tab, mil_tab, conduct_tab = st.tabs(["📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
+
+    with acad_tab:
+        st.subheader("📚 Academic Summary")
+        for cls in classes:
+            sheet_name = acad_hist_map[cls][term]
+            acad_df = sheet_df(sheet_name)
+            if acad_df.empty:
+                continue
+
+            st.markdown(f"### {cls} Academic Performance")
+            acad_df["CURRENT GRADE"] = pd.to_numeric(acad_df.get("CURRENT GRADE", pd.Series()), errors="coerce")
+            subject_cols = [col for col in acad_df.columns if col not in ["NAME", "NAME_CLEANED", "CURRENT GRADE"]]
+
+            for subject in subject_cols:
+                prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna()
+                defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna()
+
+                st.markdown(f"**Subject: {subject}**")
+                st.write("Proficient Cadets")
+                st.dataframe(prof, use_container_width=True)
+                st.write("Deficient Cadets")
+                st.dataframe(defn, use_container_width=True)
+
+                if not defn.empty:
+                    max_def = defn.sort_values(by=subject).head(1)
+                    st.write("⬇️ Highest Deficiency")
+                    st.dataframe(max_def, use_container_width=True)
+
+    with pft_tab:
+        st.subheader("🏃 PFT Summary")
+        for cls in classes:
+            sheet_name = pft_sheet_map[cls][term]
+            pft_df = sheet_df(sheet_name)
+            if pft_df.empty:
+                continue
+
+            st.markdown(f"### {cls} PFT Summary")
+            pft_df["AVG_GRADE"] = pft_df[["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]].apply(pd.to_numeric, errors='coerce').mean(axis=1)
+            pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            merged = pd.merge(pft_df, demo_df, left_on="NAME_CLEANED", right_on="FULL NAME", how="left")
+
+            smc = merged[merged["AVG_GRADE"] < 7]
+            st.write("🚫 SMC Cadets (Failed)")
+            st.dataframe(smc[["NAME", "AVG_GRADE"]], use_container_width=True)
+
+            top_male = merged[merged["SEX"] == "MALE"].sort_values("AVG_GRADE", ascending=False).head(1)
+            top_female = merged[merged["SEX"] == "FEMALE"].sort_values("AVG_GRADE", ascending=False).head(1)
+
+            st.write("💪 Strongest Male Cadet")
+            st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
+            st.write("💪 Strongest Female Cadet")
+            st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
+
+    with mil_tab:
+        st.subheader("🪖 Military Summary")
+        for cls in classes:
+            sheet_name = mil_sheet_map[cls][term]
+            mil_df = sheet_df(sheet_name)
+            if mil_df.empty:
+                continue
+
+            st.markdown(f"### {cls} Military Grades")
+            if cls == "1CL":
+                mil_df["GRADE"] = pd.to_numeric(mil_df["GRADE"], errors="coerce")
+                prof = mil_df[mil_df["GRADE"] >= 7]
+                defn = mil_df[mil_df["GRADE"] < 7]
+            elif cls == "2CL":
+                for col in ["AS", "NS", "AFS"]:
+                    mil_df[col] = pd.to_numeric(mil_df[col], errors="coerce")
+                prof = mil_df[(mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)]
+                defn = mil_df[(mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)]
+            elif cls == "3CL":
+                mil_df["MS231"] = pd.to_numeric(mil_df["MS231"], errors="coerce")
+                prof = mil_df[mil_df["MS231"] >= 7]
+                defn = mil_df[mil_df["MS231"] < 7]
+
+            st.write("✅ Proficient Cadets")
+            st.dataframe(prof[["NAME"]], use_container_width=True)
+            st.write("🚫 Deficient Cadets")
+            st.dataframe(defn[["NAME"]], use_container_width=True)
+
+    with conduct_tab:
+        st.subheader("⚖ Conduct Summary")
+        for cls in classes:
+            sheet_name = conduct_sheet_map[cls][term]
+            conduct_df = sheet_df(sheet_name)
+            if conduct_df.empty:
+                continue
+
+            st.markdown(f"### {cls} Conduct")
+            conduct_df["DEMERITS"] = pd.to_numeric(conduct_df["DEMERITS"], errors="coerce")
+
+            touring = sheet_df("REPORTS")
+            touring["NAME_CLEANED"] = touring["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            touring_cls = demo_df[(demo_df["CLASS"] == cls)]
+            touring = touring[touring["NAME_CLEANED"].isin(touring_cls["FULL NAME"])]
+
+            st.write("🎒 Touring Cadets")
+            st.dataframe(touring[["NAME", "DATE OF REPORT", "NATURE", "DEMERITS"]], use_container_width=True)
+
+            flagged = conduct_df[conduct_df["DEMERITS"] < 20]
+            st.write("🔴 Cadets with < 20 Demerits")
+            st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
+
     st.stop()
+
 
     
     # -------------------- SESSION STATE --------------------
