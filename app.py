@@ -10,8 +10,6 @@ import json
 import pygsheets
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-# This is a flag to prevent unwanted reruns on specific widget updates.
-# If you want to use it, you'd set st.session_state["pft_refresh_triggered"] = True somewhere.
 if st.session_state.get("pft_refresh_triggered"):
     del st.session_state["pft_refresh_triggered"]
 
@@ -19,14 +17,11 @@ if st.session_state.get("pft_refresh_triggered"):
 if "active_tab" not in st.session_state:
     st.session_state["active_tab"] = "t1"
 
-# --- Helper Functions ---
 def clean_column_names(df):
-    """Strips whitespace and converts column names to uppercase."""
     df.columns = [c.strip().upper() for c in df.columns]
     return df
 
 def evaluate_status(grade):
-    """Evaluates a grade for 'Proficient' or 'DEFICIENT' status."""
     try:
         val = float(grade)
         return "Proficient" if val >= 7 else "DEFICIENT"
@@ -34,19 +29,12 @@ def evaluate_status(grade):
         return "N/A"
 
 def clean_cadet_name_for_comparison(name):
-    """Standardizes cadet names for internal comparison."""
-    if not isinstance(name, str):
-        return ""
-    # Normalize unicode, replace multiple spaces, and convert to uppercase
-    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("utf-8")
-    return re.sub(r'\s+', ' ', name).strip().upper()
+    return name.strip().upper()
 
 def update_gsheet(sheet_name, df):
-    """Updates a Google Sheet worksheet with a pandas DataFrame."""
     try:
-        # Use pygsheets for a more robust update
         client = get_gsheet_client()
-        sh = client.open("FOXTROT DASHBOARD V2")
+        sh = client.open("FOXTROT DASHBOARD V2")  # Replace with your sheet name
         worksheet = sh.worksheet_by_title(sheet_name)
         worksheet.clear()
         worksheet.set_dataframe(df, (1, 1))
@@ -55,11 +43,27 @@ def update_gsheet(sheet_name, df):
         st.error(f"Failed to update sheet: {e}")
 
 def get_gsheet_client():
-    """Initializes and returns a pygsheets client."""
     return pygsheets.authorize(service_account_info=st.secrets["google_service_account"])
 
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# ✅ Create credentials object from secrets
+credentials = Credentials.from_service_account_info(
+    st.secrets["google_service_account"],
+    scopes=scopes
+)
+
+# ✅ Authorize gspread with the credentials instance
+gc = gspread.authorize(credentials)
+
+# ✅ Open your spreadsheet
+sh = gc.open("FOXTROT DASHBOARD V2")  # Replace with actual name
+
+# ✅ Paste your update_sheet function here
 def update_sheet(sheet_name, updated_df):
-    """Updates a Google Sheet worksheet using gspread."""
     try:
         worksheet = sh.worksheet(sheet_name)
         worksheet.clear()
@@ -67,37 +71,9 @@ def update_sheet(sheet_name, updated_df):
     except Exception as e:
         st.error(f"❌ Failed to update Google Sheet '{sheet_name}': {e}")
         
-def normalize_column_name(col: str) -> str:
-    """Cleans a column name by removing special characters and standardizing casing."""
-    if not isinstance(col, str):
-        col = str(col)
-    col = unicodedata.normalize("NFKD", col)
-    col = col.replace("\xa0", "").replace("\u202f", "").replace("\u2009", "").replace(" ", "")
-    col = re.sub(r'[^\w\-/ ]+', '', col).strip()
-    return col.upper()
-
-@st.cache_data(ttl=300)
-def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Applies column name normalization to a DataFrame."""
-    df.columns = [normalize_column_name(c) for c in df.columns]
-    return df
-
-@st.cache_data(ttl=300)
-def sheet_df(name: str) -> pd.DataFrame:
-    """Fetches and caches a DataFrame from a Google Sheet worksheet."""
-    try:
-        worksheet = SS.worksheet(name)
-        return clean_df(pd.DataFrame(worksheet.get_all_records()))
-    except gspread.exceptions.WorksheetNotFound:
-        st.warning(f"Worksheet '{name}' not found.")
-        return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error fetching sheet '{name}': {e}")
-        return pd.DataFrame()
-
-# --- Session State Initialization ---
 if "last_report_fetch" not in st.session_state:
     st.session_state["last_report_fetch"] = 0
+# --- Session State Initialization ---
 if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 if "role" not in st.session_state:
@@ -108,6 +84,7 @@ if "username" not in st.session_state:
 # --- Login Logic ---
 if not st.session_state.auth_ok:
     st.title("🦊 Foxtrot CIS Login")
+
     username = st.text_input("Username")
     pw = st.text_input("Password", type="password")
     login_btn = st.button("Login")
@@ -144,15 +121,12 @@ if st.sidebar.button("🔓 Logout"):
     st.session_state.role = None
     st.session_state.username = None
     st.rerun()
-
 # -------------------- CONFIG --------------------
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
-    page_icon="🦊",
+    page_icon="🦊",  # Fox emoji icon
     layout="wide"
 )
-
-# Apply CSS styling
 st.markdown(
     """
     <style>
@@ -165,7 +139,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown("<h1>🦊 Welcome to Foxtrot Company CIS</h1>", unsafe_allow_html=True)
-
 # -------------------- GOOGLE SHEETS --------------------
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -183,6 +156,36 @@ except Exception as e:
     st.error(f"Error connecting to Google Sheets: {e}")
     st.stop()
     
+def normalize_column_name(col: str) -> str:
+    if not isinstance(col, str):
+        col = str(col)
+    col = unicodedata.normalize("NFKD", col)
+    col = col.replace("\xa0", "").replace("\u202f", "").replace("\u2009", "").replace(" ", "")
+    col = re.sub(r'[^\w\-/ ]+', '', col).strip()
+    return col.upper()
+
+@st.cache_data(ttl=300)
+def clean_df(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = [normalize_column_name(c) for c in df.columns]
+    return df
+
+@st.cache_data(ttl=300)
+def sheet_df(name: str) -> pd.DataFrame:
+    try:
+        worksheet = SS.worksheet(name)
+        return clean_df(pd.DataFrame(worksheet.get_all_records()))
+    except gspread.exceptions.WorksheetNotFound:
+        st.warning(f"Worksheet '{name}' not found.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error fetching sheet '{name}': {e}")
+        return pd.DataFrame()
+
+def clean_cadet_name_for_comparison(name: str) -> str:
+    if not isinstance(name, str):
+        return ""
+    return re.sub(r'\s+', ' ', name).strip().upper()
+
 # -------------------- DEMOGRAPHICS --------------------
 demo_df = sheet_df("DEMOGRAPHICS")
 if demo_df.empty:
@@ -237,10 +240,9 @@ if selected_view == "Cadet Dashboard":
             st.warning(f"No cadets for class {cls}.")
         else:
             st.markdown('<div class="centered">', unsafe_allow_html=True)
-            cols_per_row = 4
-            for i in range(0, len(cadets), cols_per_row):
-                cols = st.columns(cols_per_row)
-                for j in range(cols_per_row):
+            for i in range(0, len(cadets), 4):
+                cols = st.columns(4)
+                for j in range(4):
                     if i + j >= len(cadets):
                         continue
                     name_display = cadets.iloc[i+j]["FULL NAME_DISPLAY"]
@@ -270,18 +272,22 @@ if selected_view == "Cadet Dashboard":
                     left, right = st.columns(2)
                     for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
                         (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
+
             # --- [ACADEMICS TAB - Your existing code] ---
             with t2:
                 # ... existing academics code here ...
                 pass
+
             # --- [PFT TAB - Your existing code] ---
             with t3:
                 # ... existing PFT code here ...
                 pass
+
             # --- [MILITARY TAB - Your existing code] ---
             with t4:
                 # ... existing military code here ...
                 pass
+            
             # --- [CONDUCT TAB - Your existing code] ---
             with t5:
                 # ... existing conduct code here ...
@@ -328,7 +334,13 @@ elif selected_view == "Summary Dashboard":
         deficiencies = []
 
         # --- Check for academic deficiency ---
+        # Looping through both terms to be thorough
         try:
+            acad_sheet_map = {
+                "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD 2"},
+                "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD 2"},
+                "3CL": {"1st Term": "3CL ACAD", "2nd Term": "3CL ACAD 2"}
+            }
             acad_hist_map = {
                 "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
                 "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
@@ -345,21 +357,24 @@ elif selected_view == "Summary Dashboard":
                         cadet_acad_data = df_acad[df_acad["NAME_CLEANED"] == name_clean]
                         if not cadet_acad_data.empty:
                             grade_cols = [col for col in cadet_acad_data.columns if col not in [name_col, "NAME_CLEANED", "CLASS", "TERM"]]
-                            # Using .iloc[0] for the first row of grades
                             average_grade = pd.to_numeric(cadet_acad_data[grade_cols].iloc[0], errors='coerce').mean()
                             if average_grade < 7:
                                 deficiencies.append(f"Academics ({term_key})")
-                                # We add break here if we only want to report the first academic deficiency found
+                                # No break here, as we want to find all deficiencies
         except Exception:
             pass
         
         # --- Check for PFT deficiency ---
         try:
             pft_sheet_map = {
-                "1CL": "1CL PFT", "2CL": "2CL PFT", "3CL": "3CL PFT"
+                "1CL": "1CL PFT",
+                "2CL": "2CL PFT",
+                "3CL": "3CL PFT"
             }
             pft2_sheet_map = {
-                "1CL": "1CL PFT 2", "2CL": "2CL PFT 2", "3CL": "3CL PFT 2"
+                "1CL": "1CL PFT 2",
+                "2CL": "2CL PFT 2",
+                "3CL": "3CL PFT 2"
             }
 
             for pft_sheet in [pft_sheet_map.get(cls), pft2_sheet_map.get(cls)]:
@@ -372,17 +387,21 @@ elif selected_view == "Summary Dashboard":
                             pft_grades = ['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']
                             if any(pd.to_numeric(cadet_pft_data.iloc[0].get(g), errors='coerce') < 7 for g in pft_grades if g in cadet_pft_data.columns):
                                 deficiencies.append(f"PFT")
-                                break
+                                break  # One PFT deficiency is enough to report
         except Exception:
             pass
 
         # --- Check for military deficiency ---
         try:
             mil_sheet_map = {
-                "1CL": "1CL MIL", "2CL": "2CL MIL", "3CL": "3CL MIL"
+                "1CL": "1CL MIL",
+                "2CL": "2CL MIL",
+                "3CL": "3CL MIL"
             }
             mil2_sheet_map = {
-                "1CL": "1CL MIL 2", "2CL": "2CL MIL 2", "3CL": "3CL MIL 2"
+                "1CL": "1CL MIL 2",
+                "2CL": "2CL MIL 2",
+                "3CL": "3CL MIL 2"
             }
 
             for mil_sheet in [mil_sheet_map.get(cls), mil2_sheet_map.get(cls)]:
@@ -392,15 +411,12 @@ elif selected_view == "Summary Dashboard":
                         df_mil["NAME_CLEANED"] = df_mil.get('NAME', pd.Series(dtype='object')).astype(str).apply(clean_cadet_name_for_comparison)
                         cadet_mil_data = df_mil[df_mil["NAME_CLEANED"] == name_clean]
                         if not cadet_mil_data.empty:
-                            # 1CL specific check
                             if cls == "1CL" and 'GRADE' in cadet_mil_data.columns and pd.to_numeric(cadet_mil_data.iloc[0].get('GRADE'), errors='coerce') < 7:
                                 deficiencies.append("Military")
-                            # 2CL specific checks
                             elif cls == "2CL":
                                 mil_grades = ['AS', 'NS', 'AFS']
                                 if any(pd.to_numeric(cadet_mil_data.iloc[0].get(g), errors='coerce') < 7 for g in mil_grades if g in cadet_mil_data.columns):
                                     deficiencies.append("Military")
-                            # 3CL specific check
                             elif cls == "3CL" and 'MS231' in cadet_mil_data.columns and pd.to_numeric(cadet_mil_data.iloc[0].get('MS231'), errors='coerce') < 7:
                                 deficiencies.append("Military")
         except Exception:
