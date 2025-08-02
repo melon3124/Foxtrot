@@ -353,27 +353,35 @@ if st.session_state.mode == "class" and cls:
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
         with t1:
+            # Use a two-column layout for the profile picture and information
             pic, info = st.columns([1, 2])
+            
             with pic:
                 img_path = f"profile_pics/{name_disp}.jpg"
+                # Display the profile image or a placeholder if not found
                 st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
-        
+            
             with info:
-                # Use an expander to group all cadet information
+                # Group the personal information inside a collapsible expander
                 with st.expander("📝 Cadet Information", expanded=True):
+                    
+                    # Create a two-column grid for the key-value pairs
                     col1, col2 = st.columns(2)
                     
+                    # Create a dictionary of the information to display, excluding internal keys
                     info_to_display = {
                         k: v for k, v in row.items() 
                         if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]
                     }
                     
+                    # Iterate through the items and place them in alternating columns
                     for idx, (k, v) in enumerate(info_to_display.items()):
                         target_col = col1 if idx % 2 == 0 else col2
                         target_col.markdown(f"**{k}:** {v}")
-        
-                # Add an information box for navigation
-                st.info("💡 More detailed data is available in the other tabs.")
+                        
+                # Add an informational note at the bottom
+                st.info("💡 You can find more detailed academic, military, and PFT data in the other tabs.")
+
         
         with t2:
             st.markdown("### 📚 Academic Grades")
