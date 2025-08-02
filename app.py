@@ -435,8 +435,15 @@ if st.session_state.view == "summary":
         reports_df = sheet_df("REPORTS")
         
         if not conduct_df.empty:
-            if "touring status" in conduct_df.columns:
-                touring_cadets = conduct_df[conduct_df["touring status"].str.lower().str.contains("touring", na=False)]["name"].dropna().tolist()
+            # Find the 'touring status' column, being flexible with naming
+            touring_status_col = None
+            for col in conduct_df.columns:
+                if "TOURING" in col.upper():
+                    touring_status_col = col
+                    break
+            
+            if touring_status_col:
+                touring_cadets = conduct_df[conduct_df[touring_status_col].astype(str).str.lower().str.contains("touring", na=False)]["NAME"].dropna().tolist()
                 st.write("**Touring Cadets:**")
                 if touring_cadets:
                     st.write(f"{', '.join(touring_cadets)}")
