@@ -388,7 +388,7 @@ if st.session_state.mode == "class" and cls:
             try:
                 if "selected_term" not in st.session_state:
                     st.session_state.selected_term = "1st Term"
-            
+        
                 term = st.radio(
                     "Select Term",
                     ["1st Term", "2nd Term"],
@@ -397,7 +397,7 @@ if st.session_state.mode == "class" and cls:
                     help="Choose academic term"
                 )
                 st.session_state.selected_term = term
-            
+        
                 acad_sheet_map = {
                     "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD 2"},
                     "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD 2"},
@@ -408,16 +408,16 @@ if st.session_state.mode == "class" and cls:
                     "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
                     "3CL": {"1st Term": "3CL ACAD HISTORY", "2nd Term": "3CL ACAD HISTORY 2"}
                 }
-            
+        
                 possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
-            
+        
                 def find_name_column(df):
                     upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
                     for col in possible_name_cols:
                         if col.upper() in upper_cols:
                             return df.columns[upper_cols.get_loc(col.upper())]
                     return None
-            
+        
                 # Fetch the grades data
                 curr_df = sheet_df(acad_hist_map[cls][term])
                 curr_df.columns = [str(c).strip().upper() for c in curr_df.columns]
@@ -443,19 +443,66 @@ if st.session_state.mode == "class" and cls:
                         grades_df = pd.DataFrame(data)
                         
                         # --- The rows for "CURRENT GRADE" and "DEF/PROF POINTS" are removed here. ---
-                        # This assumes they exist as metrics in your dataset and we are filtering them out.
-                        # If they are not in your dataset, this filter won't affect anything, but the logic is correct.
                         metrics_to_remove = ["CURRENT GRADE", "DEF/PROF POINTS"]
                         grades_df = grades_df[~grades_df["Metric"].isin(metrics_to_remove)]
                         # -------------------------------------------------------------------------
-            
+                        
+                        # Calculate the status after removing the rows
                         grades_df["Status"] = grades_df["Value"].apply(
                             lambda x: "✅ PROFICIENT" if pd.notna(x) and x >= 7 else ("🚫 DEFICIENT" if pd.notna(x) else "")
                         )
-            
-                        st.markdown("#### 📝 Academic Metrics")
-                        st.dataframe(grades_df, use_container_width=True, hide_index=True)
-            
+        
+                        st.markdown("#### ✏️ Edit Academic Metrics")
+                        
+                        edited_df = st.data_editor(
+                            grades_df,
+                            column_config={
+                                "Metric": st.column_config.TextColumn("Metric", disabled=True),
+                                "Value": st.column_config.NumberColumn("Value", format="%g"),
+                                "Status": st.column_config.TextColumn("Status", disabled=True)
+                            },
+                            hide_index=True,
+                            use_container_width=True
+                        )
+                        
+                        # Check for changes in the 'Value' column
+                        grades_changed = not edited_df["Value"].equals(grades_df["Value"])
+        
+                        if grades_changed:
+                            st.success("✅ Changes detected. Click below to apply updates.")
+                            if st.button("📤 Submit All Changes"):
+                                try:
+                                    # Update the current grades sheet
+                                    curr_ws = SS.worksheet(acad_hist_map[cls][term])
+                                    curr_data = curr_ws.get_all_values()
+                                    headers_curr = curr_data[0]
+                                    
+                                    # Find the name column index
+                                    curr_df_temp = pd.DataFrame(curr_data[1:], columns=headers_curr)
+                                    name_idx_curr = find_name_column(curr_df_temp)
+        
+                                    if name_idx_curr is None:
+                                        st.error("❌ 'NAME' column not found in the current grades sheet.")
+                                    else:
+                                        for row_num, row_list in enumerate(curr_data[1:], start=1):
+                                            if clean_cadet_name_for_comparison(row_list[name_idx_curr]) == name_clean:
+                                                for idx, metric in edited_df.iterrows():
+                                                    if metric["Metric"] in headers_curr:
+                                                        subj_idx = headers_curr.index(metric["Metric"])
+                                                        curr_data[row_num][subj_idx] = edited_df.loc[idx, "Value"]
+                                                break
+                                        
+                                        # Write the updated data back to the Google Sheet
+                                        curr_ws.update("A1", curr_data)
+                                        st.cache_data.clear()
+                                        st.success("✅ Changes saved successfully.")
+                                        st.rerun()
+        
+                                except Exception as e:
+                                    st.error(f"❌ Error saving changes: {e}")
+                        else:
+                            st.info("📝 No grade changes to submit. Edit a cell above.")
+        
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
         
