@@ -772,79 +772,129 @@ if st.session_state.mode == "class" and cls:
 
         with t5:
             try:
-                conduct_sheet_name = f"{cls} CONDUCT"
-                conduct_df = sheet_df(conduct_sheet_name)
+                # Sheet map per term
+                conduct_sheet_map = {
+                    "1st Term": {
+                        "1CL": "1CL CONDUCT",
+                        "2CL": "2CL CONDUCT",
+                        "3CL": "3CL CONDUCT"
+                    },
+                    "2nd Term": {
+                        "1CL": "1CL CONDUCT 2",
+                        "2CL": "2CL CONDUCT 2",
+                        "3CL": "3CL CONDUCT 2"
+                    }
+                }
                 
-                possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
-                conduct_name_col = find_name_column(conduct_df)
-
-                if conduct_df.empty or conduct_name_col is None:
-                    st.warning("⚠️ No conduct data or name column found.")
+                term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="conduct_term")
+                sheet_name = conduct_sheet_map[term].get(cls)
+                
+                if not sheet_name:
+                    st.warning("Please select a valid class to view conduct data.")
                 else:
-                    conduct_df["NAME_CLEANED"] = conduct_df[conduct_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                    conduct = sheet_df(sheet_name)
+                    conduct.columns = [c.strip().lower() for c in conduct.columns]
+                    conduct["name_cleaned"] = conduct["name"].astype(str).apply(clean_cadet_name_for_comparison)
+                    cadet_data = conduct[conduct["name_cleaned"] == name_clean].copy()
                     
-                    # Display the main conduct report table as before
-                    st.subheader("Conduct Report")
-                    st.dataframe(conduct_df.drop(columns="NAME_CLEANED", errors='ignore'), use_container_width=True)
-
-                    # New editable table for Toured/Touring status (Admin only)
-                    if role == "admin":
-                        st.subheader("Update Toured/Touring Status")
+                    if cadet_data.empty:
+                        st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
+                    else:
+                        # --- Merits Summary + Edit ---
+                        st.subheader("Merits Summary")
                         
-                        # Prepare the DataFrame for the editor
-                        touring_status_col_exists = "TOURING STATUS" in conduct_df.columns
-                        
-                        editor_df = pd.DataFrame()
-                        editor_df["Cadet Name"] = conduct_df[conduct_name_col].copy()
-                        
-                        if touring_status_col_exists:
-                            editor_df["TOURED/TOURING"] = conduct_df["TOURING STATUS"].copy().fillna("")
-                        else:
-                            editor_df["TOURED/TOURING"] = ""
-                            
-                        # Use st.data_editor for the editable table
-                        edited_touring_df = st.data_editor(
-                            editor_df,
-                            column_config={
-                                "Cadet Name": st.column_config.Column("Cadet Name", disabled=True),
-                                "TOURED/TOURING": st.column_config.TextColumn("Toured/Touring", help="Enter a status like 'Toured', 'Touring', 'Cleared', etc.")
-                            },
-                            hide_index=True,
-                            use_container_width=True
+                        current_merits = cadet_data.iloc[0].get("merits", "0")
+                        merits_value = st.number_input(
+                            f"Edit Merits – {term}",
+                            value=float(current_merits) if str(current_merits).replace('.', '', 1).lstrip('-').isdigit() else 0.0,
+                            step=1.0
                         )
                         
-                        if not edited_touring_df.equals(editor_df):
-                            if st.button("📤 Submit Toured/Touring Status Changes"):
-                                try:
-                                    ws = get_worksheet_by_name(conduct_sheet_name)
-                                    data = ws.get_all_values()
-                                    headers = data[0]
-                                    body = data[1:]
-                                    
-                                    name_idx = next((i for i, h in enumerate(headers) if h.upper() == conduct_name_col.upper()), None)
-                                    touring_status_idx = next((i for i, h in enumerate(headers) if h.upper() == "TOURING STATUS"), None)
-                                    
-                                    if touring_status_idx is None:
-                                        headers.append("TOURING STATUS")
-                                        touring_status_idx = len(headers) - 1
-                                        for row in body:
-                                            row.append("")
-                                    
-                                    edited_touring_dict = edited_touring_df.set_index("Cadet Name")["TOURED/TOURING"].to_dict()
-                                    
-                                    for row in body:
-                                        cadet_name_in_sheet = row[name_idx]
-                                        if cadet_name_in_sheet in edited_touring_dict:
-                                            row[touring_status_idx] = edited_touring_dict[cadet_name_in_sheet]
-                                        
-                                    ws.clear()
-                                    ws.update(f"A1:{chr(64 + len(headers))}{len(body) + 1}", [headers] + body)
-                                    st.cache_data.clear()
-                                    st.success("✅ Toured/Touring status updated successfully!")
-                                except Exception as e:
-                                    st.error(f"❌ Error saving touring status: {e}")
-                        else:
-                            st.info("📝 No changes to Toured/Touring status detected.")
-
+                        status = "Failed" if merits_value < 0 else "Passed"
+                        
+                        merit_table = pd.DataFrame([{
+                            "Name": name_disp,
+                            "Merits": merits_value,
+                            "Status": status
+                        }])
+                        st.dataframe(merit_table, hide_index=True, use_container_width=True)
+                        
+                        if st.button(f"💾 Save Merits – {term}"):
+                            try:
+                                full_df = sheet_df(sheet_name)
+                                full_df.columns = [c.strip().lower() for c in full_df.columns]
+                                full_df["name_cleaned"] = full_df["name"].astype(str).apply(clean_cadet_name_for_comparison)
+                                full_df.loc[full_df["name_cleaned"] == name_clean, "merits"] = merits_value
+                                full_df.drop(columns=["name_cleaned"], inplace=True)
+                                update_sheet(sheet_name, full_df)
+                                sheet_df.clear()
+                                st.success("✅ Merits updated successfully.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Failed to update merits: {e}")
+                        
+                        # --- Conduct Reports Table ---
+                        st.subheader("Conduct Reports")
+                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]
+                        
+                        if "last_report_fetch" not in st.session_state:
+                            st.session_state["last_report_fetch"] = 0
+                        
+                        try:
+                            now = time.time()
+                            if now - st.session_state["last_report_fetch"] > 10:
+                                reports_df = sheet_df("REPORTS")
+                                st.session_state["last_report_df"] = reports_df
+                                st.session_state["last_report_fetch"] = now
+                            else:
+                                reports_df = st.session_state.get("last_report_df", pd.DataFrame(columns=expected_cols))
+                        
+                            reports_df.columns = [c.strip().upper() for c in reports_df.columns]
+                        
+                            if not set(expected_cols).issubset(set(reports_df.columns)):
+                                st.warning("⚠️ 'REPORTS' sheet is missing required columns. Showing empty table.")
+                                cadet_reports = pd.DataFrame(columns=expected_cols)
+                            else:
+                                reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                                cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
+                        
+                        except Exception as e:
+                            st.warning(f"⚠️ Could not load reports sheet: {e}")
+                            cadet_reports = pd.DataFrame(columns=expected_cols)
+                        
+                        st.dataframe(
+                            cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]],
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                        
+                        # --- Add New Report Form ---
+                        st.subheader("➕ Add New Conduct Report")
+                        with st.form("report_form"):
+                            new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
+                            new_report_date = st.date_input("Date of Report")
+                            new_nature = st.selectbox("Nature", ["I", "II", "III", "IV"])
+                            new_demerits = st.number_input("Demerits", step=1)
+                            submitted = st.form_submit_button("📤 Submit Report")
+                        
+                        if submitted:
+                            try:
+                                time.sleep(0.5)  # Allow smoother API write
+                                report_ws = SS.worksheet("REPORTS")
+                                new_row = [
+                                    name_disp,
+                                    new_report.strip(),
+                                    str(new_report_date),
+                                    new_nature,
+                                    str(new_demerits)
+                                ]
+                                report_ws.append_row(new_row, value_input_option="USER_ENTERED")
+                                st.cache_data.clear()
+                                time.sleep(0.75)
+                                st.success("✅ Report submitted successfully.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
+                
             except Exception as e:
-                st.error(f"❌ Unexpected conduct tab error: {e}")
+                st.error(f"❌ Unexpected error in Conduct tab: {e}")
