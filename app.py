@@ -255,14 +255,97 @@ if st.session_state.mode == "class" and cls:
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
         with t1:
-            pic, info = st.columns([1, 2])
-            with pic:
-                img_path = f"profile_pics/{name_disp}.jpg"
-                st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
-            with info:
-                left, right = st.columns(2)
-                for idx, (k, v) in enumerate({k: v for k, v in row.items() if k not in ["FULL NAME", "FULL NAME_DISPLAY", "CLASS"]}.items()):
-                    (left if idx % 2 == 0 else right).write(f"**{k}:** {v}")
+                    st.markdown("""
+                    <style>
+                    .profile-card {
+                        padding: 20px;
+                        border-radius: 10px;
+                        background-color: #2a0000; /* A slightly lighter shade than the main background */
+                        border: 1px solid #4a2d2d;
+                        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+                    }
+                    .profile-card h2, .profile-card h3 {
+                        margin-top: 0;
+                        color: #ffcccc; /* Lighter red for emphasis */
+                    }
+                    .profile-card .st-emotion-cache-1cl2gvu { /* Targets the image caption */
+                        text-align: center;
+                    }
+                    .info-section h5 {
+                        color: #ff8080; /* A brighter color for section titles */
+                        border-bottom: 2px solid #4a2d2d;
+                        padding-bottom: 5px;
+                        margin-top: 20px;
+                    }
+                    .info-pair {
+                        margin-bottom: 12px;
+                    }
+                    .info-pair b {
+                        color: #dcdcdc; /* Lighter text for the label */
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+        
+                    # Define a helper function to avoid repetition
+                    def display_info(label, value):
+                        """Displays a formatted label-value pair."""
+                        st.markdown(f"""
+                        <div class="info-pair">
+                            <b>{label}</b><br>
+                            <span>{value if value else 'N/A'}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+        
+                    with st.container():
+                        st.html('<div class="profile-card">') # Start custom card container
+        
+                        pic_col, info_col = st.columns([1, 2])
+        
+                        with pic_col:
+                            img_path = f"profile_pics/{name_disp}.jpg"
+                            if os.path.exists(img_path):
+                                st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}")
+                            else:
+                                st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available")
+        
+                        with info_col:
+                            # --- Primary Information ---
+                            st.title(name_disp)
+                            class_info = row.get('CLASS', 'N/A')
+                            afpsn_info = row.get('AFPSN', 'N/A')
+                            st.subheader(f"{class_info} | AFPSN: {afpsn_info}")
+                            st.divider()
+        
+                            # --- Grouped Information ---
+                            with st.container(border=False):
+                                st.markdown('<div class="info-section"><h5>👤 Personal Details</h5></div>', unsafe_allow_html=True)
+                                p_cols = st.columns(2)
+                                with p_cols[0]:
+                                    display_info("Date of Birth", row.get('DATE OF BIRTH'))
+                                    display_info("Age", row.get('AGE'))
+                                with p_cols[1]:
+                                    display_info("Height", row.get('HEIGHT'))
+                                    display_info("Weight", row.get('WEIGHT'))
+                                display_info("Course", row.get('COURSE'))
+        
+        
+                                st.markdown('<div class="info-section"><h5>📞 Contact Information</h5></div>', unsafe_allow_html=True)
+                                c_cols = st.columns(2)
+                                with c_cols[0]:
+                                    display_info("Contact No.", row.get('CONTACT NO'))
+                                with c_cols[1]:
+                                     display_info("Email Address", row.get('EMAIL ADDRESS'))
+                                display_info("Home Address", row.get('ADDRESS'))
+        
+        
+                                st.markdown('<div class="info-section"><h5>👨‍👩‍👧 Guardian Information</h5></div>', unsafe_allow_html=True)
+                                g_cols = st.columns(2)
+                                with g_cols[0]:
+                                    display_info("Guardian's Name", row.get('GUARDIANS NAME'))
+                                with g_cols[1]:
+                                    display_info("Guardian's Contact", row.get('GUARDIANS CONTACT NO'))
+        
+                        st.html('</div>') # End custom card container
 
         with t2:
             try:
