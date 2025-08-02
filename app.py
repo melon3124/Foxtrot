@@ -284,9 +284,11 @@ if st.session_state.mode == "class" and cls:
                 with pic_col:
                     img_path = f"profile_pics/{name_disp}.jpg"
                     if os.path.exists(img_path):
-                        st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}", use_column_width=True)
+                        # CORRECTED a few lines below
+                        st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}", use_container_width=True)
                     else:
-                        st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available", use_column_width=True)
+                        # CORRECTED a few lines below
+                        st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available", use_container_width=True)
 
                 # --- 2. Centered Primary Info ---
                 st.markdown(f"<h1 style='text-align: center; color: white;'>{name_disp}</h1>", unsafe_allow_html=True)
