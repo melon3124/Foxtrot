@@ -523,8 +523,8 @@ if st.session_state.mode == "class" and cls:
                             else:
                                 st.info("📝 No grade changes to submit. Edit a cell above.")
 
-    except Exception as e:
-        st.error(f"❌ Unexpected academic error (General): {e}")
+        except Exception as e:
+            st.error(f"❌ Unexpected academic error (General): {e}")
         
         with t3:
             st.markdown("### 🏃‍♂️ PFT Scores")
