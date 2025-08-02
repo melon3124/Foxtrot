@@ -254,18 +254,6 @@ if st.session_state.mode == "class" and cls:
         st.markdown(f"## Showing details for: {name_disp}")
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
-import streamlit as st
-import pandas as pd
-
-# Assume 'sheet_df' and 'clean_cadet_name_for_comparison' and 'update_sheet' functions are already defined.
-# The `globals()` check is already in place, but I will include it for completeness.
-
-import streamlit as st
-import pandas as pd
-
-# Assume 'sheet_df' and 'clean_cadet_name_for_comparison' and 'update_sheet' functions are already defined.
-# The `globals()` check is already in place, but I will include it for completeness.
-
         with t1:
             try:
                 # Initial check to make sure context variables are available
@@ -514,6 +502,7 @@ import pandas as pd
         
                                         st.cache_data.clear()
                                         st.success("✅ All changes saved to both sheets.")
+                                        st.rerun()
                                 except Exception as e:
                                     st.error(f"❌ Error saving changes: {e}")
                         else:
@@ -530,19 +519,19 @@ import pandas as pd
                     "2CL": "2CL PFT",
                     "3CL": "3CL PFT"
                 }
-    
+        
                 pft2_sheet_map = {
                     "1CL": "1CL PFT 2",
                     "2CL": "2CL PFT 2",
                     "3CL": "3CL PFT 2"
                 }
-    
+        
                 term = st.selectbox("Select Term", ["1st Term", "2nd Term"])
-    
+        
                 if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
                     st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
                 else:
-    
+        
                     def get_pft_data(sheet_key):
                         sheet_name = sheet_key.get(cls, None)
                         if not sheet_name:
@@ -558,14 +547,14 @@ import pandas as pd
                         if cadet.empty:
                             return None, None, f"No PFT record found for {name_disp} in '{sheet_name}'."
                         return cadet.copy(), df, None
-    
+        
                     exercises = [
                         ("Pushups", "PUSHUPS", "PUSHUPS_GRADES"),
                         ("Situps", "SITUPS", "SITUPS_GRADES"),
                         ("Pullups/Flexarm", "PULLUPS/FLEXARM", "PULLUPS_GRADES"),
                         ("3.2KM Run", "RUN", "RUN_GRADES")
                     ]
-    
+        
                     def build_display_and_form(title, cadet_data, full_df, sheet_name):
                         # Re-fetch latest data after reload
                         updated_df = sheet_df(sheet_name)
@@ -573,7 +562,7 @@ import pandas as pd
                         updated_df["NAME_CLEANED"] = updated_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                         cadet_data = updated_df[updated_df["NAME_CLEANED"] == name_clean].iloc[0]
                         full_df = updated_df.copy()
-    
+        
                         st.subheader(title)
                         table = []
                         for label, raw_col, grade_col in exercises:
@@ -591,7 +580,7 @@ import pandas as pd
                                 "Status": status
                             })
                         st.dataframe(pd.DataFrame(table), hide_index=True, use_container_width=True)
-    
+        
                         with st.expander("✏️ Edit Form"):
                             cols = st.columns(2)
                             input_values = {}
@@ -611,21 +600,21 @@ import pandas as pd
                                         step=0.1, format="%g",
                                         key=f"{title}_{grade_col}"
                                     )
-    
+        
                             if st.button(f"📂 Submit {title}"):
                                 for raw_col, val in input_values.items():
                                     full_df.loc[full_df["NAME_CLEANED"] == name_clean, raw_col] = val
                                 update_sheet(sheet_name, full_df)
-    
+        
                                 # 🔻 Clear cache so updated data is fetched
                                 sheet_df.clear()
-    
+        
                                 st.success(f"✅ Changes to '{title}' saved successfully.")
                                 st.session_state["pft_refresh_triggered"] = True
                                 st.session_state["active_tab"] = "t3"
                                 time.sleep(1)
                                 st.rerun()
-    
+        
                     if term == "1st Term":
                         cadet1, df1, err1 = get_pft_data(pft_sheet_map)
                         cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
@@ -637,262 +626,15 @@ import pandas as pd
                             st.warning(err2)
                         else:
                             build_display_and_form("🏋️ PFT 2 | 1st Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
-    
+        
                     elif term == "2nd Term":
-                        cadet2, df2, err2 = get_pft_data(pft2_sheet_map)
-                        cadet1, df1, err1 = get_pft_data(pft_sheet_map)
-                        if err2:
-                            st.warning(err2)
+                        cadet2_2, df2_2, err2_2 = get_pft_data(pft2_sheet_map)
+                        # Add a PFT 3 or another data source for the 2nd term if needed
+                        # cadet3, df3, err3 = get_pft_data(pft3_sheet_map) # Example for a 3rd PFT
+                        if err2_2:
+                            st.warning(err2_2)
                         else:
-                            build_display_and_form("🏋️ PFT 2 | 2nd Term", cadet2.iloc[0], df2, pft2_sheet_map[cls])
-                        if err1:
-                            st.warning(err1)
-                        else:
-                            build_display_and_form("🏋️ PFT 1 | 2nd Term", cadet1.iloc[0], df1, pft_sheet_map[cls])
-    
-            except Exception as e:
-                st.error(f"PFT load error: {e}")
-
-        with t4:
-            try:
-                mil_sheet_map = {
-                    "1CL": "1CL MIL",
-                    "2CL": "2CL MIL",
-                    "3CL": "3CL MIL"
-                }
-        
-                mil2_sheet_map = {
-                    "1CL": "1CL MIL 2",
-                    "2CL": "2CL MIL 2",
-                    "3CL": "3CL MIL 2"
-                }
-        
-                if 'cls' not in globals() or 'name_clean' not in globals() or 'name_disp' not in globals():
-                    st.error("❌ Required context variables (cls, name_clean, name_disp) are not defined.")
-                else:
-                    term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="mil_term")
-        
-                    sheet_name = mil_sheet_map.get(cls) if term == "1st Term" else mil2_sheet_map.get(cls)
-                    if not sheet_name:
-                        st.warning(f"No sheet mapped for class {cls} in {term}.")
-                    else:
-                        df = sheet_df(sheet_name)
-                        if df is None or df.empty:
-                            st.info(f"No military data found in '{sheet_name}'.")
-                        else:
-                            df.columns = [c.strip().upper() for c in df.columns]
-                            df["NAME_CLEANED"] = df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                            cadet_df = df[df["NAME_CLEANED"] == name_clean].copy()
-        
-                            if cadet_df.empty:
-                                st.warning(f"No military record found for {name_disp} in '{sheet_name}'.")
-                            else:
-                                st.subheader(f"📋 Military Grade Summary – {term}")
-                                display_rows = []
-        
-                                if cls == "1CL":
-                                    grade = cadet_df.iloc[0].get("GRADE", "N/A")
-                                    try:
-                                        status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-                                    display_rows.append({
-                                        "Name": name_disp,
-                                        "BOS": cadet_df.iloc[0].get("BOS", ""),
-                                        "GRADE": grade,
-                                        "Status": status
-                                    })
-        
-                                elif cls == "2CL":
-                                    for subj in ["AS", "NS", "AFS"]:
-                                        grade = cadet_df.iloc[0].get(subj, "N/A")
-                                        try:
-                                            status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
-                                        except:
-                                            status = "N/A"
-                                        display_rows.append({
-                                            "Name": name_disp,
-                                            "Subject": subj,
-                                            "GRADE": grade,
-                                            "Status": status
-                                        })
-        
-                                elif cls == "3CL":
-                                    grade = cadet_df.iloc[0].get("MS231", "N/A")
-                                    try:
-                                        status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
-                                    except:
-                                        status = "N/A"
-                                    display_rows.append({
-                                        "Name": name_disp,
-                                        "MS231": grade,
-                                        "Status": status
-                                    })
-        
-                                st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
-        
-                                st.markdown(f"### ✏️ Edit Grades – {term}")
-                                input_data = {}
-        
-                                if cls == "1CL":
-                                    current_grade = cadet_df.iloc[0].get("GRADE", "")
-                                    input_data["GRADE"] = st.number_input(f"{term} Grade", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1, key=f"mil_grade_1cl_{term}")
-        
-                                elif cls == "2CL":
-                                    for subj in ["AS", "NS", "AFS"]:
-                                        current_grade = cadet_df.iloc[0].get(subj, "")
-                                        input_data[subj] = st.number_input(
-                                            f"{subj} Grade – {term}", value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0, step=0.1, key=f"mil_grade_2cl_{subj}_{term}"
-                                        )
-        
-                                elif cls == "3CL":
-                                    current_grade = cadet_df.iloc[0].get("MS231", "")
-                                    input_data["MS231"] = st.number_input(
-                                        f"MS231 Grade – {term}",
-                                        value=float(current_grade) if str(current_grade).replace('.', '', 1).isdigit() else 0.0,
-                                        step=0.1,
-                                        key=f"mil_grade_3cl_{term}"
-                                    )
-        
-                                if st.button(f"📤 Submit {term} Grades", key=f"mil_submit_{term}"):
-                                    for col, val in input_data.items():
-                                        df.loc[df["NAME_CLEANED"] == name_clean, col] = val
-        
-                                    update_sheet(sheet_name, df)
-        
-                                    sheet_df.clear()
-                                    st.success("✅ Military grades updated successfully.")
-                                    st.rerun()
+                            build_display_and_form("🏋️ PFT 2 | 2nd Term", cadet2_2.iloc[0], df2_2, pft2_sheet_map[cls])
         
             except Exception as e:
-                st.error(f"❌ Military data load error: {e}")
-
-
-        with t5:
-            try:
-                # Sheet map per term
-                conduct_sheet_map = {
-                    "1st Term": {
-                        "1CL": "1CL CONDUCT",
-                        "2CL": "2CL CONDUCT",
-                        "3CL": "3CL CONDUCT"
-                    },
-                    "2nd Term": {
-                        "1CL": "1CL CONDUCT 2",
-                        "2CL": "2CL CONDUCT 2",
-                        "3CL": "3CL CONDUCT 2"
-                    }
-                }
-        
-                term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="conduct_term")
-                sheet_name = conduct_sheet_map[term].get(cls)
-        
-                if not sheet_name:
-                    st.warning("Please select a valid class to view conduct data.")
-                else:
-                    conduct = sheet_df(sheet_name)
-                    conduct.columns = [c.strip().lower() for c in conduct.columns]
-                    conduct["name_cleaned"] = conduct["name"].astype(str).apply(clean_cadet_name_for_comparison)
-                    cadet_data = conduct[conduct["name_cleaned"] == name_clean].copy()
-        
-                    if cadet_data.empty:
-                        st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
-                    else:
-                        # --- Merits Summary + Edit ---
-                        st.subheader("Merits Summary")
-        
-                        current_merits = cadet_data.iloc[0].get("merits", "0")
-                        merits_value = st.number_input(
-                            f"Edit Merits – {term}",
-                            value=float(current_merits) if str(current_merits).replace('.', '', 1).lstrip('-').isdigit() else 0.0,
-                            step=1.0
-                        )
-        
-                        status = "Failed" if merits_value < 0 else "Passed"
-        
-                        merit_table = pd.DataFrame([{
-                            "Name": name_disp,
-                            "Merits": merits_value,
-                            "Status": status
-                        }])
-                        st.dataframe(merit_table, hide_index=True, use_container_width=True)
-        
-                        if st.button(f"💾 Save Merits – {term}"):
-                            try:
-                                full_df = sheet_df(sheet_name)
-                                full_df.columns = [c.strip().lower() for c in full_df.columns]
-                                full_df["name_cleaned"] = full_df["name"].astype(str).apply(clean_cadet_name_for_comparison)
-                                full_df.loc[full_df["name_cleaned"] == name_clean, "merits"] = merits_value
-                                full_df.drop(columns=["name_cleaned"], inplace=True)
-                                update_sheet(sheet_name, full_df)
-                                sheet_df.clear()
-                                st.success("✅ Merits updated successfully.")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ Failed to update merits: {e}")
-        
-                        # --- Conduct Reports Table ---
-                        st.subheader("Conduct Reports")
-                        expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]
-        
-                        if "last_report_fetch" not in st.session_state:
-                            st.session_state["last_report_fetch"] = 0
-        
-                        try:
-                            now = time.time()
-                            if now - st.session_state["last_report_fetch"] > 10:
-                                reports_df = sheet_df("REPORTS")
-                                st.session_state["last_report_df"] = reports_df
-                                st.session_state["last_report_fetch"] = now
-                            else:
-                                reports_df = st.session_state.get("last_report_df", pd.DataFrame(columns=expected_cols))
-        
-                            reports_df.columns = [c.strip().upper() for c in reports_df.columns]
-        
-                            if not set(expected_cols).issubset(set(reports_df.columns)):
-                                st.warning("⚠️ 'REPORTS' sheet is missing required columns. Showing empty table.")
-                                cadet_reports = pd.DataFrame(columns=expected_cols)
-                            else:
-                                reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                                cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean]
-        
-                        except Exception as e:
-                            st.warning(f"⚠️ Could not load reports sheet: {e}")
-                            cadet_reports = pd.DataFrame(columns=expected_cols)
-        
-                        st.dataframe(
-                            cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]],
-                            use_container_width=True,
-                            hide_index=True
-                        )
-        
-                        # --- Add New Report Form ---
-                        st.subheader("➕ Add New Conduct Report")
-                        with st.form("report_form"):
-                            new_report = st.text_area("Report Description", placeholder="Enter behavior details...")
-                            new_report_date = st.date_input("Date of Report")
-                            new_nature = st.selectbox("Nature", ["I", "II", "III", "IV"])
-                            new_demerits = st.number_input("Demerits", step=1)
-                            submitted = st.form_submit_button("📤 Submit Report")
-        
-                        if submitted:
-                            try:
-                                time.sleep(0.5)  # Allow smoother API write
-                                report_ws = SS.worksheet("REPORTS")
-                                new_row = [
-                                    name_disp,
-                                    new_report.strip(),
-                                    str(new_report_date),
-                                    new_nature,
-                                    str(new_demerits)
-                                ]
-                                report_ws.append_row(new_row, value_input_option="USER_ENTERED")
-                                st.cache_data.clear()
-                                time.sleep(0.75)
-                                st.success("✅ Report submitted successfully.")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
-        
-            except Exception as e:
-                st.error(f"❌ Unexpected error in Conduct tab: {e}")
+                st.error(f"❌ PFT data load error: {e}")
