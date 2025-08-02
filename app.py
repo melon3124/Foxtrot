@@ -397,6 +397,11 @@ if st.session_state.mode == "class" and cls:
             )
             st.session_state.selected_term = term
     
+            acad_sheet_map = {
+                "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD 2"},
+                "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD 2"},
+                "3CL": {"1st Term": "3CL ACAD", "2nd Term": "3CL ACAD 2"}
+            }
             acad_hist_map = {
                 "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
                 "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
@@ -438,90 +443,110 @@ if st.session_state.mode == "class" and cls:
                     data.append(new_row)
                 return data
     
-            # --- REVISED LOGIC FOR BUILDING THE TABLE ---
             st.subheader("📚 Academic Grades")
+    
+            prev_df = sheet_df(acad_sheet_map[cls][term])
             curr_df = sheet_df(acad_hist_map[cls][term])
+            
+            prev_df.columns = [str(c).strip().upper() for c in prev_df.columns]
+            curr_df.columns = [str(c).strip().upper() for c in curr_df.columns]
+            
+            prev_name_col = find_name_column(prev_df)
+            curr_name_col = find_name_column(curr_df)
     
-            if curr_df.empty:
-                st.warning("⚠️ No academic data or name column found.")
+            if prev_df.empty or prev_name_col is None:
+                st.warning("⚠️ No valid previous academic data or name column found.")
             else:
-                curr_name_col = find_name_column(curr_df)
-                if curr_name_col is None:
-                    st.error("❌ 'NAME' column not found in the academic history sheet.")
+                prev_df["NAME_CLEANED"] = prev_df[prev_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                row_prev = prev_df[prev_df["NAME_CLEANED"] == name_clean]
+    
+                if row_prev.empty:
+                    st.warning(f"No academic record found in previous sheet for {name_disp}.")
                 else:
-                    curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                    row_curr = curr_df[curr_df["NAME_CLEANED"] == name_clean]
+                    row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
+                    subjects = row_prev.index.tolist()
+                    df = pd.DataFrame({"SUBJECT": subjects})
+                    df["PREVIOUS GRADE"] = pd.to_numeric(row_prev.values, errors="coerce")
     
-                    if row_curr.empty:
-                        st.warning(f"No academic record found for {name_disp}.")
-                    else:
-                        # Get subjects and current grades for the selected cadet
-                        row_curr = row_curr.iloc[0]
-                        subjects = [col for col in row_curr.index if col not in [curr_name_col, 'NAME_CLEANED']]
-                        
-                        df = pd.DataFrame({"SUBJECT": subjects})
-                        df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects]
-    
-                        # Calculate status
-                        df["STATUS"] = df["CURRENT GRADE"].apply(
-                            lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
-                        )
-    
-                        # Configure AgGrid to look like a simple dataframe
-                        gb = GridOptionsBuilder.from_dataframe(df)
-                        gb.configure_column("SUBJECT", editable=False)
-                        gb.configure_column("CURRENT GRADE", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
-                        gb.configure_column("STATUS", editable=False)
-                        gb.configure_grid_options(domLayout='autoHeight')
-                        grid_options = gb.build()
-    
-                        grid_response = AgGrid(
-                            df,
-                            gridOptions=grid_options,
-                            update_mode=GridUpdateMode.VALUE_CHANGED,
-                            allow_unsafe_jscode=True,
-                            fit_columns_on_grid_load=True,
-                            enable_enterprise_modules=False,
-                            key=f"acad_grid_{cls}_{name_clean}_{term}" # Unique key to prevent issues with state
-                        )
-    
-                        edited_df = grid_response["data"]
-                        grades_changed = not edited_df["CURRENT GRADE"].equals(df["CURRENT GRADE"])
-    
-                        if grades_changed:
-                            st.success("✅ Detected changes. Click below to apply updates.")
-                            if st.button("📤 Submit All Changes"):
-                                try:
-                                    hist_ws = get_worksheet_by_name(acad_hist_map[cls][term])
-                                    hist_data = hist_ws.get_all_values()
-                                    headers_hist = hist_data[0]
-                                    name_idx_hist = next((i for i, h in enumerate(headers_hist) if h.upper() in [c.upper() for c in possible_name_cols]), None)
-    
-                                    if name_idx_hist is None:
-                                        st.error("❌ 'NAME' column not found in one of the sheets.")
-                                    else:
-                                        subj_idx_hist = {subj: headers_hist.index(subj) for subj in edited_df["SUBJECT"] if subj in headers_hist}
-    
-                                        for row_list in hist_data[1:]:
-                                            if clean_cadet_name_for_comparison(row_list[name_idx_hist]) == name_clean:
-                                                for _, r in edited_df.iterrows():
-                                                    subj = r["SUBJECT"]
-                                                    if subj in subj_idx_hist:
-                                                        row_list[subj_idx_hist[subj]] = str(r["CURRENT GRADE"])
-                                                break
-                                        
-                                        hist_ws.clear()
-                                        hist_ws.update([headers_hist] + hist_data[1:])
-                                        
-                                        st.cache_data.clear()
-                                        st.success("✅ Changes saved successfully.")
-                                        st.rerun()
-    
-                                except Exception as e:
-                                    st.error(f"❌ Error saving changes: {e}")
+                    if curr_name_col and not curr_df.empty:
+                        curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                        row_curr = curr_df[curr_df["NAME_CLEANED"] == name_clean]
+                        if not row_curr.empty:
+                            row_curr = row_curr.iloc[0]
+                            df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects]
                         else:
-                            st.info("📝 No changes to submit.")
-        
+                            df["CURRENT GRADE"] = None
+                    else:
+                        df["CURRENT GRADE"] = None
+                    
+                    # These columns are for internal use and will be configured as hidden or non-editable
+                    df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
+                    df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(
+                        lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️")
+                    )
+                    df["STATUS"] = df["CURRENT GRADE"].apply(
+                        lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
+                    )
+                    
+                    # Configuration for AgGrid to match standard Streamlit dataframe look
+                    gb = GridOptionsBuilder.from_dataframe(df[["SUBJECT", "CURRENT GRADE", "STATUS"]])
+                    gb.configure_column("SUBJECT", editable=False)
+                    gb.configure_column("CURRENT GRADE", editable=True, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2)
+                    gb.configure_column("STATUS", editable=False)
+                    gb.configure_grid_options(domLayout='autoHeight')
+                    grid_options = gb.build()
+                    
+                    grid_response = AgGrid(
+                        df[["SUBJECT", "CURRENT GRADE", "STATUS"]], # Display only the desired columns
+                        gridOptions=grid_options,
+                        update_mode=GridUpdateMode.VALUE_CHANGED,
+                        allow_unsafe_jscode=True,
+                        fit_columns_on_grid_load=True,
+                        enable_enterprise_modules=False
+                    )
+    
+                    edited_df = grid_response["data"]
+                    grades_changed = not edited_df["CURRENT GRADE"].equals(df["CURRENT GRADE"])
+                    
+                    if grades_changed or st.session_state.get("force_show_submit", False):
+                        st.success("✅ Detected changes. Click below to apply updates.")
+                        if st.button("📤 Submit All Changes"):
+                            st.session_state["force_show_submit"] = False
+                            try:
+                                # Update academic history sheet
+                                hist_ws = get_worksheet_by_name(acad_hist_map[cls][term])
+                                hist_data = hist_ws.get_all_values()
+                                headers_hist = hist_data[0]
+                                name_idx_hist = next((i for i, h in enumerate(headers_hist) if h.upper() in [c.upper() for c in possible_name_cols]), None)
+                                
+                                if name_idx_hist is None:
+                                    st.error("❌ 'NAME' column not found in academic history sheet.")
+                                else:
+                                    subj_idx_hist = {subj: headers_hist.index(subj) for subj in edited_df["SUBJECT"] if subj in headers_hist}
+    
+                                    for row_list in hist_data[1:]:
+                                        if clean_cadet_name_for_comparison(row_list[name_idx_hist]) == name_clean:
+                                            for _, r in edited_df.iterrows():
+                                                subj = r["SUBJECT"]
+                                                if subj in subj_idx_hist:
+                                                    row_list[subj_idx_hist[subj]] = str(r["CURRENT GRADE"])
+                                            break
+                                    
+                                    hist_ws.clear()
+                                    hist_ws.update([headers_hist] + hist_data[1:])
+                                    
+                                    # Do not update the previous grades sheet since that's not what the user is editing.
+                                    
+                                    st.cache_data.clear()
+                                    st.success("✅ Changes saved successfully.")
+                                    st.rerun()
+    
+                            except Exception as e:
+                                st.error(f"❌ Error saving changes: {e}")
+                    else:
+                        st.session_state["force_show_submit"] = True
+                        st.info("📝 No detected grade changes yet. Try editing a cell.")
+    
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
             
