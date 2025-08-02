@@ -310,15 +310,13 @@ if st.session_state.view == "summary":
             st.write("🚫 SMC Cadets (Failed)")
             st.dataframe(smc[["NAME", "AVG_GRADE"]], use_container_width=True)
 
-            top_male = merged[merged.columns.str.upper().str.strip().isin(["GENDER"])].copy()
             if "GENDER" in merged.columns:
                 merged["GENDER"] = merged["GENDER"].astype(str).str.upper().str.strip()
                 top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
-            else:
-                top_male = pd.DataFrame()
-            if "GENDER" in merged.columns:
                 top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
             else:
+                st.warning("⚠️ 'GENDER' column not found in merged data.")
+                top_male = pd.DataFrame()
                 top_female = pd.DataFrame()
 
             st.write("💪 Strongest Male Cadet")
@@ -378,8 +376,6 @@ if st.session_state.view == "summary":
             st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
 
     st.stop()
-
-
 
     # -------------------- SESSION STATE --------------------
 for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
