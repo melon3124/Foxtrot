@@ -565,7 +565,7 @@ if st.session_state.mode == "class" and cls:
 
         with t4:
             try:
-                mil_sheet_map = {
+                mil_sheet_map = {
                     "1CL": "1CL MIL",
                     "2CL": "2CL MIL",
                     "3CL": "3CL MIL"
