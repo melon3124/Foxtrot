@@ -312,147 +312,147 @@ if st.session_state.view == "summary":
     with t_acad:
         st.subheader("Academic Summary")
         term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="summary_acad_term")
+        cls_select = st.selectbox("Select Class", ["1CL", "2CL", "3CL"], key="summary_acad_class")
         
-        for cls in classes:
-            st.markdown(f"#### {cls} Academics")
-            acad_df = sheet_df(acad_hist_map.get(term, {}).get(cls))
-            if not acad_df.empty:
-                subjects = [col for col in acad_df.columns if col not in ["NAME", "CURRENT GRADE", "STATUS", "DEF/PROF POINTS"]]
-                for subj in subjects:
-                    if subj in acad_df.columns:
-                        acad_df[subj] = pd.to_numeric(acad_df[subj], errors="coerce")
-                        proficient = acad_df[acad_df[subj] >= 7]["NAME"].dropna().tolist()
-                        deficient = acad_df[acad_df[subj] < 7]["NAME"].dropna().tolist()
-                        
-                        def_prof_points_series = acad_df.get("DEF/PROF POINTS")
-                        if def_prof_points_series is not None and not def_prof_points_series.empty:
-                            numeric_points = pd.to_numeric(def_prof_points_series, errors='coerce').dropna()
-                            highest_deficiency = numeric_points.max() if not numeric_points.empty else "N/A"
-                        else:
-                            highest_deficiency = "N/A"
-                        
-                        st.markdown(f"**Subject: {subj}**")
-                        
-                        # Create and display the table for proficient and deficient cadets
-                        summary_table = pd.DataFrame({
-                            "Status": ["Proficient", "Deficient"],
-                            "Cadets": [', '.join(proficient) if proficient else "None", ', '.join(deficient) if deficient else "None"],
-                            "Count": [len(proficient), len(deficient)]
-                        })
-                        st.dataframe(summary_table, hide_index=True, use_container_width=True)
-                        
-                        st.write(f"**Highest Deficiency Points:** {highest_deficiency if pd.notna(highest_deficiency) else 'N/A'}")
-                        st.markdown("---")
+        st.markdown(f"#### {cls_select} Academics")
+        acad_df = sheet_df(acad_hist_map.get(term, {}).get(cls_select))
+        if not acad_df.empty:
+            subjects = [col for col in acad_df.columns if col not in ["NAME", "CURRENT GRADE", "STATUS", "DEF/PROF POINTS"]]
+            for subj in subjects:
+                if subj in acad_df.columns:
+                    acad_df[subj] = pd.to_numeric(acad_df[subj], errors="coerce")
+                    proficient = acad_df[acad_df[subj] >= 7]["NAME"].dropna().tolist()
+                    deficient = acad_df[acad_df[subj] < 7]["NAME"].dropna().tolist()
+                    
+                    def_prof_points_series = acad_df.get("DEF/PROF POINTS")
+                    if def_prof_points_series is not None and not def_prof_points_series.empty:
+                        numeric_points = pd.to_numeric(def_prof_points_series, errors='coerce').dropna()
+                        highest_deficiency = numeric_points.max() if not numeric_points.empty else "N/A"
+                    else:
+                        highest_deficiency = "N/A"
+                    
+                    st.markdown(f"**Subject: {subj}**")
+                    
+                    # Create and display the table for proficient and deficient cadets
+                    summary_table = pd.DataFrame({
+                        "Status": ["Proficient", "Deficient"],
+                        "Cadets": [', '.join(proficient) if proficient else "None", ', '.join(deficient) if deficient else "None"],
+                        "Count": [len(proficient), len(deficient)]
+                    })
+                    st.dataframe(summary_table, hide_index=True, use_container_width=True)
+                    
+                    st.write(f"**Highest Deficiency Points:** {highest_deficiency if pd.notna(highest_deficiency) else 'N/A'}")
+                    st.markdown("---")
 
     with t_pft:
         st.subheader("PFT Summary")
         term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="summary_pft_term")
+        cls_select = st.selectbox("Select Class", ["1CL", "2CL", "3CL"], key="summary_pft_class")
         
-        for cls in classes:
-            st.markdown(f"#### {cls} PFT")
-            pft_df = sheet_df(pft_sheet_map.get(term, {}).get(cls))
-            if not pft_df.empty:
-                pft_df['NAME_CLEANED'] = pft_df['NAME'].str.upper().str.strip()
-                demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
-                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', 'GENDER']], on='NAME_CLEANED', how='left')
-                
-                if 'GRADE' in merged_df.columns:
-                    merged_df['GRADE'] = pd.to_numeric(merged_df['GRADE'], errors='coerce')
-                    smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
-                    st.write("**SMC (Failed) Cadets:**")
-                    if smc_cadets:
-                        st.write(f"{', '.join(smc_cadets)}")
-                    else:
-                        st.write("None")
+        st.markdown(f"#### {cls_select} PFT")
+        pft_df = sheet_df(pft_sheet_map.get(term, {}).get(cls_select))
+        if not pft_df.empty:
+            pft_df['NAME_CLEANED'] = pft_df['NAME'].str.upper().str.strip()
+            demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
+            merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', 'GENDER']], on='NAME_CLEANED', how='left')
+            
+            if 'GRADE' in merged_df.columns:
+                merged_df['GRADE'] = pd.to_numeric(merged_df['GRADE'], errors='coerce')
+                smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
+                st.write("**SMC (Failed) Cadets:**")
+                if smc_cadets:
+                    st.write(f"{', '.join(smc_cadets)}")
                 else:
-                    st.warning(f"No 'GRADE' column found for {cls} PFT sheet. Cannot determine SMC cadets.")
+                    st.write("None")
+            else:
+                st.warning(f"No 'GRADE' column found for {cls_select} PFT sheet. Cannot determine SMC cadets.")
 
-                merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
-                merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
-                merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
-                merged_df['RUN_GRADES'] = pd.to_numeric(merged_df.get('RUN_GRADES', pd.Series()), errors='coerce')
+            merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
+            merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
+            merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
+            merged_df['RUN_GRADES'] = pd.to_numeric(merged_df.get('RUN_GRADES', pd.Series()), errors='coerce')
 
-                merged_df['PFT_AVG_GRADE'] = merged_df[['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']].mean(axis=1)
-                
-                strongest_male = merged_df[merged_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'MALE'].empty else None
-                strongest_female = merged_df[merged_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'FEMALE'].empty else None
-                
-                st.write("**Strongest Cadets (Highest Average Grade):**")
-                if strongest_male is not None:
-                    st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
-                if strongest_female is not None:
-                    st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
+            merged_df['PFT_AVG_GRADE'] = merged_df[['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']].mean(axis=1)
+            
+            strongest_male = merged_df[merged_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'MALE'].empty else None
+            strongest_female = merged_df[merged_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'FEMALE'].empty else None
+            
+            st.write("**Strongest Cadets (Highest Average Grade):**")
+            if strongest_male is not None:
+                st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
+            if strongest_female is not None:
+                st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
     
     with t_mil:
         st.subheader("Military Summary")
         term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="summary_mil_term")
-        
-        for cls in classes:
-            st.markdown(f"#### {cls} Military")
-            mil_df = sheet_df(mil_sheet_map.get(term, {}).get(cls))
-            if not mil_df.empty:
-                if cls == "1CL":
-                    mil_df["GRADE"] = pd.to_numeric(mil_df.get("GRADE", pd.Series()), errors="coerce")
-                    proficient = mil_df[mil_df["GRADE"] >= 7]["NAME"].dropna().tolist()
-                    deficient = mil_df[mil_df["GRADE"] < 7]["NAME"].dropna().tolist()
-                elif cls == "2CL":
-                    mil_df["AS"] = pd.to_numeric(mil_df.get("AS", pd.Series()), errors="coerce")
-                    mil_df["NS"] = pd.to_numeric(mil_df.get("NS", pd.Series()), errors="coerce")
-                    mil_df["AFS"] = pd.to_numeric(mil_df.get("AFS", pd.Series()), errors="coerce")
-                    
-                    proficient = mil_df[
-                        (mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)
-                    ]["NAME"].dropna().tolist()
-                    deficient = mil_df[
-                        (mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)
-                    ]["NAME"].dropna().tolist()
-                elif cls == "3CL":
-                    mil_df["MS231"] = pd.to_numeric(mil_df.get("MS231", pd.Series()), errors="coerce")
-                    proficient = mil_df[mil_df["MS231"] >= 7]["NAME"].dropna().tolist()
-                    deficient = mil_df[mil_df["MS231"] < 7]["NAME"].dropna().tolist()
+        cls_select = st.selectbox("Select Class", ["1CL", "2CL", "3CL"], key="summary_mil_class")
+
+        st.markdown(f"#### {cls_select} Military")
+        mil_df = sheet_df(mil_sheet_map.get(term, {}).get(cls_select))
+        if not mil_df.empty:
+            if cls_select == "1CL":
+                mil_df["GRADE"] = pd.to_numeric(mil_df.get("GRADE", pd.Series()), errors="coerce")
+                proficient = mil_df[mil_df["GRADE"] >= 7]["NAME"].dropna().tolist()
+                deficient = mil_df[mil_df["GRADE"] < 7]["NAME"].dropna().tolist()
+            elif cls_select == "2CL":
+                mil_df["AS"] = pd.to_numeric(mil_df.get("AS", pd.Series()), errors="coerce")
+                mil_df["NS"] = pd.to_numeric(mil_df.get("NS", pd.Series()), errors="coerce")
+                mil_df["AFS"] = pd.to_numeric(mil_df.get("AFS", pd.Series()), errors="coerce")
                 
-                st.write("**Proficient:**")
-                if proficient:
-                    st.write(f"{', '.join(proficient)}")
-                else:
-                    st.write("None")
-                
-                st.write("**Deficient:**")
-                if deficient:
-                    st.write(f"{', '.join(deficient)}")
-                else:
-                    st.write("None")
+                proficient = mil_df[
+                    (mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)
+                ]["NAME"].dropna().tolist()
+                deficient = mil_df[
+                    (mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)
+                ]["NAME"].dropna().tolist()
+            elif cls_select == "3CL":
+                mil_df["MS231"] = pd.to_numeric(mil_df.get("MS231", pd.Series()), errors="coerce")
+                proficient = mil_df[mil_df["MS231"] >= 7]["NAME"].dropna().tolist()
+                deficient = mil_df[mil_df["MS231"] < 7]["NAME"].dropna().tolist()
+            
+            st.write("**Proficient:**")
+            if proficient:
+                st.write(f"{', '.join(proficient)}")
+            else:
+                st.write("None")
+            
+            st.write("**Deficient:**")
+            if deficient:
+                st.write(f"{', '.join(deficient)}")
+            else:
+                st.write("None")
 
     with t_conduct:
         st.subheader("Conduct Summary")
         term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="summary_conduct_term")
+        cls_select = st.selectbox("Select Class", ["1CL", "2CL", "3CL"], key="summary_conduct_class")
+
+        st.markdown(f"#### {cls_select} Conduct")
+        conduct_df = sheet_df(conduct_sheet_map.get(term, {}).get(cls_select))
+        reports_df = sheet_df("REPORTS")
         
-        for cls in classes:
-            st.markdown(f"#### {cls} Conduct")
-            conduct_df = sheet_df(conduct_sheet_map.get(term, {}).get(cls))
-            reports_df = sheet_df("REPORTS")
+        if not conduct_df.empty:
+            conduct_df["touring status"] = conduct_df.get("touring status", pd.Series())
+            touring_cadets = conduct_df[conduct_df["touring status"].str.lower().str.contains("touring", na=False)]["name"].dropna().tolist()
+            st.write("**Touring Cadets:**")
+            if touring_cadets:
+                st.write(f"{', '.join(touring_cadets)}")
+            else:
+                st.write("None")
+        
+        if not reports_df.empty:
+            reports_df["DEMERITS"] = pd.to_numeric(reports_df.get("DEMERITS", pd.Series()), errors="coerce")
+            reports_df = reports_df.dropna(subset=['NAME'])
+            demerits_per_cadet = reports_df.groupby("NAME")["DEMERITS"].sum()
             
-            if not conduct_df.empty:
-                conduct_df["touring status"] = conduct_df.get("touring status", pd.Series())
-                touring_cadets = conduct_df[conduct_df["touring status"].str.lower().str.contains("touring", na=False)]["name"].dropna().tolist()
-                st.write("**Touring Cadets:**")
-                if touring_cadets:
-                    st.write(f"{', '.join(touring_cadets)}")
-                else:
-                    st.write("None")
+            red_cadets = demerits_per_cadet[demerits_per_cadet >= 20].index.tolist()
             
-            if not reports_df.empty:
-                reports_df["DEMERITS"] = pd.to_numeric(reports_df.get("DEMERITS", pd.Series()), errors="coerce")
-                reports_df = reports_df.dropna(subset=['NAME'])
-                demerits_per_cadet = reports_df.groupby("NAME")["DEMERITS"].sum()
-                
-                red_cadets = demerits_per_cadet[demerits_per_cadet >= 20].index.tolist()
-                
-                st.write("**Cadets with >= 20 Demerits (on the red):**")
-                if red_cadets:
-                    st.write(f"{', '.join(red_cadets)}")
-                else:
-                    st.write("None")
+            st.write("**Cadets with >= 20 Demerits (on the red):**")
+            if red_cadets:
+                st.write(f"{', '.join(red_cadets)}")
+            else:
+                st.write("None")
 
 # --- MAIN DASHBOARD ---
 else:
