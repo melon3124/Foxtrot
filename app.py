@@ -302,7 +302,8 @@ if st.session_state.view == "summary":
     
     if "GENDER" not in merged.columns:
         st.warning("⚠️ 'GENDER' column not found in demographics.")
-        continue
+        st.stop()  # ✅ This cleanly stops execution of the current page
+
     
     top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
     top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
