@@ -770,7 +770,6 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Military data load error: {e}")
 
-
        with t5:
             try:
                 conduct_sheet_name = f"{cls} CONDUCT"
