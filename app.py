@@ -310,8 +310,16 @@ if st.session_state.view == "summary":
             st.write("🚫 SMC Cadets (Failed)")
             st.dataframe(smc[["NAME", "AVG_GRADE"]], use_container_width=True)
 
-            top_male = merged[merged["GENDER"].fillna("").str.upper().str.strip() == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
-            top_female = merged[merged["GENDER"].fillna("").str.upper().str.strip() == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
+            top_male = merged[merged.columns.str.upper().str.strip().isin(["GENDER"])].copy()
+            if "GENDER" in merged.columns:
+                merged["GENDER"] = merged["GENDER"].astype(str).str.upper().str.strip()
+                top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
+            else:
+                top_male = pd.DataFrame()
+                        if "GENDER" in merged.columns:
+                top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
+            else:
+                top_female = pd.DataFrame()
 
             st.write("💪 Strongest Male Cadet")
             st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
@@ -370,6 +378,7 @@ if st.session_state.view == "summary":
             st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
 
     st.stop()
+
 
 
     # -------------------- SESSION STATE --------------------
