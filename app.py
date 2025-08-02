@@ -770,81 +770,81 @@ if st.session_state.mode == "class" and cls:
             except Exception as e:
                 st.error(f"❌ Military data load error: {e}")
 
-       with t5:
-            try:
-                conduct_sheet_name = f"{cls} CONDUCT"
-                conduct_df = sheet_df(conduct_sheet_name)
-                
-                possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
-                conduct_name_col = find_name_column(conduct_df)
-
-                if conduct_df.empty or conduct_name_col is None:
-                    st.warning("⚠️ No conduct data or name column found.")
-                else:
-                    conduct_df["NAME_CLEANED"] = conduct_df[conduct_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+           with t5:
+                try:
+                    conduct_sheet_name = f"{cls} CONDUCT"
+                    conduct_df = sheet_df(conduct_sheet_name)
                     
-                    # Display the main conduct report table as before
-                    st.subheader("Conduct Report")
-                    st.dataframe(conduct_df.drop(columns="NAME_CLEANED", errors='ignore'), use_container_width=True)
-
-                    # New editable table for Toured/Touring status (Admin only)
-                    if role == "admin":
-                        st.subheader("Update Toured/Touring Status")
+                    possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
+                    conduct_name_col = find_name_column(conduct_df)
+    
+                    if conduct_df.empty or conduct_name_col is None:
+                        st.warning("⚠️ No conduct data or name column found.")
+                    else:
+                        conduct_df["NAME_CLEANED"] = conduct_df[conduct_name_col].astype(str).apply(clean_cadet_name_for_comparison)
                         
-                        # Prepare the DataFrame for the editor
-                        touring_status_col_exists = "TOURING STATUS" in conduct_df.columns
-                        
-                        editor_df = pd.DataFrame()
-                        editor_df["Cadet Name"] = conduct_df[conduct_name_col].copy()
-                        
-                        if touring_status_col_exists:
-                            editor_df["TOURED/TOURING"] = conduct_df["TOURING STATUS"].copy().fillna("")
-                        else:
-                            editor_df["TOURED/TOURING"] = ""
+                        # Display the main conduct report table as before
+                        st.subheader("Conduct Report")
+                        st.dataframe(conduct_df.drop(columns="NAME_CLEANED", errors='ignore'), use_container_width=True)
+    
+                        # New editable table for Toured/Touring status (Admin only)
+                        if role == "admin":
+                            st.subheader("Update Toured/Touring Status")
                             
-                        # Use st.data_editor for the editable table
-                        edited_touring_df = st.data_editor(
-                            editor_df,
-                            column_config={
-                                "Cadet Name": st.column_config.Column("Cadet Name", disabled=True),
-                                "TOURED/TOURING": st.column_config.TextColumn("Toured/Touring", help="Enter a status like 'Toured', 'Touring', 'Cleared', etc.")
-                            },
-                            hide_index=True,
-                            use_container_width=True
-                        )
-                        
-                        if not edited_touring_df.equals(editor_df):
-                            if st.button("📤 Submit Toured/Touring Status Changes"):
-                                try:
-                                    ws = get_worksheet_by_name(conduct_sheet_name)
-                                    data = ws.get_all_values()
-                                    headers = data[0]
-                                    body = data[1:]
-                                    
-                                    name_idx = next((i for i, h in enumerate(headers) if h.upper() == conduct_name_col.upper()), None)
-                                    touring_status_idx = next((i for i, h in enumerate(headers) if h.upper() == "TOURING STATUS"), None)
-                                    
-                                    if touring_status_idx is None:
-                                        headers.append("TOURING STATUS")
-                                        touring_status_idx = len(headers) - 1
-                                        for row in body:
-                                            row.append("")
-                                    
-                                    edited_touring_dict = edited_touring_df.set_index("Cadet Name")["TOURED/TOURING"].to_dict()
-                                    
-                                    for row in body:
-                                        cadet_name_in_sheet = row[name_idx]
-                                        if cadet_name_in_sheet in edited_touring_dict:
-                                            row[touring_status_idx] = edited_touring_dict[cadet_name_in_sheet]
+                            # Prepare the DataFrame for the editor
+                            touring_status_col_exists = "TOURING STATUS" in conduct_df.columns
+                            
+                            editor_df = pd.DataFrame()
+                            editor_df["Cadet Name"] = conduct_df[conduct_name_col].copy()
+                            
+                            if touring_status_col_exists:
+                                editor_df["TOURED/TOURING"] = conduct_df["TOURING STATUS"].copy().fillna("")
+                            else:
+                                editor_df["TOURED/TOURING"] = ""
+                                
+                            # Use st.data_editor for the editable table
+                            edited_touring_df = st.data_editor(
+                                editor_df,
+                                column_config={
+                                    "Cadet Name": st.column_config.Column("Cadet Name", disabled=True),
+                                    "TOURED/TOURING": st.column_config.TextColumn("Toured/Touring", help="Enter a status like 'Toured', 'Touring', 'Cleared', etc.")
+                                },
+                                hide_index=True,
+                                use_container_width=True
+                            )
+                            
+                            if not edited_touring_df.equals(editor_df):
+                                if st.button("📤 Submit Toured/Touring Status Changes"):
+                                    try:
+                                        ws = get_worksheet_by_name(conduct_sheet_name)
+                                        data = ws.get_all_values()
+                                        headers = data[0]
+                                        body = data[1:]
                                         
-                                    ws.clear()
-                                    ws.update(f"A1:{chr(64 + len(headers))}{len(body) + 1}", [headers] + body)
-                                    st.cache_data.clear()
-                                    st.success("✅ Toured/Touring status updated successfully!")
-                                except Exception as e:
-                                    st.error(f"❌ Error saving touring status: {e}")
-                        else:
-                            st.info("📝 No changes to Toured/Touring status detected.")
-
-            except Exception as e:
-                st.error(f"❌ Unexpected conduct tab error: {e}")
+                                        name_idx = next((i for i, h in enumerate(headers) if h.upper() == conduct_name_col.upper()), None)
+                                        touring_status_idx = next((i for i, h in enumerate(headers) if h.upper() == "TOURING STATUS"), None)
+                                        
+                                        if touring_status_idx is None:
+                                            headers.append("TOURING STATUS")
+                                            touring_status_idx = len(headers) - 1
+                                            for row in body:
+                                                row.append("")
+                                        
+                                        edited_touring_dict = edited_touring_df.set_index("Cadet Name")["TOURED/TOURING"].to_dict()
+                                        
+                                        for row in body:
+                                            cadet_name_in_sheet = row[name_idx]
+                                            if cadet_name_in_sheet in edited_touring_dict:
+                                                row[touring_status_idx] = edited_touring_dict[cadet_name_in_sheet]
+                                            
+                                        ws.clear()
+                                        ws.update(f"A1:{chr(64 + len(headers))}{len(body) + 1}", [headers] + body)
+                                        st.cache_data.clear()
+                                        st.success("✅ Toured/Touring status updated successfully!")
+                                    except Exception as e:
+                                        st.error(f"❌ Error saving touring status: {e}")
+                            else:
+                                st.info("📝 No changes to Toured/Touring status detected.")
+    
+                except Exception as e:
+                    st.error(f"❌ Unexpected conduct tab error: {e}")
