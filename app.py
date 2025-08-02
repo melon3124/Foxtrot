@@ -354,8 +354,14 @@ if st.session_state.view == "summary":
         if not pft_df.empty:
             pft_df['NAME_CLEANED'] = pft_df['NAME'].str.upper().str.strip()
             demo_df['NAME_CLEANED'] = demo_df['FULL NAME_DISPLAY'].str.upper().str.strip()
-            merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', 'GENDER']], on='NAME_CLEANED', how='left')
-            
+
+            if 'GENDER' not in demo_df.columns:
+                st.warning("⚠️ 'GENDER' column is missing from the DEMOGRAPHICS sheet. Cannot determine male/female data.")
+                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED']], on='NAME_CLEANED', how='left')
+                merged_df['GENDER'] = 'N/A'  # Add a placeholder
+            else:
+                merged_df = pd.merge(pft_df, demo_df[['NAME_CLEANED', 'GENDER']], on='NAME_CLEANED', how='left')
+
             if 'GRADE' in merged_df.columns:
                 merged_df['GRADE'] = pd.to_numeric(merged_df['GRADE'], errors='coerce')
                 smc_cadets = merged_df[merged_df['GRADE'] < 7]['NAME'].dropna().tolist()
@@ -366,22 +372,25 @@ if st.session_state.view == "summary":
                     st.write("None")
             else:
                 st.warning(f"No 'GRADE' column found for {cls_select} PFT sheet. Cannot determine SMC cadets.")
-
-            merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
-            merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
-            merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
-            merged_df['RUN_GRADES'] = pd.to_numeric(merged_df.get('RUN_GRADES', pd.Series()), errors='coerce')
-
-            merged_df['PFT_AVG_GRADE'] = merged_df[['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']].mean(axis=1)
             
-            strongest_male = merged_df[merged_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'MALE'].empty else None
-            strongest_female = merged_df[merged_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'FEMALE'].empty else None
+            if 'GENDER' in merged_df.columns and 'PFT_AVG_GRADE' in merged_df.columns:
+                merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
+                merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
+                merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
+                merged_df['RUN_GRADES'] = pd.to_numeric(merged_df.get('RUN_GRADES', pd.Series()), errors='coerce')
             
-            st.write("**Strongest Cadets (Highest Average Grade):**")
-            if strongest_male is not None:
-                st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
-            if strongest_female is not None:
-                st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
+                merged_df['PFT_AVG_GRADE'] = merged_df[['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']].mean(axis=1)
+
+                strongest_male = merged_df[merged_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'MALE'].empty else None
+                strongest_female = merged_df[merged_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'FEMALE'].empty else None
+
+                st.write("**Strongest Cadets (Highest Average Grade):**")
+                if strongest_male is not None:
+                    st.write(f"**Male:** {strongest_male['NAME']} (Grade: {strongest_male['PFT_AVG_GRADE']:.2f})")
+                if strongest_female is not None:
+                    st.write(f"**Female:** {strongest_female['NAME']} (Grade: {strongest_female['PFT_AVG_GRADE']:.2f})")
+            else:
+                st.info("Could not determine strongest cadets due to missing gender or grade data.")
     
     with t_mil:
         st.subheader("Military Summary")
