@@ -304,7 +304,8 @@ if st.session_state.view == "summary":
             pft_df["AVG_GRADE"] = pft_df[["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]].mean(axis=1)
             pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
 
-            merged = pd.merge(pft_df, demo_df, left_on="NAME_CLEANED", right_on="FULL NAME", how="left")
+            merged = pd.merge(pft_df, demo_df.copy(), left_on="NAME_CLEANED", right_on="FULL NAME", how="left")
+            st.write("✅ Merged Columns:", merged.columns.tolist())
 
             smc = merged[merged["AVG_GRADE"] < 7]
             st.write("🚫 SMC Cadets (Failed)")
@@ -391,7 +392,6 @@ if st.session_state.view == "summary":
             st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
 
     st.stop()
-
 
 
     # -------------------- SESSION STATE --------------------
