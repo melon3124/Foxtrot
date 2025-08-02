@@ -255,97 +255,89 @@ if st.session_state.mode == "class" and cls:
         t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
         with t1:
-                    st.markdown("""
-                    <style>
-                    .profile-card {
-                        padding: 20px;
-                        border-radius: 10px;
-                        background-color: #2a0000; /* A slightly lighter shade than the main background */
-                        border: 1px solid #4a2d2d;
-                        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-                    }
-                    .profile-card h2, .profile-card h3 {
-                        margin-top: 0;
-                        color: #ffcccc; /* Lighter red for emphasis */
-                    }
-                    .profile-card .st-emotion-cache-1cl2gvu { /* Targets the image caption */
-                        text-align: center;
-                    }
-                    .info-section h5 {
-                        color: #ff8080; /* A brighter color for section titles */
-                        border-bottom: 2px solid #4a2d2d;
-                        padding-bottom: 5px;
-                        margin-top: 20px;
-                    }
-                    .info-pair {
-                        margin-bottom: 12px;
-                    }
-                    .info-pair b {
-                        color: #dcdcdc; /* Lighter text for the label */
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-        
-                    # Define a helper function to avoid repetition
-                    def display_info(label, value):
-                        """Displays a formatted label-value pair."""
-                        st.markdown(f"""
-                        <div class="info-pair">
-                            <b>{label}</b><br>
-                            <span>{value if value else 'N/A'}</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-        
-                    with st.container():
-                        st.html('<div class="profile-card">') # Start custom card container
-        
-                        pic_col, info_col = st.columns([1, 2])
-        
-                        with pic_col:
-                            img_path = f"profile_pics/{name_disp}.jpg"
-                            if os.path.exists(img_path):
-                                st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}")
-                            else:
-                                st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available")
-        
-                        with info_col:
-                            # --- Primary Information ---
-                            st.title(name_disp)
-                            class_info = row.get('CLASS', 'N/A')
-                            afpsn_info = row.get('AFPSN', 'N/A')
-                            st.subheader(f"{class_info} | AFPSN: {afpsn_info}")
-                            st.divider()
-        
-                            # --- Grouped Information ---
-                            with st.container(border=False):
-                                st.markdown('<div class="info-section"><h5>👤 Personal Details</h5></div>', unsafe_allow_html=True)
-                                p_cols = st.columns(2)
-                                with p_cols[0]:
-                                    display_info("Date of Birth", row.get('DATE OF BIRTH'))
-                                    display_info("Age", row.get('AGE'))
-                                with p_cols[1]:
-                                    display_info("Height", row.get('HEIGHT'))
-                                    display_info("Weight", row.get('WEIGHT'))
-                                display_info("Course", row.get('COURSE'))
-        
-        
-                                st.markdown('<div class="info-section"><h5>📞 Contact Information</h5></div>', unsafe_allow_html=True)
-                                c_cols = st.columns(2)
-                                with c_cols[0]:
-                                    display_info("Contact No.", row.get('CONTACT NO'))
-                                with c_cols[1]:
-                                     display_info("Email Address", row.get('EMAIL ADDRESS'))
-                                display_info("Home Address", row.get('ADDRESS'))
-        
-        
-                                st.markdown('<div class="info-section"><h5>👨‍👩‍👧 Guardian Information</h5></div>', unsafe_allow_html=True)
-                                g_cols = st.columns(2)
-                                with g_cols[0]:
-                                    display_info("Guardian's Name", row.get('GUARDIANS NAME'))
-                                with g_cols[1]:
-                                    display_info("Guardian's Contact", row.get('GUARDIANS CONTACT NO'))
-        
-                        st.html('</div>') # End custom card container
+            # This helper function creates a clean key-value display.
+            def display_field(label, value):
+                """Displays a formatted label-value pair."""
+                # Use title case for labels and handle missing values gracefully.
+                display_label = str(label).replace("_", " ").title()
+                display_value = value if pd.notna(value) and str(value).strip() else 'N/A'
+                st.markdown(f"**{display_label}**\n\n{display_value}")
+                st.markdown("---") # Visual separator for clarity
+
+            # This function generates a section with a title and lays out the fields in columns.
+            def create_section(title, fields_to_display, num_columns=2):
+                if not fields_to_display:
+                    return # Don't create a section if there's nothing to show
+
+                st.subheader(title, divider="red")
+                
+                cols = st.columns(num_columns)
+                col_index = 0
+                for label, value in fields_to_display.items():
+                    with cols[col_index % num_columns]:
+                        display_field(label, value)
+                    col_index += 1
+
+            # --- Start of UI ---
+            with st.container(border=True):
+                pic_col, info_col = st.columns([1, 2])
+
+                with pic_col:
+                    img_path = f"profile_pics/{name_disp}.jpg"
+                    if os.path.exists(img_path):
+                        st.image(img_path, caption=f"Cadet {row.get('FAMILY NAME', '')}")
+                    else:
+                        st.image("https://via.placeholder.com/400x400.png?text=No+Photo", caption="Photo Not Available")
+
+                with info_col:
+                    # --- 1. Primary Info (Always at the top) ---
+                    st.title(name_disp)
+                    class_info = row.get('CLASS', 'N/A')
+                    afpsn_info = row.get('AFPSN', 'N/A')
+                    st.header(f"{class_info} | AFPSN: {afpsn_info}")
+
+                    # --- 2. Dynamically Categorize All Other Fields ---
+                    
+                    # Make a copy of the cadet's data to work with
+                    details = row.to_dict()
+
+                    # Define keywords for categorization
+                    personal_keywords = ['DATE OF BIRTH', 'AGE', 'HEIGHT', 'WEIGHT', 'COURSE', 'RELIGION', 'ETHNICITY', 'GENDER']
+                    contact_keywords = ['CONTACT', 'EMAIL', 'ADDRESS']
+                    guardian_keywords = ['GUARDIAN']
+
+                    # These are fields we've already displayed or are internal
+                    keys_to_ignore = ['FULL NAME', 'FULL NAME_DISPLAY', 'CLASS', 'AFPSN', 'FAMILY NAME', 'FIRST NAME', 'MIDDLE NAME', 'EXTN']
+
+                    # Prepare dictionaries to hold categorized fields
+                    personal_fields = {}
+                    contact_fields = {}
+                    guardian_fields = {}
+                    additional_fields = {}
+                    
+                    # Loop through all details from the spreadsheet row
+                    for key, value in details.items():
+                        if key in keys_to_ignore:
+                            continue
+                        
+                        # Convert key to uppercase for consistent matching
+                        upper_key = key.upper()
+
+                        if any(keyword in upper_key for keyword in personal_keywords):
+                            personal_fields[key] = value
+                        elif any(keyword in upper_key for keyword in contact_keywords):
+                            contact_fields[key] = value
+                        elif any(keyword in upper_key for keyword in guardian_keywords):
+                            guardian_fields[key] = value
+                        else:
+                            # Anything else goes into 'Additional Details'
+                            additional_fields[key] = value
+
+                    # --- 3. Display the Organized Sections ---
+                    create_section("👤 Personal Details", personal_fields)
+                    create_section("📞 Contact Information", contact_fields)
+                    create_section("👨‍👩‍👧 Guardian Information", guardian_fields)
+                    create_section("📋 Additional Details", additional_fields)
 
         with t2:
             try:
