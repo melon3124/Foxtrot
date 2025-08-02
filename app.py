@@ -304,8 +304,8 @@ if "GENDER" not in merged.columns:
     st.warning("⚠️ 'GENDER' column not found in demographics.")
     continue
 
-        top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
-        top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
+top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
+top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
 
 
             st.write("💪 Strongest Male Cadet")
