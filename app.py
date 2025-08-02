@@ -442,13 +442,15 @@ if st.session_state.view == "summary":
         reports_df = sheet_df("REPORTS")
         
         if not conduct_df.empty:
-            conduct_df["touring status"] = conduct_df.get("touring status", pd.Series())
-            touring_cadets = conduct_df[conduct_df["touring status"].str.lower().str.contains("touring", na=False)]["name"].dropna().tolist()
-            st.write("**Touring Cadets:**")
-            if touring_cadets:
-                st.write(f"{', '.join(touring_cadets)}")
+            if "touring status" in conduct_df.columns:
+                touring_cadets = conduct_df[conduct_df["touring status"].str.lower().str.contains("touring", na=False)]["name"].dropna().tolist()
+                st.write("**Touring Cadets:**")
+                if touring_cadets:
+                    st.write(f"{', '.join(touring_cadets)}")
+                else:
+                    st.write("None")
             else:
-                st.write("None")
+                st.warning("⚠️ 'touring status' column is missing from the conduct sheet. Cannot determine touring cadets.")
         
         if not reports_df.empty:
             reports_df["DEMERITS"] = pd.to_numeric(reports_df.get("DEMERITS", pd.Series()), errors="coerce")
@@ -1018,20 +1020,37 @@ else:
                         else:
                             st.subheader("Merits and Touring Summary")
                             
-                            current_merits = cadet_data.iloc[0].get("merits", "0")
-                            merits_value = st.number_input(
-                                f"Edit Merits – {term}",
-                                value=float(current_merits) if str(current_merits).replace('.', '', 1).lstrip('-').isdigit() else 0.0,
-                                step=1.0,
-                                key="merits_input"
-                            )
+                            if "merits" in cadet_data.columns:
+                                current_merits = cadet_data.iloc[0].get("merits", "0")
+                                merits_value = st.number_input(
+                                    f"Edit Merits – {term}",
+                                    value=float(current_merits) if str(current_merits).replace('.', '', 1).lstrip('-').isdigit() else 0.0,
+                                    step=1.0,
+                                    key="merits_input"
+                                )
+                            else:
+                                st.warning("⚠️ 'merits' column is missing from the conduct sheet.")
+                                merits_value = st.number_input(
+                                    f"Edit Merits – {term}",
+                                    value=0.0,
+                                    step=1.0,
+                                    key="merits_input"
+                                )
                             
-                            current_touring_status = cadet_data.iloc[0].get("touring status", "")
-                            new_touring_status = st.text_input(
-                                f"Edit Toured/Touring Status – {term}",
-                                value=current_touring_status,
-                                key="touring_status_input"
-                            )
+                            if "touring status" in cadet_data.columns:
+                                current_touring_status = cadet_data.iloc[0].get("touring status", "")
+                                new_touring_status = st.text_input(
+                                    f"Edit Toured/Touring Status – {term}",
+                                    value=current_touring_status,
+                                    key="touring_status_input"
+                                )
+                            else:
+                                st.warning("⚠️ 'touring status' column is missing from the conduct sheet.")
+                                new_touring_status = st.text_input(
+                                    f"Edit Toured/Touring Status – {term}",
+                                    value="",
+                                    key="touring_status_input"
+                                )
                             
                             status = "Failed" if merits_value < 0 else "Passed"
                             
