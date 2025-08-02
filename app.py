@@ -362,18 +362,18 @@ if st.session_state.view == "summary":
                 continue
 
             st.markdown(f"### {cls} Conduct")
-            if "DEMERITS" in conduct_df.columns:
-                conduct_df["DEMERITS"] = pd.to_numeric(conduct_df["DEMERITS"], errors="coerce")
+            if "MERITS" in conduct_df.columns:
+                conduct_df["DEMERITS"] = pd.to_numeric(conduct_df["MERITS"], errors="coerce")
             else:
-                st.warning("⚠️ 'DEMERITS' column not found in conduct data.")
+                st.warning("⚠️ 'MERITS' column not found in conduct data.")
                 conduct_df["DEMERITS"] = 0
 
             touring_df = sheet_df("REPORTS")
             touring_df["NAME_CLEANED"] = touring_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            if "CLASS" in demo_df.columns:
-                class_cadets = demo_df[demo_df["CLASS"] == cls]["FULL NAME"]
+            if "CLASS" in conduct_df.columns:
+                class_cadets = conduct_df[conduct_df["CLASS"] == cls]["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
             else:
-                st.warning("⚠️ 'CLASS' column not found in demographics.")
+                st.warning("⚠️ 'CLASS' column not found in conduct data.")
                 class_cadets = pd.Series(dtype=str)
             touring_filtered = touring_df[touring_df["NAME_CLEANED"].isin(class_cadets)]
 
@@ -385,7 +385,6 @@ if st.session_state.view == "summary":
             st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
 
     st.stop()
-
 
 
     # -------------------- SESSION STATE --------------------
