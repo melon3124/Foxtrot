@@ -368,6 +368,9 @@ if st.session_state.mode == "class" and cls:
                 }
 
                 possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
+                
+                # These are the columns we want to remove from the subject list
+                cols_to_remove = ["PREVIOUS GRADE", "DEF/PROF POINTS"]
 
                 def find_name_column(df):
                     upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
@@ -382,10 +385,20 @@ if st.session_state.mode == "class" and cls:
                             return ws
                     raise Exception(f"Worksheet '{name}' not found.")
                 
-                def update_sheet_rows(data, headers, name_idx, edited_df, name_clean, name_disp, sheet_columns_to_update):
-                    updated = False
-                    edited_data_map = {row['SUBJECT']: row for _, row in edited_df.iterrows()}
+                def update_sheet_rows(data, headers, name_idx, edited_df, name_clean, name_disp):
+                    # Create a dictionary to hold the latest grades and points
+                    updated_data = {
+                        "GRADES": {},
+                        "DEF/PROF POINTS": None
+                    }
                     
+                    # Separate subjects from points, as points are consistent across rows
+                    for _, r in edited_df.iterrows():
+                        updated_data["GRADES"][r["SUBJECT"]] = str(r["CURRENT GRADE"]) if pd.notna(r["CURRENT GRADE"]) else ""
+                        # Take the points from the first row, as it's the same for all
+                        if updated_data["DEF/PROF POINTS"] is None and "DEF/PROF POINTS" in r:
+                            updated_data["DEF/PROF POINTS"] = str(r["DEF/PROF POINTS"]) if pd.notna(r["DEF/PROF POINTS"]) else ""
+
                     # Find the row for the current cadet
                     cadet_row = None
                     cadet_row_index = -1
@@ -402,36 +415,28 @@ if st.session_state.mode == "class" and cls:
                         data.append(cadet_row)
                         cadet_row_index = len(data) - 1
                     
-                    # Update subject-specific grades and the combined points
-                    for subject in edited_data_map.keys():
-                        new_values = edited_data_map[subject]
-                        
-                        # Handle grade columns (CURRENT GRADE and PREVIOUS GRADE)
-                        for col_name in sheet_columns_to_update:
-                            if col_name in new_values:
-                                try:
-                                    col_idx = headers.index(col_name)
-                                except ValueError:
-                                    # Add new column if it doesn't exist
-                                    headers.append(col_name)
-                                    col_idx = len(headers) - 1
-                                    for i in range(len(data)):
-                                        data[i].extend([""] * (col_idx - len(data[i]) + 1))
-                                cadet_row[col_idx] = str(new_values[col_name]) if pd.notna(new_values[col_name]) else ""
-                                
-                        # Handle subject columns
+                    # Update grades for each subject
+                    for subject, grade in updated_data["GRADES"].items():
                         try:
                             subj_idx = headers.index(subject)
                         except ValueError:
-                            # Add new subject column if it doesn't exist
                             headers.append(subject)
                             subj_idx = len(headers) - 1
                             for i in range(len(data)):
                                 data[i].extend([""] * (subj_idx - len(data[i]) + 1))
-                        
-                        # Only update the grade for the specific subject row
-                        cadet_row[subj_idx] = str(new_values['CURRENT GRADE']) if 'CURRENT GRADE' in new_values and pd.notna(new_values['CURRENT GRADE']) else ""
-                        
+                        cadet_row[subj_idx] = grade
+
+                    # Update the combined points column
+                    if updated_data["DEF/PROF POINTS"] is not None:
+                        try:
+                            points_idx = headers.index("DEF/PROF POINTS")
+                        except ValueError:
+                            headers.append("DEF/PROF POINTS")
+                            points_idx = len(headers) - 1
+                            for i in range(len(data)):
+                                data[i].extend([""] * (points_idx - len(data[i]) + 1))
+                        cadet_row[points_idx] = updated_data["DEF/PROF POINTS"]
+
                     data[cadet_row_index] = cadet_row
                     
                     return data, headers
@@ -456,9 +461,12 @@ if st.session_state.mode == "class" and cls:
                         st.info("Some available cadet names: " + ", ".join(prev_df[prev_name_col].dropna().astype(str).unique()[:5]))
                     else:
                         row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
-                        subjects = row_prev.index.tolist()
+                        
+                        # Filter out the rows we don't want to display
+                        subjects = [s for s in row_prev.index.tolist() if s.upper() not in [c.upper() for c in cols_to_remove]]
+
                         df = pd.DataFrame({"SUBJECT": subjects})
-                        df["PREVIOUS GRADE"] = pd.to_numeric(row_prev.values, errors="coerce")
+                        df["PREVIOUS GRADE"] = [pd.to_numeric(row_prev.get(subj, None), errors="coerce") for subj in subjects]
                         
                         # Add new columns with default values
                         df["CURRENT GRADE"] = None
@@ -517,11 +525,8 @@ if st.session_state.mode == "class" and cls:
                                     if name_idx_hist is None or name_idx_prev is None:
                                         st.error("❌ 'NAME' column not found in one of the sheets.")
                                     else:
-                                        hist_cols_to_update = ["CURRENT GRADE", "DEF/PROF POINTS"]
-                                        prev_cols_to_update = ["PREVIOUS GRADE", "DEF/PROF POINTS"]
-                                        
-                                        hist_data, headers_hist = update_sheet_rows(hist_data, headers_hist, name_idx_hist, edited_df, name_clean, name_disp, hist_cols_to_update)
-                                        prev_data, headers_prev = update_sheet_rows(prev_data, headers_prev, name_idx_prev, edited_df, name_clean, name_disp, prev_cols_to_update)
+                                        hist_data, headers_hist = update_sheet_rows(hist_data, headers_hist, name_idx_hist, edited_df, name_clean, name_disp)
+                                        prev_data, headers_prev = update_sheet_rows(prev_data, headers_prev, name_idx_prev, edited_df, name_clean, name_disp)
                                         
                                         hist_ws.clear()
                                         hist_ws.update(f"A1:{chr(64 + len(headers_hist))}{len(hist_data)}", [headers_hist] + hist_data[1:])
