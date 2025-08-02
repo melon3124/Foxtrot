@@ -359,7 +359,7 @@ if st.session_state.mode == "class" and cls:
                 st.image(img_path if os.path.exists(img_path) else "https://via.placeholder.com/400", width=350)
             
             with info:
-                # Use an expander to neatly contain the cadet's personal info
+                # Use a smaller heading for the expander title
                 with st.expander("📝 Cadet Information", expanded=True):
                     
                     # Use columns to create a two-column layout for the key-value pairs
@@ -374,12 +374,13 @@ if st.session_state.mode == "class" and cls:
                     # Iterate through the filtered items and place them in alternating columns
                     for idx, (k, v) in enumerate(info_to_display.items()):
                         target_col = col1 if idx % 2 == 0 else col2
-                        target_col.metric(label=k, value=v)
+                        target_col.markdown(f"**{k}:** {v}")
                         
-                # Add an information box for any general notes or a call to action
-                st.info("💡 You can find more detailed academic, military, and PFT data in the other tabs.")
+                # Add a smaller info box
+                st.info("💡 More detailed data is available in the other tabs.")
         
         with t2:
+            st.markdown("### 📚 Academic Grades")
             try:
                 if "selected_term" not in st.session_state:
                     st.session_state.selected_term = "1st Term"
@@ -479,7 +480,7 @@ if st.session_state.mode == "class" and cls:
                             lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️")
                         )
                         df["STATUS"] = df["CURRENT GRADE"].apply(
-                            lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
+                            lambda x: "✅ PROFICIENT" if pd.notna(x) and x >= 7 else ("🚫 DEFICIENT" if pd.notna(x) else "")
                         )
             
                         st.subheader("📝 Editable Grades Table")
@@ -549,6 +550,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Unexpected academic error: {e}")
         
         with t3:
+            st.markdown("### 🏃‍♂️ PFT Scores")
             try:
                 pft_sheet_map = {
                     "1CL": "1CL PFT",
@@ -605,8 +607,8 @@ if st.session_state.mode == "class" and cls:
                             reps = cadet_data.get(raw_col, "")
                             grade = cadet_data.get(grade_col, "")
                             status = (
-                                "Passed" if str(grade).strip().replace('.', '', 1).isdigit() and float(grade) >= 7 else
-                                "Failed" if str(grade).strip().replace('.', '', 1).isdigit() else
+                                "✅ Passed" if str(grade).strip().replace('.', '', 1).isdigit() and float(grade) >= 7 else
+                                "🚫 Failed" if str(grade).strip().replace('.', '', 1).isdigit() else
                                 "N/A"
                             )
                             table.append({
@@ -679,6 +681,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"PFT load error: {e}")
         
         with t4:
+            st.markdown("### 🎖️ Military Grades")
             try:
                 mil_sheet_map = {
                     "1CL": "1CL MIL",
@@ -718,7 +721,7 @@ if st.session_state.mode == "class" and cls:
                                 if cls == "1CL":
                                     grade = cadet_df.iloc[0].get("GRADE", "N/A")
                                     try:
-                                        status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                        status = "✅ Proficient" if float(grade) >= 7 else "🚫 DEFICIENT"
                                     except:
                                         status = "N/A"
                                     display_rows.append({
@@ -732,7 +735,7 @@ if st.session_state.mode == "class" and cls:
                                     for subj in ["AS", "NS", "AFS"]:
                                         grade = cadet_df.iloc[0].get(subj, "N/A")
                                         try:
-                                            status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                            status = "✅ Proficient" if float(grade) >= 7 else "🚫 DEFICIENT"
                                         except:
                                             status = "N/A"
                                         display_rows.append({
@@ -745,7 +748,7 @@ if st.session_state.mode == "class" and cls:
                                 elif cls == "3CL":
                                     grade = cadet_df.iloc[0].get("MS231", "N/A")
                                     try:
-                                        status = "Proficient" if float(grade) >= 7 else "DEFICIENT"
+                                        status = "✅ Proficient" if float(grade) >= 7 else "🚫 DEFICIENT"
                                     except:
                                         status = "N/A"
                                     display_rows.append({
@@ -794,6 +797,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"Military tab error: {e}")
         
         with t5:
+            st.markdown("### 📄 Conduct Reports")
             try:
                 # Sheet map per term
                 conduct_sheet_map = {
@@ -824,7 +828,7 @@ if st.session_state.mode == "class" and cls:
                         st.warning(f"No conduct data found for {name_disp} in {sheet_name}.")
                     else:
                         # --- Merits Summary + Edit ---
-                        st.subheader("Merits Summary")
+                        st.subheader("📜 Merits Summary")
             
                         current_merits = cadet_data.iloc[0].get("merits", "0")
                         merits_value = st.number_input(
@@ -833,7 +837,7 @@ if st.session_state.mode == "class" and cls:
                             step=1.0
                         )
             
-                        status = "Failed" if merits_value < 0 else "Passed"
+                        status = "🚫 Failed" if merits_value < 0 else "✅ Passed"
             
                         merit_table = pd.DataFrame([{
                             "Name": name_disp,
@@ -857,7 +861,7 @@ if st.session_state.mode == "class" and cls:
                                 st.error(f"❌ Failed to update merits: {e}")
             
                         # --- Conduct Reports Table ---
-                        st.subheader("Conduct Reports")
+                        st.subheader("📋 Conduct Reports")
                         expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]
             
                         if "last_report_fetch" not in st.session_state:
@@ -921,4 +925,3 @@ if st.session_state.mode == "class" and cls:
             
             except Exception as e:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
-            
