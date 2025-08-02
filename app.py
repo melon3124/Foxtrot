@@ -324,12 +324,12 @@ st.markdown('</div>', unsafe_allow_html=True)
 
         
 # --- Your existing code with the improved t1 section integrated ---
-    name_disp = st.session_state.selected_cadet_display_name
-    name_clean = st.session_state.selected_cadet_cleaned_name
-    if name_clean:
-        row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
-        st.markdown(f"## Showing details for: {name_disp}")
-        t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
+name_disp = st.session_state.selected_cadet_display_name
+name_clean = st.session_state.selected_cadet_cleaned_name
+if name_clean:
+    row = demo_df[demo_df["FULL NAME"] == name_clean].iloc[0]
+    st.markdown(f"## Showing details for: {name_disp}")
+    t1, t2, t3, t4, t5 = st.tabs(["👤 Demographics", "📚 Academics", "🏃 PFT", "🪖 Military", "⚖ Conduct"])
 
         with t1:
             # Use a two-column layout for the profile picture and information
