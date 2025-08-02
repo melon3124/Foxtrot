@@ -373,13 +373,11 @@ if st.session_state.view == "summary":
             else:
                 st.warning(f"No 'GRADE' column found for {cls_select} PFT sheet. Cannot determine SMC cadets.")
             
-            if 'GENDER' in merged_df.columns and 'PFT_AVG_GRADE' in merged_df.columns:
-                merged_df['PUSHUPS_GRADES'] = pd.to_numeric(merged_df.get('PUSHUPS_GRADES', pd.Series()), errors='coerce')
-                merged_df['SITUPS_GRADES'] = pd.to_numeric(merged_df.get('SITUPS_GRADES', pd.Series()), errors='coerce')
-                merged_df['PULLUPS_GRADES'] = pd.to_numeric(merged_df.get('PULLUPS_GRADES', pd.Series()), errors='coerce')
-                merged_df['RUN_GRADES'] = pd.to_numeric(merged_df.get('RUN_GRADES', pd.Series()), errors='coerce')
+            pft_grade_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
             
-                merged_df['PFT_AVG_GRADE'] = merged_df[['PUSHUPS_GRADES', 'SITUPS_GRADES', 'PULLUPS_GRADES', 'RUN_GRADES']].mean(axis=1)
+            if 'GENDER' in merged_df.columns and all(col in merged_df.columns for col in pft_grade_cols):
+                merged_df[pft_grade_cols] = merged_df[pft_grade_cols].apply(pd.to_numeric, errors='coerce')
+                merged_df['PFT_AVG_GRADE'] = merged_df[pft_grade_cols].mean(axis=1)
 
                 strongest_male = merged_df[merged_df['GENDER'] == 'MALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'MALE'].empty else None
                 strongest_female = merged_df[merged_df['GENDER'] == 'FEMALE'].sort_values(by='PFT_AVG_GRADE', ascending=False).iloc[0] if not merged_df[merged_df['GENDER'] == 'FEMALE'].empty else None
