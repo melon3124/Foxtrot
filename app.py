@@ -384,172 +384,127 @@ if st.session_state.mode == "class" and cls:
 
     with t2:
         try:
-            if "selected_term" not in st.session_state:
-                st.session_state.selected_term = "1st Term"
-    
-            term = st.radio(
-                "Select Term",
-                ["1st Term", "2nd Term"],
-                index=["1st Term", "2nd Term"].index(st.session_state.selected_term),
-                horizontal=True,
-                help="Choose academic term for grade comparison"
-            )
-            st.session_state.selected_term = term
-    
-            acad_sheet_map = {
-                "1CL": {"1st Term": "1CL ACAD", "2nd Term": "1CL ACAD 2"},
-                "2CL": {"1st Term": "2CL ACAD", "2nd Term": "2CL ACAD 2"},
-                "3CL": {"1st Term": "3CL ACAD", "2nd Term": "3CL ACAD 2"}
-            }
-            acad_hist_map = {
-                "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
-                "2CL": {"1st Term": "2CL ACAD HISTORY", "2nd Term": "2CL ACAD HISTORY 2"},
-                "3CL": {"1st Term": "3CL ACAD HISTORY", "2nd Term": "3CL ACAD HISTORY 2"}
-            }
-    
-            possible_name_cols = ["NAME", "FULL NAME", "CADET NAME"]
-    
-            def find_name_column(df):
-                upper_cols = pd.Index([str(c).strip().upper() for c in df.columns])
-                for col in possible_name_cols:
-                    if col.upper() in upper_cols:
-                        return df.columns[upper_cols.get_loc(col.upper())]
-                return None
-    
-            def get_worksheet_by_name(name):
-                for ws in SS.worksheets():
-                    if ws.title.strip().upper() == name.strip().upper():
-                        return ws
-                raise Exception(f"Worksheet '{name}' not found.")
-    
-            def update_sheet_rows(data, headers, name_idx, subj_idx_map, edited_df, name_clean, name_disp, grade_col):
-                updated = False
-                for row in data[1:]:
-                    if clean_cadet_name_for_comparison(row[name_idx]) == name_clean:
-                        for _, r in edited_df.iterrows():
-                            subj = r["SUBJECT"]
-                            val = str(r[grade_col]) if pd.notna(r[grade_col]) else ""
-                            row[subj_idx_map[subj]] = val
-                        updated = True
-                        break
-                if not updated:
-                    new_row = ["" for _ in headers]
-                    new_row[name_idx] = name_disp
-                    for _, r in edited_df.iterrows():
-                        subj = r["SUBJECT"]
-                        val = str(r[grade_col]) if pd.notna(r[grade_col]) else ""
-                        new_row[subj_idx_map[subj]] = val
-                    data.append(new_row)
-                return data
-    
-            prev_df = sheet_df(acad_sheet_map[cls][term])
-            curr_df = sheet_df(acad_hist_map[cls][term])
-    
-            prev_df.columns = [str(c).strip().upper() for c in prev_df.columns]
-            curr_df.columns = [str(c).strip().upper() for c in curr_df.columns]
-    
-            prev_name_col = find_name_column(prev_df)
-            curr_name_col = find_name_column(curr_df)
-    
-            if prev_df.empty or prev_name_col is None:
-                st.warning("⚠️ No valid previous academic data or name column found.")
-            else:
-                prev_df["NAME_CLEANED"] = prev_df[prev_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                row_prev = prev_df[prev_df["NAME_CLEANED"] == name_clean]
-    
-                if row_prev.empty:
-                    st.warning(f"No academic record found in previous sheet for {name_disp}.")
-                    st.info("Some available cadet names: " + ", ".join(prev_df[prev_name_col].dropna().astype(str).unique()[:5]))
-                else:
-                    row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
-                    subjects = row_prev.index.tolist()
-                    df = pd.DataFrame({"SUBJECT": subjects})
-                    df["PREVIOUS GRADE"] = pd.to_numeric(row_prev.values, errors="coerce")
-    
-                    if curr_name_col and not curr_df.empty:
-                        curr_df["NAME_CLEANED"] = curr_df[curr_name_col].astype(str).apply(clean_cadet_name_for_comparison)
-                        row_curr = curr_df[curr_df["NAME_CLEANED"] == name_clean]
-                        if not row_curr.empty:
-                            row_curr = row_curr.iloc[0]
-                            df["CURRENT GRADE"] = [pd.to_numeric(row_curr.get(subj, None), errors="coerce") for subj in subjects]
-                        else:
-                            df["CURRENT GRADE"] = None
-                    else:
-                        df["CURRENT GRADE"] = None
-    
-                    df["INCREASE/DECREASE"] = df["CURRENT GRADE"] - df["PREVIOUS GRADE"]
-                    df["INCREASE/DECREASE"] = df["INCREASE/DECREASE"].apply(
-                        lambda x: "⬆️" if x > 0 else ("⬇️" if x < 0 else "➡️")
+            if name_disp:
+                st.header("Academics")
+                st.caption(f"Showing academic data for **:red[{name_disp}]**")
+        
+                # Load the data for Academics
+                df_curr_grades = get_data_from_gsheet("ACADEMICS")
+                df_history_grades = get_data_from_gsheet("ACADEMIC_HISTORY")
+        
+                # Display a dropdown for selecting the term
+                selected_term = st.selectbox(
+                    "Select Term",
+                    options=df_curr_grades["TERM"].unique().tolist(),
+                    key="acad_term_selector"
+                )
+                
+                # Use an expander for the academic data to keep the layout clean
+                with st.expander("Academic Record", expanded=True):
+                    # Filter data for the selected cadet and term
+                    df_curr_grades_filtered = df_curr_grades[
+                        (df_curr_grades["NAME"] == name_disp) & 
+                        (df_curr_grades["TERM"] == selected_term)
+                    ].copy()
+        
+                    df_history_grades_filtered = df_history_grades[
+                        (df_history_grades["NAME"] == name_disp) & 
+                        (df_history_grades["TERM"] == selected_term)
+                    ].copy()
+        
+                    # Merge current and history grades to show a comparison
+                    df_to_display = pd.merge(
+                        df_history_grades_filtered,
+                        df_curr_grades_filtered,
+                        on=["NAME", "SUBJECT", "TERM"],
+                        how="outer",
+                        suffixes=("_hist", "")
                     )
-                    df["STATUS"] = df["CURRENT GRADE"].apply(
-                        lambda x: "PROFICIENT" if pd.notna(x) and x >= 7 else ("DEFICIENT" if pd.notna(x) else "")
-                    )
-    
-                    st.subheader("📝 Editable Grades Table")
-                    gb = GridOptionsBuilder.from_dataframe(df)
-                    gb.configure_column("SUBJECT", editable=False)
-                    gb.configure_column("PREVIOUS GRADE", editable=True)
-                    gb.configure_column("CURRENT GRADE", editable=True)
-                    gb.configure_column("INCREASE/DECREASE", editable=False)
-                    gb.configure_column("STATUS", editable=False)
-                    grid_options = gb.build()
-    
-                    grid_response = AgGrid(
-                        df,
-                        gridOptions=grid_options,
-                        update_mode=GridUpdateMode.VALUE_CHANGED,
-                        allow_unsafe_jscode=True,
-                        fit_columns_on_grid_load=True,
-                        height=400,
-                        enable_enterprise_modules=False
-                    )
-    
-                    edited_df = grid_response["data"]
-                    grades_changed = not edited_df[["PREVIOUS GRADE", "CURRENT GRADE"]].equals(df[["PREVIOUS GRADE", "CURRENT GRADE"]])
-    
-                    if grades_changed or st.session_state.get("force_show_submit", False):
-                        st.success("✅ Detected changes. Click below to apply updates.")
-                        if st.button("📤 Submit All Changes"):
-                            st.session_state["force_show_submit"] = False
-                            try:
-                                hist_ws = get_worksheet_by_name(acad_hist_map[cls][term])
-                                prev_ws = get_worksheet_by_name(acad_sheet_map[cls][term])
-                                hist_data = hist_ws.get_all_values()
-                                prev_data = prev_ws.get_all_values()
-    
-                                headers_hist = hist_data[0]
-                                headers_prev = prev_data[0]
-    
-                                name_idx_hist = next((i for i, h in enumerate(headers_hist) if h.upper() in [c.upper() for c in possible_name_cols]), None)
-                                name_idx_prev = next((i for i, h in enumerate(headers_prev) if h.upper() in [c.upper() for c in possible_name_cols]), None)
-    
-                                if name_idx_hist is None or name_idx_prev is None:
-                                    st.error("❌ 'NAME' column not found in one of the sheets.")
-                                else:
-                                    subj_idx_hist = {subj: headers_hist.index(subj) if subj in headers_hist else headers_hist.append(subj) or len(headers_hist) - 1 for subj in edited_df["SUBJECT"]}
-                                    subj_idx_prev = {subj: headers_prev.index(subj) if subj in headers_prev else headers_prev.append(subj) or len(headers_prev) - 1 for subj in edited_df["SUBJECT"]}
-    
-                                    for row in hist_data[1:]: row.extend([""] * (len(headers_hist) - len(row)))
-                                    for row in prev_data[1:]: row.extend([""] * (len(headers_prev) - len(row)))
-    
-                                    hist_data = update_sheet_rows(hist_data, headers_hist, name_idx_hist, subj_idx_hist, edited_df, name_clean, name_disp, "CURRENT GRADE")
-                                    prev_data = update_sheet_rows(prev_data, headers_prev, name_idx_prev, subj_idx_prev, edited_df, name_clean, name_disp, "PREVIOUS GRADE")
-    
-                                    hist_ws.clear()
-                                    hist_ws.update("A1", [headers_hist] + hist_data[1:])
-                                    prev_ws.clear()
-                                    prev_ws.update("A1", [headers_prev] + prev_data[1:])
-    
-                                    st.cache_data.clear()
-                                    st.success("✅ All changes saved to both sheets.")
-                            except Exception as e:
-                                st.error(f"❌ Error saving changes: {e}")
-                    else:
-                        st.session_state["force_show_submit"] = True
-                        st.info("📝 No detected grade changes yet. Try editing a cell.")
-    
+                    
+                    # Rename columns for display
+                    df_to_display = df_to_display.rename(columns={
+                        "GRADE_hist": "PREVIOUS GRADE",
+                        "GRADE": "CURRENT GRADE"
+                    })
+        
+                    # Calculate increase/decrease and status
+                    df_to_display["Increase/Decrease"] = (
+                        df_to_display["CURRENT GRADE"] - df_to_display["PREVIOUS GRADE"]
+                    ).fillna(0)
+                    
+                    df_to_display["Status"] = df_to_display["CURRENT GRADE"].apply(evaluate_status)
+        
+                    # Select and reorder columns for display
+                    df_to_display = df_to_display[[
+                        "NAME", "SUBJECT", "PREVIOUS GRADE", "CURRENT GRADE", "Increase/Decrease", "Status"
+                    ]].copy()
+        
+                    # Use a form to handle submission for all edits
+                    with st.form("edit_acad_form"):
+                        st.markdown("### Edit Academic Grades")
+                        
+                        # Configure and display the editable AgGrid table
+                        gb = GridOptionsBuilder.from_dataframe(df_to_display)
+                        gb.configure_column("SUBJECT", editable=False)
+                        gb.configure_column("PREVIOUS GRADE", editable=False)
+                        gb.configure_column("CURRENT GRADE", editable=True)
+                        gb.configure_column("Increase/Decrease", editable=False)
+                        gb.configure_column("Status", editable=False)
+                        
+                        go = gb.build()
+                        
+                        # Display the AgGrid with the current academic data
+                        grid_response = AgGrid(
+                            df_to_display,
+                            gridOptions=go,
+                            update_mode=GridUpdateMode.MODEL_CHANGED,
+                            allow_unsafe_jscode=True,
+                            theme="streamlit", # Use a Streamlit-friendly theme
+                            height=300,
+                            key="acad_grid"
+                        )
+                        
+                        # Extract the edited data
+                        edited_df = grid_response["data"]
+        
+                        submitted = st.form_submit_button("📤 Submit Changes")
+                
+                    if submitted:
+                        # Update both the current and history sheets
+                        try:
+                            # Process the edited data to update Google Sheets
+                            for index, row in edited_df.iterrows():
+                                # Update ACADEMICS sheet
+                                update_sheet_cell(
+                                    sheet_name="ACADEMICS",
+                                    name_to_find=name_disp,
+                                    col_to_find="SUBJECT",
+                                    val_to_find=row["SUBJECT"],
+                                    col_to_update="GRADE",
+                                    new_value=str(row["CURRENT GRADE"])
+                                )
+        
+                                # Update ACADEMIC_HISTORY sheet for next term's previous grade
+                                update_sheet_cell(
+                                    sheet_name="ACADEMIC_HISTORY",
+                                    name_to_find=name_disp,
+                                    col_to_find="SUBJECT",
+                                    val_to_find=row["SUBJECT"],
+                                    col_to_update="GRADE",
+                                    new_value=str(row["CURRENT GRADE"])
+                                )
+                                
+                            # Clear cache and rerun to reflect changes
+                            st.cache_data.clear()
+                            time.sleep(1)
+                            st.success("✅ Academic grades updated successfully.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error submitting academic data: {e}")
+        
         except Exception as e:
-            st.error(f"❌ Unexpected academic error: {e}")
+            st.error(f"❌ Unexpected error in Academics tab: {e}")
+
 
             
         with t3:
