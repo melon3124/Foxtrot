@@ -252,6 +252,14 @@ if st.session_state.view == "summary":
 
     demo_df = sheet_df("DEMOGRAPHICS")
     demo_df.columns = [c.strip().upper().replace("\xa0", "") for c in demo_df.columns]
+    demo_df["FULL NAME"] = demo_df.apply(
+        lambda r: clean_cadet_name_for_comparison(
+            f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}"
+        ), axis=1
+    )
+    demo_df["FULL NAME_DISPLAY"] = demo_df.apply(
+        lambda r: f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}".strip(), axis=1
+    )
 
     acad_tab, pft_tab, mil_tab, conduct_tab = st.tabs(["📚 Academics", "🏃 PFT", "🫦 Military", "⚖ Conduct"])
 
