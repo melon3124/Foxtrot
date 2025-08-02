@@ -126,6 +126,7 @@ if st.session_state.role == "admin":
         st.session_state["view"] = "summary"
     else:
         st.session_state["view"] = "main"
+
 # --- CONFIG & GOOGLE SHEETS SETUP ---
 st.set_page_config(
     page_title="Foxtrot CIS Dashboard",
@@ -217,8 +218,8 @@ if "CLASS" not in demo_df.columns:
 for cls, (start, end) in classes.items():
     demo_df.iloc[start-1:end, demo_df.columns.get_loc("CLASS")] = cls
     
-# --- ADMIN-ONLY SUMMARY DASHBOARD ---
-if st.session_state.view == "summary" and st.session_state.role == "admin":
+# --- SUMMARY DASHBOARD ---
+if st.session_state.view == "summary":
     st.title("📊 Summary Dashboard")
     
     acad_hist_map = {
@@ -384,7 +385,7 @@ if st.session_state.view == "summary" and st.session_state.role == "admin":
                         strongest_data.append({"Rank": "👑 Strongest Male", "Cadet": strongest_male['NAME'], "Average Grade": f"{strongest_male['PFT_AVG_GRADE']:.2f}"})
                     if strongest_female is not None:
                         strongest_data.append({"Rank": "👑 Strongest Female", "Cadet": strongest_female['NAME'], "Average Grade": f"{strongest_female['PFT_AVG_GRADE']:.2f}"})
-
+    
                     st.write("**Strongest Cadets (Highest Average Grade):**")
                     if strongest_data:
                         st.dataframe(pd.DataFrame(strongest_data), hide_index=True)
@@ -481,8 +482,9 @@ if st.session_state.view == "summary" and st.session_state.role == "admin":
                 st.dataframe(pd.DataFrame(red_data), hide_index=True)
             else:
                 st.write("None")
-# --- MAIN DASHBOARD (FOR BOTH ROLES) ---
-elif st.session_state.view == "main":
+
+# --- MAIN DASHBOARD ---
+else:
     for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
         if key not in st.session_state:
             st.session_state[key] = None if key != "mode" else "class"
@@ -672,393 +674,178 @@ elif st.session_state.view == "main":
                         
                         return data, headers
 
-                    prev_df = sheet_df(acad_sheet_map.get(row['CLASS'], {}).get("1st Term"))
-                    hist_df = sheet_df(acad_hist_map.get(row['CLASS'], {}).get(term))
-                    hist_df_1st_term = sheet_df(acad_hist_map.get(row['CLASS'], {}).get("1st Term"))
-                    hist_df_2nd_term = sheet_df(acad_hist_map.get(row['CLASS'], {}).get("2nd Term"))
+                    prev_df = sheet_df(acad_sheet_map[cls][term])
+                    curr_df = sheet_df(acad_hist_map[cls][term])
 
-                    if not hist_df.empty:
-                        hist_name_col = find_name_column(hist_df)
-                        if hist_name_col:
-                            acad_data = hist_df[hist_df[hist_name_col].apply(clean_cadet_name_for_comparison) == name_clean].iloc[0].to_dict()
-                            
-                            hist_df_1st_term_row = hist_df_1st_term[hist_df_1st_term[find_name_column(hist_df_1st_term)].apply(clean_cadet_name_for_comparison) == name_clean]
-                            hist_df_2nd_term_row = hist_df_2nd_term[hist_df_2nd_term[find_name_column(hist_df_2nd_term)].apply(clean_cadet_name_for_comparison) == name_clean]
-                            
-                            df_display = pd.DataFrame([acad_data]).transpose().reset_index()
-                            df_display.columns = ["SUBJECT", "CURRENT GRADE"]
-                            
-                            if term == "2nd Term":
-                                # Merge with 1st term data for comparison
-                                if not hist_df_1st_term_row.empty:
-                                    prev_grades = hist_df_1st_term_row.iloc[0]
-                                    df_display['PREVIOUS GRADE'] = df_display['SUBJECT'].map(prev_grades)
-                            
-                            df_display["STATUS"] = df_display["CURRENT GRADE"].apply(evaluate_status)
-                            
-                            def get_def_prof_points(grades):
-                                try:
-                                    val = float(grades)
-                                    if val < 7:
-                                        return 1
-                                    else:
-                                        return 0
-                                except:
-                                    return 0
-                            
-                            df_display['DEF/PROF POINTS'] = df_display['CURRENT GRADE'].apply(get_def_prof_points)
-                            
-                            st.dataframe(df_display, hide_index=True)
+                    prev_df.columns = [str(c).strip().upper() for c in prev_df.columns]
+                    curr_df.columns = [str(c).strip().upper() for c in curr_df.columns]
 
-                            def update_grades():
-                                try:
-                                    ws_name = acad_hist_map[row['CLASS']][term]
-                                    ws = get_worksheet_by_name(ws_name)
-                                    all_data = ws.get_all_values()
-                                    headers = [normalize_column_name(h) for h in all_data[0]]
-                                    name_idx = [i for i, h in enumerate(headers) if h in [c.upper() for c in possible_name_cols]][0]
-                                    
-                                    edited_data, edited_headers = update_sheet_rows(all_data, headers, name_idx, df_display, name_clean, name_disp, "CURRENT GRADE")
-                                    
-                                    new_df = pd.DataFrame(edited_data[1:], columns=edited_headers)
-                                    ws.clear()
-                                    ws.set_dataframe(new_df, (1,1))
-                                    st.success("✅ Grades updated successfully!")
-                                    st.cache_data.clear()
-                                    st.rerun()
-                                    
-                                except Exception as e:
-                                    st.error(f"❌ Failed to update grades: {e}")
-                                    
-                            if st.session_state.role == "admin":
-                                if st.button("Update Academic Grades"):
-                                    update_grades()
-
-                            
-                        else:
-                            st.warning("Could not find the cadet in the academic records.")
+                    prev_name_col = find_name_column(prev_df)
+                    curr_name_col = find_name_column(curr_df)
+                    
+                    if prev_df.empty or prev_name_col is None:
+                        st.warning("⚠️ No valid previous academic data or name column found.")
                     else:
-                        st.info(f"No academic data found for {row['CLASS']} for {term}.")
+                        prev_df["NAME_CLEANED"] = prev_df[prev_name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                        row_prev = prev_df[prev_df["NAME_CLEANED"] == name_clean]
+
+                        if row_prev.empty:
+                            st.warning(f"No academic record found in previous sheet for {name_disp}.")
+                            st.info("Some available cadet names: " + ", ".join(prev_df[prev_name_col].dropna().astype(str).unique()[:5]))
+                        else:
+                            row_prev = row_prev.iloc[0].drop([prev_name_col, "NAME_CLEANED"], errors='ignore')
+                            row_curr = curr_df[curr_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison) == name_clean]
+                            
+                            if row_curr.empty:
+                                st.warning(f"No academic record found in current sheet for {name_disp}. Displaying previous term data only.")
+                                row_curr = pd.Series(index=row_prev.index, dtype='object')
+                            else:
+                                row_curr = row_curr.iloc[0]
+                                
+                            combined_data = []
+                            for subj in set(row_prev.index).union(set(row_curr.index)):
+                                if subj in ["NAME", "STATUS", "CURRENT GRADE", "DEF/PROF POINTS"]:
+                                    continue
+                                
+                                prev_grade = pd.to_numeric(row_prev.get(subj), errors='coerce')
+                                curr_grade = pd.to_numeric(row_curr.get(subj), errors='coerce')
+                                
+                                if pd.isna(prev_grade) and pd.isna(curr_grade):
+                                    continue
+                                
+                                change = "N/A"
+                                if pd.notna(prev_grade) and pd.notna(curr_grade):
+                                    change = curr_grade - prev_grade
+                                
+                                combined_data.append({
+                                    "SUBJECT": subj,
+                                    f"{term} GRADE": curr_grade,
+                                    f"{'1st' if term=='2nd' else '2nd'} Term GRADE": prev_grade,
+                                    "CHANGE": change,
+                                    "STATUS": "Proficient" if pd.notna(curr_grade) and curr_grade >= 7 else "Deficient",
+                                })
+                                
+                            grades_df = pd.DataFrame(combined_data)
+                            st.dataframe(grades_df, hide_index=True)
+
                 except Exception as e:
-                    st.error(f"An error occurred in the Academics tab: {e}")
+                    st.error(f"An unexpected error occurred in Academics: {e}")
 
             with t3:
+                st.subheader("PFT Dashboard")
                 try:
-                    if "pft_term" not in st.session_state:
-                        st.session_state.pft_term = "1st Term"
-                        
-                    pft_term_radio = st.radio(
-                        "Select Term",
-                        ["1st Term", "2nd Term"],
-                        index=["1st Term", "2nd Term"].index(st.session_state.pft_term),
-                        horizontal=True,
-                        key="pft_term_select"
-                    )
-                    st.session_state.pft_term = pft_term_radio
+                    pft_sheet_name = f"{cls} PFT"
+                    pft_df = sheet_df(pft_sheet_name)
                     
-                    pft_sheet_map = {
-                        "1CL": {"1st Term": "1CL PFT", "2nd Term": "1CL PFT 2"},
-                        "2CL": {"1st Term": "2CL PFT", "2nd Term": "2CL PFT 2"},
-                        "3CL": {"1st Term": "3CL PFT", "2nd Term": "3CL PFT 2"}
-                    }
-                    pft_df = sheet_df(pft_sheet_map.get(row['CLASS'], {}).get(st.session_state.pft_term))
-                    pft_name_col = find_name_column(pft_df)
-                    
-                    if not pft_df.empty and pft_name_col:
-                        cadet_pft = pft_df[pft_df[pft_name_col].apply(clean_cadet_name_for_comparison) == name_clean]
-                        if not cadet_pft.empty:
-                            cadet_pft = cadet_pft.iloc[0]
-                            st.markdown("### PFT Results")
-                            cols = st.columns(4)
-                            pft_metrics = {
-                                "PUSHUPS": ("PUSHUPS_GRADES", "PUSHUPS_SCORE"),
-                                "SITUPS": ("SITUPS_GRADES", "SITUPS_SCORE"),
-                                "PULLUPS": ("PULLUPS_GRADES", "PULLUPS_SCORE"),
-                                "RUN": ("RUN_GRADES", "RUN_SCORE")
-                            }
-                            
-                            data_to_display = []
-                            for metric, (grade_col, score_col) in pft_metrics.items():
-                                score = cadet_pft.get(score_col, "N/A")
-                                grade = cadet_pft.get(grade_col, "N/A")
-                                status = evaluate_status(grade)
-                                data_to_display.append([metric.title(), score, grade, status])
-
-                            pft_display_df = pd.DataFrame(data_to_display, columns=["Activity", "Score", "Grade", "Status"])
-                            
-                            gb = GridOptionsBuilder.from_dataframe(pft_display_df)
-                            gb.configure_column("Grade", cellStyle=lambda params: {"color": "red"} if params.value < 7 else {"color": "green"})
-                            gb.configure_column("Status", cellStyle=lambda params: {"color": "red"} if params.value == "DEFICIENT" else {"color": "green"})
-                            
-                            grid_options = gb.build()
-                            
-                            grid_response = AgGrid(
-                                pft_display_df,
-                                gridOptions=grid_options,
-                                data_return_mode='AS_INPUT',
-                                update_mode='MODEL_CHANGED',
-                                fit_columns_on_grid_load=True,
-                                theme='streamlit',
-                                allow_unsafe_jscode=True,
-                                enable_enterprise_modules=False,
-                            )
-                            
-                            if st.session_state.role == "admin":
-                                # Admin PFT Edit functionality (same as original, but I'll add the UI here)
-                                st.markdown("---")
-                                st.subheader("Admin PFT Grade Editor")
-                                if pft_name_col:
-                                    pft_data = cadet_pft.to_dict()
-                                    new_scores = {}
-                                    for metric, (grade_col, score_col) in pft_metrics.items():
-                                        new_scores[score_col] = st.text_input(f"New {metric} Score", value=pft_data.get(score_col, ''), key=f'edit_{name_clean}_{score_col}')
-                                        new_scores[grade_col] = st.text_input(f"New {metric} Grade", value=pft_data.get(grade_col, ''), key=f'edit_{name_clean}_{grade_col}')
-
-                                    if st.button("Update PFT Records"):
-                                        try:
-                                            # Get the current worksheet
-                                            ws_name = pft_sheet_map[row['CLASS']][st.session_state.pft_term]
-                                            worksheet = get_worksheet_by_name(ws_name)
-                                            
-                                            # Find the row for the current cadet
-                                            all_records = worksheet.get_all_records()
-                                            df_records = pd.DataFrame(all_records)
-                                            
-                                            if not df_records.empty:
-                                                df_records.columns = [normalize_column_name(c) for c in df_records.columns]
-                                                pft_name_col_normalized = normalize_column_name(pft_name_col)
-                                                cadet_row_idx = df_records[df_records[pft_name_col_normalized].apply(clean_cadet_name_for_comparison) == name_clean].index
-                                                
-                                                if not cadet_row_idx.empty:
-                                                    row_index = cadet_row_idx[0]
-                                                    
-                                                    # Update the scores and grades with the new values
-                                                    for score_col, grade_col in pft_metrics.values():
-                                                        if normalize_column_name(score_col) in df_records.columns:
-                                                            df_records.loc[row_index, normalize_column_name(score_col)] = new_scores.get(score_col)
-                                                        if normalize_column_name(grade_col) in df_records.columns:
-                                                            df_records.loc[row_index, normalize_column_name(grade_col)] = new_scores.get(grade_col)
-                                                            
-                                                    # Update the Google Sheet
-                                                    update_sheet(ws_name, df_records)
-                                                    st.success("✅ PFT records updated successfully!")
-                                                    st.cache_data.clear()
-                                                    st.session_state["pft_refresh_triggered"] = True
-                                                    st.rerun()
-                                                else:
-                                                    st.error("❌ Cadet not found in the PFT sheet.")
-                                            else:
-                                                st.error("❌ PFT sheet is empty.")
-                                        except Exception as e:
-                                            st.error(f"❌ Failed to update PFT records: {e}")
-
-                        else:
-                            st.warning("No PFT data found for this cadet.")
+                    if pft_df.empty:
+                        st.warning(f"No data found for {pft_sheet_name}.")
                     else:
-                        st.info(f"No PFT data found for {row['CLASS']} for {st.session_state.pft_term}.")
+                        pft_df.columns = [str(c).strip().upper() for c in pft_df.columns]
+                        name_col = find_name_column(pft_df)
+                        
+                        if name_col is None:
+                            st.warning("⚠️ Could not find a valid name column in the PFT sheet.")
+                        else:
+                            pft_df["NAME_CLEANED"] = pft_df[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_pft_data = pft_df[pft_df["NAME_CLEANED"] == name_clean]
+                            
+                            if cadet_pft_data.empty:
+                                st.warning(f"No PFT data found for {name_disp}.")
+                            else:
+                                cadet_pft_data = cadet_pft_data.iloc[0].drop([name_col, "NAME_CLEANED"], errors='ignore')
+                                
+                                pft_cols = ["PUSHUPS", "SITUPS", "PULLUPS/FLEXARM", "RUN"]
+                                grades_cols = ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]
+                                
+                                pft_data_to_display = {
+                                    "Push-ups": f"{cadet_pft_data.get('PUSHUPS', 'N/A')} (Grade: {cadet_pft_data.get('PUSHUPS_GRADES', 'N/A')})",
+                                    "Sit-ups": f"{cadet_pft_data.get('SITUPS', 'N/A')} (Grade: {cadet_pft_data.get('SITUPS_GRADES', 'N/A')})",
+                                    "Pull-ups/Flexed-arm Hang": f"{cadet_pft_data.get('PULLUPS/FLEXARM', 'N/A')} (Grade: {cadet_pft_data.get('PULLUPS_GRADES', 'N/A')})",
+                                    "3.2km Run": f"{cadet_pft_data.get('RUN', 'N/A')} (Grade: {cadet_pft_data.get('RUN_GRADES', 'N/A')})",
+                                }
+                                
+                                # Calculate overall PFT grade
+                                grades = [pd.to_numeric(cadet_pft_data.get(g), errors='coerce') for g in grades_cols]
+                                valid_grades = [g for g in grades if pd.notna(g)]
+                                
+                                if valid_grades:
+                                    avg_grade = sum(valid_grades) / len(valid_grades)
+                                    st.write(f"**Overall PFT Average Grade**: {avg_grade:.2f} ({'Proficient' if avg_grade >= 7 else 'Deficient'})")
+                                else:
+                                    st.write("**Overall PFT Average Grade**: N/A")
+                                
+                                st.markdown("---")
+                                
+                                for event, value in pft_data_to_display.items():
+                                    st.write(f"**{event}**: {value}")
+
                 except Exception as e:
-                    st.error(f"An error occurred in the PFT tab: {e}")
+                    st.error(f"An unexpected error occurred in PFT Dashboard: {e}")
 
             with t4:
+                st.subheader("Military Dashboard")
                 try:
-                    mil_sheet_map = {
-                        "1CL": {"1st Term": "1CL MIL", "2nd Term": "1CL MIL 2"},
-                        "2CL": {"1st Term": "2CL MIL", "2nd Term": "2CL MIL 2"},
-                        "3CL": {"1st Term": "3CL MIL", "2nd Term": "3CL MIL 2"}
-                    }
-                    mil_term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True, key="mil_term")
-                    mil_df = sheet_df(mil_sheet_map.get(row['CLASS'], {}).get(mil_term))
-                    mil_name_col = find_name_column(mil_df)
+                    mil_sheet_name = f"{cls} MIL"
+                    mil_df = sheet_df(mil_sheet_name)
                     
-                    if not mil_df.empty and mil_name_col:
-                        cadet_mil = mil_df[mil_df[mil_name_col].apply(clean_cadet_name_for_comparison) == name_clean]
-                        if not cadet_mil.empty:
-                            cadet_mil_dict = cadet_mil.iloc[0].to_dict()
-                            
-                            st.markdown("### Military Grades")
-                            
-                            mil_grade_cols = []
-                            if row['CLASS'] == '1CL':
-                                mil_grade_cols = ['GRADE']
-                            elif row['CLASS'] == '2CL':
-                                mil_grade_cols = ['AS', 'NS', 'AFS']
-                            elif row['CLASS'] == '3CL':
-                                mil_grade_cols = ['MS231']
-                            
-                            mil_data = []
-                            for col in mil_grade_cols:
-                                grade = cadet_mil_dict.get(col, 'N/A')
-                                status = "Proficient" if pd.to_numeric(grade, errors='coerce') >= 7 else "DEFICIENT"
-                                mil_data.append([col, grade, status])
-                            
-                            mil_df_display = pd.DataFrame(mil_data, columns=["Military Subject", "Grade", "Status"])
-                            
-                            gb = GridOptionsBuilder.from_dataframe(mil_df_display)
-                            gb.configure_column("Grade", cellStyle=lambda params: {"color": "red"} if pd.to_numeric(params.value, errors='coerce') < 7 else {"color": "green"})
-                            gb.configure_column("Status", cellStyle=lambda params: {"color": "red"} if params.value == "DEFICIENT" else {"color": "green"})
-                            grid_options = gb.build()
-                            
-                            AgGrid(
-                                mil_df_display,
-                                gridOptions=grid_options,
-                                data_return_mode='AS_INPUT',
-                                update_mode='MODEL_CHANGED',
-                                fit_columns_on_grid_load=True,
-                                theme='streamlit',
-                                allow_unsafe_jscode=True,
-                                enable_enterprise_modules=False,
-                            )
-                            
-                            if st.session_state.role == "admin":
-                                st.markdown("---")
-                                st.subheader("Admin Military Grade Editor")
-                                new_mil_grades = {}
-                                for col in mil_grade_cols:
-                                    new_mil_grades[col] = st.text_input(f"New Grade for {col}", value=cadet_mil_dict.get(col, ''), key=f'edit_{name_clean}_{col}')
-                                    
-                                if st.button("Update Military Records"):
-                                    try:
-                                        ws_name = mil_sheet_map[row['CLASS']][mil_term]
-                                        worksheet = get_worksheet_by_name(ws_name)
-                                        all_records = worksheet.get_all_records()
-                                        df_records = pd.DataFrame(all_records)
-                                        
-                                        if not df_records.empty:
-                                            df_records.columns = [normalize_column_name(c) for c in df_records.columns]
-                                            mil_name_col_normalized = normalize_column_name(mil_name_col)
-                                            cadet_row_idx = df_records[df_records[mil_name_col_normalized].apply(clean_cadet_name_for_comparison) == name_clean].index
-                                            
-                                            if not cadet_row_idx.empty:
-                                                row_index = cadet_row_idx[0]
-                                                for col in mil_grade_cols:
-                                                    col_normalized = normalize_column_name(col)
-                                                    if col_normalized in df_records.columns:
-                                                        df_records.loc[row_index, col_normalized] = new_mil_grades.get(col)
-                                                
-                                                update_sheet(ws_name, df_records)
-                                                st.success("✅ Military records updated successfully!")
-                                                st.cache_data.clear()
-                                                st.rerun()
-                                            else:
-                                                st.error("❌ Cadet not found in the military sheet.")
-                                        else:
-                                            st.error("❌ Military sheet is empty.")
-                                    except Exception as e:
-                                        st.error(f"❌ Failed to update military records: {e}")
-
-                        else:
-                            st.warning("No military data found for this cadet.")
+                    if mil_df.empty:
+                        st.warning(f"No data found for {mil_sheet_name}.")
                     else:
-                        st.info(f"No military data found for {row['CLASS']} for {mil_term}.")
+                        mil_df.columns = [str(c).strip().upper() for c in mil_df.columns]
+                        name_col = find_name_column(mil_df)
+                        
+                        if name_col is None:
+                            st.warning("⚠️ Could not find a valid name column in the Military sheet.")
+                        else:
+                            mil_df["NAME_CLEANED"] = mil_df[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_mil_data = mil_df[mil_df["NAME_CLEANED"] == name_clean]
+
+                            if cadet_mil_data.empty:
+                                st.warning(f"No military data found for {name_disp}.")
+                            else:
+                                cadet_mil_data = cadet_mil_data.iloc[0].drop([name_col, "NAME_CLEANED"], errors='ignore')
+                                for metric, value in cadet_mil_data.items():
+                                    status = "Proficient" if pd.to_numeric(value, errors='coerce', downcast='float') >= 7 else "Deficient"
+                                    st.write(f"**{metric}**: {value} ({status})")
+                                    
                 except Exception as e:
-                    st.error(f"An error occurred in the Military tab: {e}")
+                    st.error(f"An unexpected error occurred in Military Dashboard: {e}")
 
             with t5:
+                st.subheader("Conduct Dashboard")
                 try:
-                    conduct_sheet_map = {
-                        "1CL": {"1st Term": "1CL CONDUCT", "2nd Term": "1CL CONDUCT 2"},
-                        "2CL": {"1st Term": "2CL CONDUCT", "2nd Term": "2CL CONDUCT 2"},
-                        "3CL": {"1st Term": "3CL CONDUCT", "2nd Term": "3CL CONDUCT 2"}
-                    }
+                    conduct_sheet_name = f"{cls} CONDUCT"
+                    conduct_df = sheet_df(conduct_sheet_name)
                     reports_df = sheet_df("REPORTS")
-                    
-                    st.markdown("### Demerits and Merits")
-                    
-                    if "conduct_term" not in st.session_state:
-                        st.session_state.conduct_term = "1st Term"
-                    
-                    conduct_term = st.radio("Select Term", ["1st Term", "2nd Term"], horizontal=True, key="conduct_term")
-                    
-                    conduct_df = sheet_df(conduct_sheet_map.get(row['CLASS'], {}).get(conduct_term))
-                    conduct_name_col = find_name_column(conduct_df)
-                    
-                    if not conduct_df.empty and conduct_name_col:
-                        cadet_conduct = conduct_df[conduct_df[conduct_name_col].apply(clean_cadet_name_for_comparison) == name_clean]
-                        if not cadet_conduct.empty:
-                            cadet_conduct_dict = cadet_conduct.iloc[0].to_dict()
-                            
-                            col1, col2 = st.columns(2)
-                            
-                            with col1:
-                                merits = cadet_conduct_dict.get('MERITS', 0)
-                                demerits = cadet_conduct_dict.get('DEMERITS', 0)
-                                st.metric("Merits", merits)
-                                st.metric("Demerits", demerits)
-                                
-                            with col2:
-                                touring_status_col = None
-                                for col in conduct_df.columns:
-                                    if "TOURING" in col.upper():
-                                        touring_status_col = col
-                                        break
-                                if touring_status_col:
-                                    touring_status = cadet_conduct_dict.get(touring_status_col, 'N/A')
-                                    st.markdown(f"**Touring Status:** {touring_status}")
-                                else:
-                                    st.warning("⚠️ Touring status column not found.")
-                            
-                            # Admin Edit Functionality
-                            if st.session_state.role == "admin":
-                                st.markdown("---")
-                                st.subheader("Admin Conduct Editor")
-                                with st.form("conduct_form"):
-                                    new_merits = st.number_input("Update Merits", value=pd.to_numeric(merits, errors='coerce'), format="%d", key=f'edit_merits_{name_clean}')
-                                    new_demerits = st.number_input("Update Demerits", value=pd.to_numeric(demerits, errors='coerce'), format="%d", key=f'edit_demerits_{name_clean}')
-                                    new_touring_status = st.text_input("Update Touring Status", value=touring_status, key=f'edit_touring_{name_clean}')
-                                    
-                                    submitted = st.form_submit_button("Update Conduct Records")
-                                    if submitted:
-                                        try:
-                                            ws_name = conduct_sheet_map[row['CLASS']][conduct_term]
-                                            worksheet = get_worksheet_by_name(ws_name)
-                                            all_records = worksheet.get_all_records()
-                                            df_records = pd.DataFrame(all_records)
-                                            
-                                            if not df_records.empty:
-                                                df_records.columns = [normalize_column_name(c) for c in df_records.columns]
-                                                conduct_name_col_normalized = normalize_column_name(conduct_name_col)
-                                                cadet_row_idx = df_records[df_records[conduct_name_col_normalized].apply(clean_cadet_name_for_comparison) == name_clean].index
-                                                
-                                                if not cadet_row_idx.empty:
-                                                    row_index = cadet_row_idx[0]
-                                                    
-                                                    if normalize_column_name('MERITS') in df_records.columns:
-                                                        df_records.loc[row_index, normalize_column_name('MERITS')] = new_merits
-                                                    if normalize_column_name('DEMERITS') in df_records.columns:
-                                                        df_records.loc[row_index, normalize_column_name('DEMERITS')] = new_demerits
-                                                    if touring_status_col and normalize_column_name(touring_status_col) in df_records.columns:
-                                                        df_records.loc[row_index, normalize_column_name(touring_status_col)] = new_touring_status
-                                                        
-                                                    update_sheet(ws_name, df_records)
-                                                    st.success("✅ Conduct records updated successfully!")
-                                                    st.cache_data.clear()
-                                                    st.rerun()
-                                                else:
-                                                    st.error("❌ Cadet not found in the conduct sheet.")
-                                            else:
-                                                st.error("❌ Conduct sheet is empty.")
-                                        except Exception as e:
-                                            st.error(f"❌ Failed to update conduct records: {e}")
 
-                        else:
-                            st.warning("No conduct data found for this cadet.")
+                    if conduct_df.empty:
+                        st.warning(f"No data found for {conduct_sheet_name}.")
                     else:
-                        st.info(f"No conduct data found for {row['CLASS']} for {conduct_term}.")
-                    
-                    st.markdown("### Demerits Summary")
+                        conduct_df.columns = [str(c).strip().upper() for c in conduct_df.columns]
+                        name_col = find_name_column(conduct_df)
+                        
+                        if name_col is None:
+                            st.warning("⚠️ Could not find a valid name column in the Conduct sheet.")
+                        else:
+                            conduct_df["NAME_CLEANED"] = conduct_df[name_col].astype(str).apply(clean_cadet_name_for_comparison)
+                            cadet_conduct_data = conduct_df[conduct_df["NAME_CLEANED"] == name_clean].iloc[0]
+                            
+                            for col, value in cadet_conduct_data.items():
+                                if col not in ["NAME", "NAME_CLEANED"]:
+                                    st.write(f"**{col.replace('_', ' ').title()}**: {value if pd.notna(value) else 'N/A'}")
+                                    
                     if not reports_df.empty:
-                        reports_df["DATE"] = pd.to_datetime(reports_df.get("DATE"), errors='coerce')
-                        reports_df = reports_df.dropna(subset=["DATE", "DEMERITS"])
-                        reports_df["DEMERITS"] = pd.to_numeric(reports_df["DEMERITS"], errors='coerce')
-                        
-                        cadet_reports = reports_df[reports_df["NAME"].apply(clean_cadet_name_for_comparison) == name_clean]
-                        
+                        reports_df.columns = [str(c).strip().upper() for c in reports_df.columns]
+                        reports_df["NAME"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                        cadet_reports = reports_df[reports_df["NAME"] == name_clean]
+                        st.markdown("---")
+                        st.write("**Reports & Demerits**")
                         if not cadet_reports.empty:
-                            cadet_reports = cadet_reports.sort_values(by="DATE", ascending=False)
-                            st.dataframe(cadet_reports, hide_index=True)
+                            st.dataframe(cadet_reports.drop(columns=["NAME", "NAME_CLEANED"], errors="ignore"), hide_index=True)
+                            total_demerits = pd.to_numeric(cadet_reports["DEMERITS"], errors="coerce").sum()
+                            st.metric(label="Total Demerits", value=int(total_demerits))
                         else:
-                            st.info("No demerit reports found for this cadet.")
-                    else:
-                        st.info("The 'REPORTS' sheet is empty.")
+                            st.write("No reports found.")
+                            
                 except Exception as e:
-                    st.error(f"An error occurred in the Conduct tab: {e}")
+                    st.error(f"An unexpected error occurred in Conduct Dashboard: {e}")
