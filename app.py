@@ -376,7 +376,11 @@ if st.session_state.view == "summary":
 
             touring_df = sheet_df("REPORTS")
             touring_df["NAME_CLEANED"] = touring_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            class_cadets = demo_df[demo_df["CLASS"] == cls]["FULL NAME"]
+            if "CLASS" in demo_df.columns:
+                class_cadets = demo_df[demo_df["CLASS"] == cls]["FULL NAME"]
+            else:
+                st.warning("⚠️ 'CLASS' column not found in demographics.")
+                class_cadets = pd.Series(dtype=str)
             touring_filtered = touring_df[touring_df["NAME_CLEANED"].isin(class_cadets)]
 
             st.write("🎒 Touring Cadets")
