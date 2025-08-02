@@ -688,4 +688,6 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"Military grades load error: {e}")
 
         with t5:
-            st.warning("⚖ Conduct data not yet implemented.")
+            # ⚖ Conduct data
+            st.markdown("### ⚖ Conduct Data")
+            st.warning("⚠️ This tab is under development. Conduct data is not yet available.")
