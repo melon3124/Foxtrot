@@ -540,48 +540,37 @@ if st.session_state.mode == "class" and cls:
                         df = pd.DataFrame({"SUBJECT": subjects})
                         df["CURRENT GRADE"] = [pd.to_numeric(row_prev.get(subj, None), errors="coerce") for subj in subjects]
         
-                        # Remove unwanted columns
-                        df = df.drop(columns=[col for col in df.columns if col.upper() in ["PREVIOUS GRADE", "DEF/PROF POINTS"]], errors="ignore")
+                        # ❌ Remove unwanted rows
+                        df = df[~df["SUBJECT"].str.upper().isin(["PREVIOUS GRADE", "DEF/PROF POINTS"])]
         
-                        # Show current table
+                        # ✅ Show current grades
                         st.subheader("📋 Current Grades Overview")
                         st.dataframe(df[["SUBJECT", "CURRENT GRADE"]], hide_index=True, use_container_width=True)
         
-                        # Edit grades
+                        # ✏️ Edit grades
                         st.subheader("📝 Edit Grades")
                         edited_grades = []
-                        edited_subjects = []
-                        is_admin = True  # Set this to False for non-admins
         
                         for i, row in df.iterrows():
-                            cols = st.columns([3, 1])
-                            if is_admin:
-                                subject_input = cols[0].text_input("Subject", value=row["SUBJECT"], key=f"subject_input_{i}")
-                            else:
-                                with cols[0]:
-                                    st.markdown(f"**{row['SUBJECT']}**")
-                                subject_input = row["SUBJECT"]
-        
-                            val = 0.0 if pd.isna(row["CURRENT GRADE"]) else float(row["CURRENT GRADE"])
-                            grade_input = cols[1].number_input(
-                                label="",
-                                min_value=0.0,
-                                max_value=10.0,
-                                step=0.1,
-                                value=val,
-                                key=f"grade_input_{i}"
-                            )
-        
+                            cols = st.columns([3, 1])  # Subject | Grade
+                            with cols[0]:
+                                st.markdown(f"**{row['SUBJECT']}**")
                             with cols[1]:
+                                val = 0.0 if pd.isna(row["CURRENT GRADE"]) else float(row["CURRENT GRADE"])
+                                grade_input = st.number_input(
+                                    label="",
+                                    min_value=0.0,
+                                    max_value=10.0,
+                                    step=0.1,
+                                    value=val,
+                                    key=f"grade_input_{i}"
+                                )
                                 if grade_input < 7:
                                     st.markdown(f"<span style='color:red'>⬇️ {grade_input:.1f}</span>", unsafe_allow_html=True)
                                 else:
                                     st.markdown(f"<span style='color:green'>✅ {grade_input:.1f}</span>", unsafe_allow_html=True)
-        
-                            edited_subjects.append(subject_input)
                             edited_grades.append(grade_input)
         
-                        df["SUBJECT"] = edited_subjects
                         df["UPDATED GRADE"] = pd.to_numeric(edited_grades, errors="coerce")
                         grades_changed = not df["CURRENT GRADE"].equals(df["UPDATED GRADE"])
         
@@ -633,7 +622,6 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected academic error: {e}")
-
 
 
             
