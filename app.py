@@ -771,7 +771,7 @@ if st.session_state.mode == "class" and cls:
                 st.error(f"❌ Military data load error: {e}")
 
 
- with t5:
+        with t5:
             try:
                 # Sheet map per term
                 conduct_sheet_map = {
