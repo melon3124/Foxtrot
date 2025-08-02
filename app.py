@@ -332,14 +332,15 @@ if st.session_state.view == "summary":
                             highest_deficiency = "N/A"
                         
                         st.markdown(f"**Subject: {subj}**")
-                        if proficient:
-                            st.write(f"**Proficient:** {', '.join(proficient)}")
-                        else:
-                            st.write("**Proficient:** None")
-                        if deficient:
-                            st.write(f"**Deficient:** {', '.join(deficient)}")
-                        else:
-                            st.write("**Deficient:** None")
+                        
+                        # Create and display the table for proficient and deficient cadets
+                        summary_table = pd.DataFrame({
+                            "Status": ["Proficient", "Deficient"],
+                            "Cadets": [', '.join(proficient) if proficient else "None", ', '.join(deficient) if deficient else "None"],
+                            "Count": [len(proficient), len(deficient)]
+                        })
+                        st.dataframe(summary_table, hide_index=True, use_container_width=True)
+                        
                         st.write(f"**Highest Deficiency Points:** {highest_deficiency if pd.notna(highest_deficiency) else 'N/A'}")
                         st.markdown("---")
 
