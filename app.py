@@ -564,7 +564,13 @@ if st.session_state.mode == "class" and cls:
                                 label="",
                                 options=grade_choices,
                                 index=grade_choices.index(round(val, 2)) if round(val, 2) in grade_choices else 0,
-                                key=f"grade_input_{i}
+                                grade_input = cols[1].selectbox(
+                                    label="",
+                                    options=grade_choices,
+                                    index=grade_choices.index(round(val, 2)) if round(val, 2) in grade_choices else 0,
+                                    key=f"grade_input_{i}"  # ✅ fixed here
+)
+
                             )
         
                             # Badge
