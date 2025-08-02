@@ -324,9 +324,12 @@ if st.session_state.view == "summary":
                         proficient = acad_df[acad_df[subj] >= 7]["NAME"].dropna().tolist()
                         deficient = acad_df[acad_df[subj] < 7]["NAME"].dropna().tolist()
                         
-                        # Fix applied here: Check if the Series is not empty before calling .max()
                         def_prof_points_series = acad_df.get("DEF/PROF POINTS")
-                        highest_deficiency = def_prof_points_series.max() if def_prof_points_series is not None and not def_prof_points_series.empty else "N/A"
+                        if def_prof_points_series is not None and not def_prof_points_series.empty:
+                            numeric_points = pd.to_numeric(def_prof_points_series, errors='coerce').dropna()
+                            highest_deficiency = numeric_points.max() if not numeric_points.empty else "N/A"
+                        else:
+                            highest_deficiency = "N/A"
                         
                         st.markdown(f"**Subject: {subj}**")
                         if proficient:
