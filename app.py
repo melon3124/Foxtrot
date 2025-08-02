@@ -304,21 +304,14 @@ if st.session_state.view == "summary":
             pft_df["AVG_GRADE"] = pft_df[["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]].mean(axis=1)
             pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
 
-            merged = pd.merge(pft_df, demo_df.copy(), left_on="NAME_CLEANED", right_on="FULL NAME", how="left")
-            st.write("✅ Merged Columns:", merged.columns.tolist())
+            pft_df["GENDER"] = pft_df["GENDER"].astype(str).str.upper().str.strip()
 
-            smc = merged[merged["AVG_GRADE"] < 7]
+            smc = pft_df[pft_df["AVG_GRADE"] < 7]
             st.write("🚫 SMC Cadets (Failed)")
             st.dataframe(smc[["NAME", "AVG_GRADE"]], use_container_width=True)
 
-            if "GENDER" in merged.columns:
-                merged["GENDER"] = merged["GENDER"].astype(str).str.upper().str.strip()
-                top_male = merged[merged["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
-                top_female = merged[merged["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
-            else:
-                st.warning("⚠️ 'GENDER' column not found in merged data.")
-                top_male = pd.DataFrame()
-                top_female = pd.DataFrame()
+            top_male = pft_df[pft_df["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
+            top_female = pft_df[pft_df["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
 
             st.write("💪 Strongest Male Cadet")
             if not top_male.empty and all(col in top_male.columns for col in ["NAME", "AVG_GRADE"]):
@@ -392,6 +385,7 @@ if st.session_state.view == "summary":
             st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
 
     st.stop()
+
 
 
     # -------------------- SESSION STATE --------------------
