@@ -308,6 +308,10 @@ if st.session_state.view == "summary":
     
     st.markdown("---")
     
+    # Prevent Main Dashboard UI from rendering
+    st.stop()
+
+    
     # -------------------- SESSION STATE --------------------
 for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
     if key not in st.session_state:
