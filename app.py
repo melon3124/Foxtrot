@@ -263,42 +263,46 @@ if st.session_state.view == "summary":
 
     acad_tab, pft_tab, mil_tab, conduct_tab = st.tabs(["📚 Academics", "🏃 PFT", "🪦 Military", "⚖ Conduct"])
 
-    with acad_tab:
+   with acad_tab:
         st.subheader("📚 Academic Summary")
         sheet_name = acad_hist_map[selected_class][term]
         acad_df = sheet_df(sheet_name)
+    
         if not acad_df.empty:
-            st.markdown(f"## 🎓 {selected_class} Academic Performance")
-            acad_df.columns = [c.strip() for c in acad_df.columns]  # clean column names
-            acad_df["NAME_CLEANED"] = acad_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            subject_cols = [col for col in acad_df.columns if col.upper() not in ["NAME", "NAME_CLEANED"]]
+            acad_df.columns = [c.strip().upper() for c in acad_df.columns]
+            if "NAME" not in acad_df.columns:
+                st.warning(f"❗ 'NAME' column not found in {sheet_name}. Skipping.")
+            else:
+                st.markdown(f"## 🎓 {selected_class} Academic Performance")
+                acad_df["NAME_CLEANED"] = acad_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+                subject_cols = [col for col in acad_df.columns if col not in ["NAME", "NAME_CLEANED"]]
+    
+                for subject in subject_cols:
+                    try:
+                        acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
+                        prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna().sort_values(by=subject, ascending=False)
+                        defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna().sort_values(by=subject)
+                        max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
+    
+                        with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
+                            col1, col2 = st.columns(2)
+    
+                            with col1:
+                                st.markdown("**✅ Proficient Cadets**")
+                                st.dataframe(prof, use_container_width=True, hide_index=True) if not prof.empty else st.info("No proficient cadets.")
+    
+                            with col2:
+                                st.markdown("**🚫 Deficient Cadets**")
+                                st.dataframe(defn, use_container_width=True, hide_index=True) if not defn.empty else st.success("No deficiencies recorded.")
+    
+                            if not max_def.empty:
+                                st.markdown("⬇️ **Cadet with Highest Deficiency**")
+                                st.dataframe(max_def, use_container_width=True, hide_index=True)
+                    except Exception as e:
+                        st.error(f"❌ Error processing subject {subject}: {e}")
+        else:
+            st.warning(f"⚠️ No data found in sheet {sheet_name}.")
 
-            for subject in subject_cols:
-                acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
-                prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna().sort_values(by=subject, ascending=False)
-                defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna().sort_values(by=subject)
-                max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
-
-                with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.markdown("**✅ Proficient Cadets**")
-                        if not prof.empty:
-                            st.dataframe(prof, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("No proficient cadets.")
-
-                    with col2:
-                        st.markdown("**🚫 Deficient Cadets**")
-                        if not defn.empty:
-                            st.dataframe(defn, use_container_width=True, hide_index=True)
-                        else:
-                            st.success("No deficiencies recorded.")
-
-                    if not max_def.empty:
-                        st.markdown("⬇️ **Cadet with Highest Deficiency**")
-                        st.dataframe(max_def, use_container_width=True, hide_index=True)
 
     with pft_tab:
         st.subheader("🏃 PFT Summary")
