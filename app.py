@@ -269,7 +269,8 @@ if st.session_state.view == "summary":
         acad_df = sheet_df(sheet_name)
         if not acad_df.empty:
             st.markdown(f"## 🎓 {selected_class} Academic Performance")
-            subject_cols = [col for col in acad_df.columns if col not in ["NAME", "NAME_CLEANED"]]
+            acad_df["NAME_CLEANED"] = acad_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            subject_cols = [col for col in acad_df.columns if "name" not in col.lower()]
 
             for subject in subject_cols:
                 acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
