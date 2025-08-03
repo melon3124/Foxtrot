@@ -276,18 +276,15 @@ if st.session_state.view == "summary":
                 acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
                 prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna().sort_values(by=subject, ascending=False)
                 defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna().sort_values(by=subject)
-                max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
-
-                with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.markdown("**✅ Proficient Cadets**")
-                        st.dataframe(prof, use_container_width=True, hide_index=True) if not prof.empty else st.info("No proficient cadets.")
+                         else:
+                            st.info("No proficient cadets.")
 
                     with col2:
                         st.markdown("**🚫 Deficient Cadets**")
-                        st.dataframe(defn, use_container_width=True, hide_index=True) if not defn.empty else st.success("No deficiencies recorded.")
+                        if not defn.empty:
+                            st.dataframe(defn, use_container_width=True, hide_index=True)
+                        else:
+                            st.success("No deficiencies recorded.")
 
                     if not max_def.empty:
                         st.markdown("⬇️ **Cadet with Highest Deficiency**")
@@ -298,7 +295,6 @@ if st.session_state.view == "summary":
         sheet_name = pft_sheet_map[selected_class][term]
         pft_df = sheet_df(sheet_name)
         if not pft_df.empty:
-            st.markdown(f"### {selected_class} PFT Summary")
             for col in ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]:
                 pft_df[col] = pd.to_numeric(pft_df[col], errors='coerce')
             pft_df["AVG_GRADE"] = pft_df[["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]].mean(axis=1)
@@ -313,10 +309,25 @@ if st.session_state.view == "summary":
             top_female = pft_df[pft_df["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
 
             st.write("💪 Strongest Male Cadet")
-            st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True) if not top_male.empty else st.warning("No male cadet data available.")
+            if not top_male.empty:
+                st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
+            else:
+                st.warning("No male cadet data available.")
 
             st.write("💪 Strongest Female Cadet")
-            st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True) if not top_female.empty else st.warning("No female cadet data available.")
+            if not top_female.empty:
+                st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
+            else:
+                st.warning("No female cadet data available.")  max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
+
+                with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("**✅ Proficient Cadets**")
+                        if not prof.empty:
+                            st.dataframe(prof, use_container_width=True, hide_index=True)
+             
 
     with mil_tab:
         st.subheader("🫦 Military Summary")
