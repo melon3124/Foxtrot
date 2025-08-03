@@ -946,7 +946,7 @@ if st.session_state.mode == "class" and cls:
                             except Exception as e:
                                 st.error(f"❌ Failed to update merits: {e}")
         
-                        # --- Conduct Reports Table with TOURING? Dropdown ---
+                        # --- Conduct Reports Table ---
                         st.subheader("📋 Conduct Reports")
                         expected_cols = ["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]
         
@@ -971,16 +971,26 @@ if st.session_state.mode == "class" and cls:
                                 reports_df["NAME_CLEANED"] = reports_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
                                 cadet_reports = reports_df[reports_df["NAME_CLEANED"] == name_clean].copy()
         
-                                # Add Touring Status
+                                # Show report table
+                                st.dataframe(
+                                    cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]],
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
+        
+                                # Touring Status
+                                st.subheader("🧭 Touring Status")
                                 touring_status = cadet_data.iloc[0].get("touring status", "").strip().capitalize()
                                 current_touring = "Yes" if touring_status.lower() == "yes" else "No"
-                                new_touring = st.selectbox("TOURING?", ["Yes", "No"], index=0 if current_touring == "Yes" else 1)
         
-                                display_df = cadet_reports[["NAME", "REPORT", "DATE OF REPORT", "NATURE", "DEMERITS"]].copy()
-                                display_df["TOURING?"] = current_touring
-                                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                                new_touring = st.selectbox(
+                                    "TOURING?",
+                                    options=["Yes", "No"],
+                                    index=0 if current_touring == "Yes" else 1,
+                                    key=f"touring_status_selectbox_{name_clean}"
+                                )
         
-                                if st.button(f"💾 Save Touring Status – {term}"):
+                                if st.button(f"💾 Save Touring Status – {term}", key=f"save_touring_status_{name_clean}"):
                                     try:
                                         full_df = sheet_df(sheet_name)
                                         full_df.columns = [c.strip().lower() for c in full_df.columns]
@@ -1028,3 +1038,4 @@ if st.session_state.mode == "class" and cls:
         
             except Exception as e:
                 st.error(f"❌ Unexpected error in Conduct tab: {e}")
+
