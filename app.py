@@ -370,16 +370,16 @@ if st.session_state.view == "summary":
         if not conduct_df.empty:
             st.markdown(f"### {selected_class} Conduct Summary")
             conduct_df.columns = [c.strip().upper() for c in conduct_df.columns]
-            if "NAME" in conduct_df.columns:
-                for i, row in conduct_df.iterrows():
-                    name = row["NAME"].strip()
-                    current_status = row.get("TOURING?", "No")
-                    new_status = st.selectbox(f"Touring status for {name}", ["Yes", "No"], index=0 if current_status == "Yes" else 1, key=f"touring_status_{i}")
-                    if new_status != current_status:
-                        conduct_df.at[i, "TOURING?"] = new_status
-                        update_gsheet_cell(sheet_name, i + 2, conduct_df.columns.get_loc("TOURING?") + 1, new_status)
-            else:
-                st.warning("'NAME' column not found in conduct data.")
+            conduct_df["MERITS"] = pd.to_numeric(conduct_df.get("MERITS", 0), errors='coerce')
+
+            touring_yes_df = conduct_df[conduct_df.get("TOURING STATUS", "NO").str.upper() == "YES"]
+            flagged_df = conduct_df[conduct_df["MERITS"] < 20]
+
+            st.write("🎒 Touring Cadets")
+            st.dataframe(touring_yes_df[["NAME", "TOURING STATUS"]], use_container_width=True)
+
+            st.write("🔴 Cadets with < 20 Merits")
+            st.dataframe(flagged_df[["NAME", "MERITS"]], use_container_width=True)
 
     st.stop()
 
