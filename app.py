@@ -363,7 +363,7 @@ if st.session_state.view == "summary":
             st.write("🚫 Deficient Cadets")
             st.dataframe(defn[["NAME"]], use_container_width=True)
 
-     with conduct_tab:
+    with conduct_tab:
         st.subheader("⚖ Conduct Summary")
         sheet_name = conduct_sheet_map[selected_class][term]
         conduct_df = sheet_df(sheet_name)
