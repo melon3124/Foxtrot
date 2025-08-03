@@ -276,8 +276,8 @@ if st.session_state.view == "summary":
                 acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
                 prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna().sort_values(by=subject, ascending=False)
                 defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna().sort_values(by=subject)
-                 else:
-                    st.info("No proficient cadets.")
+                         else:
+                            st.info("No proficient cadets.")
 
                     with col2:
                         st.markdown("**🚫 Deficient Cadets**")
