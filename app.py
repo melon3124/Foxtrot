@@ -543,30 +543,47 @@ if st.session_state.mode == "class" and cls:
                     # ❌ Remove unwanted rows
                     df = df[~df["SUBJECT"].str.upper().isin(["PREVIOUS GRADE", "DEF/PROF POINTS"])]
     
-                    # ✅ Show current grades table
-                    st.subheader("📋 Current Grades")
-                    st.dataframe(df[["SUBJECT", "CURRENT GRADE"]], hide_index=True, use_container_width=True)
+                    # ✅ Add Status Column
+                    def grade_status(g):
+                        if pd.isna(g):
+                            return "❌"
+                        elif g < 7.00:
+                            return "⬇️"
+                        else:
+                            return "✅"
     
-                    # ✏️ Grade editing with st.data_editor (compact)
-                    st.subheader("📝 Edit Grades (Compact Table View)")
-                    grade_choices = [f"{x:.2f}" for x in [round(0.25 * i, 2) for i in range(0, 41)]]
+                    df["STATUS"] = df["CURRENT GRADE"].apply(grade_status)
+    
+                    # 📋 Display current grades
+                    st.subheader("📋 Current Grades")
+                    st.dataframe(df[["SUBJECT", "CURRENT GRADE", "STATUS"]], use_container_width=True, hide_index=True)
+    
+                    # 📝 Edit grades with free input field (not dropdown)
+                    st.subheader("📝 Edit Grades (Type Grades Directly)")
     
                     df_editor = df.copy()
                     df_editor["GRADE INPUT"] = df_editor["CURRENT GRADE"].apply(
-                        lambda x: f"{x:.2f}" if pd.notna(x) else grade_choices[0]
+                        lambda x: f"{x:.2f}" if pd.notna(x) else ""
                     )
     
                     edited_df = st.data_editor(
                         df_editor[["SUBJECT", "GRADE INPUT"]],
                         column_config={
-                            "GRADE INPUT": st.column_config.SelectboxColumn("Grade", options=grade_choices)
+                            "GRADE INPUT": st.column_config.TextColumn("Grade")
                         },
                         use_container_width=True,
                         hide_index=True,
                         key="grade_edit_table"
                     )
     
-                    df["UPDATED GRADE"] = edited_df["GRADE INPUT"].astype(float)
+                    # Try converting typed grades to float
+                    def try_float(x):
+                        try:
+                            return float(x)
+                        except:
+                            return None
+    
+                    df["UPDATED GRADE"] = edited_df["GRADE INPUT"].apply(try_float)
                     grades_changed = not df["CURRENT GRADE"].equals(df["UPDATED GRADE"])
     
                     if grades_changed or st.session_state.get("force_show_submit", False):
@@ -617,6 +634,7 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
+
 
 
         with t3:
