@@ -363,33 +363,23 @@ if st.session_state.view == "summary":
             st.write("🚫 Deficient Cadets")
             st.dataframe(defn[["NAME"]], use_container_width=True)
 
-    with conduct_tab:
+     with conduct_tab:
         st.subheader("⚖ Conduct Summary")
         sheet_name = conduct_sheet_map[selected_class][term]
         conduct_df = sheet_df(sheet_name)
         if not conduct_df.empty:
-            st.markdown(f"### {selected_class} Conduct")
-            if "MERITS" in conduct_df.columns:
-                conduct_df["DEMERITS"] = pd.to_numeric(conduct_df["MERITS"], errors="coerce")
+            st.markdown(f"### {selected_class} Conduct Summary")
+            conduct_df.columns = [c.strip().upper() for c in conduct_df.columns]
+            if "NAME" in conduct_df.columns:
+                for i, row in conduct_df.iterrows():
+                    name = row["NAME"].strip()
+                    current_status = row.get("TOURING?", "No")
+                    new_status = st.selectbox(f"Touring status for {name}", ["Yes", "No"], index=0 if current_status == "Yes" else 1, key=f"touring_status_{i}")
+                    if new_status != current_status:
+                        conduct_df.at[i, "TOURING?"] = new_status
+                        update_gsheet_cell(sheet_name, i + 2, conduct_df.columns.get_loc("TOURING?") + 1, new_status)
             else:
-                st.warning("⚠️ 'MERITS' column not found in conduct data.")
-                conduct_df["DEMERITS"] = 0
-
-            touring_df = sheet_df("REPORTS")
-            touring_df["NAME_CLEANED"] = touring_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            if "CLASS" in conduct_df.columns:
-                class_cadets = conduct_df[conduct_df["CLASS"] == selected_class]["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-            else:
-                st.warning("⚠️ 'CLASS' column not found in conduct data.")
-                class_cadets = pd.Series(dtype=str)
-            touring_filtered = touring_df[touring_df["NAME_CLEANED"].isin(class_cadets)]
-
-            st.write("🎒 Touring Cadets")
-            st.dataframe(touring_filtered[["NAME", "DATE OF REPORT", "NATURE", "DEMERITS"]], use_container_width=True)
-
-            flagged = conduct_df[conduct_df["DEMERITS"] < 20]
-            st.write("🔴 Cadets with < 20 Demerits")
-            st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
+                st.warning("'NAME' column not found in conduct data.")
 
     st.stop()
 
