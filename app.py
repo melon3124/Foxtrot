@@ -547,41 +547,26 @@ if st.session_state.mode == "class" and cls:
                     st.subheader("📋 Current Grades")
                     st.dataframe(df[["SUBJECT", "CURRENT GRADE"]], hide_index=True, use_container_width=True)
     
-                    # ✏️ Grade editing dropdown UI (improved layout)
-                    st.subheader("📝 Edit Grades")
-                    st.caption("Use the dropdown to update each subject grade.")
-                    edited_grades = []
-                    grade_choices = [round(x * 0.25, 2) for x in range(0, 41)]  # 0.00 to 10.00
+                    # ✏️ Grade editing with st.data_editor (compact)
+                    st.subheader("📝 Edit Grades (Compact Table View)")
+                    grade_choices = [f"{x:.2f}" for x in [round(0.25 * i, 2) for i in range(0, 41)]]
     
-                    for i, row in df.iterrows():
-                        subject = row['SUBJECT']
-                        current_val = 0.0 if pd.isna(row["CURRENT GRADE"]) else float(row["CURRENT GRADE"])
-                        default_idx = grade_choices.index(round(current_val, 2)) if round(current_val, 2) in grade_choices else 0
+                    df_editor = df.copy()
+                    df_editor["GRADE INPUT"] = df_editor["CURRENT GRADE"].apply(
+                        lambda x: f"{x:.2f}" if pd.notna(x) else grade_choices[0]
+                    )
     
-                        col1, col2, col3 = st.columns([3, 1.2, 1])
+                    edited_df = st.data_editor(
+                        df_editor[["SUBJECT", "GRADE INPUT"]],
+                        column_config={
+                            "GRADE INPUT": st.column_config.SelectboxColumn("Grade", options=grade_choices)
+                        },
+                        use_container_width=True,
+                        hide_index=True,
+                        key="grade_edit_table"
+                    )
     
-                        with col1:
-                            st.markdown(f"**{subject}**")
-    
-                        with col2:
-                            new_grade = col2.selectbox(
-                                label=" ",  # visually empty label for layout
-                                options=grade_choices,
-                                index=default_idx,
-                                key=f"grade_input_{i}",
-                                format_func=lambda x: f"{x:.2f}"
-                            )
-    
-                        with col3:
-                            if new_grade < 7.00:
-                                st.markdown(f"<span style='color:red'>⬇️ {new_grade:.2f}</span>", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"<span style='color:green'>✅ {new_grade:.2f}</span>", unsafe_allow_html=True)
-    
-                        edited_grades.append(new_grade)
-                        st.markdown("---")
-    
-                    df["UPDATED GRADE"] = pd.to_numeric(edited_grades, errors="coerce")
+                    df["UPDATED GRADE"] = edited_df["GRADE INPUT"].astype(float)
                     grades_changed = not df["CURRENT GRADE"].equals(df["UPDATED GRADE"])
     
                     if grades_changed or st.session_state.get("force_show_submit", False):
