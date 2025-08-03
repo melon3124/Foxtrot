@@ -261,7 +261,7 @@ if st.session_state.view == "summary":
         lambda r: f"{r.get('FAMILY NAME','').strip()}, {r.get('FIRST NAME','').strip()} {r.get('MIDDLE NAME','').strip()} {r.get('EXTN','').strip()}".strip(), axis=1
     )
 
-    acad_tab, pft_tab, mil_tab, conduct_tab = st.tabs(["📚 Academics", "🏃 PFT", "🫦 Military", "⚖ Conduct"])
+    acad_tab, pft_tab, mil_tab, conduct_tab = st.tabs(["📚 Academics", "🏃 PFT", "🪦 Military", "⚖ Conduct"])
 
     with acad_tab:
         st.subheader("📚 Academic Summary")
@@ -276,12 +276,17 @@ if st.session_state.view == "summary":
                 acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
                 prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna().sort_values(by=subject, ascending=False)
                 defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna().sort_values(by=subject)
-            
-                if not prof.empty:
-                    st.dataframe(prof, use_container_width=True, hide_index=True)
-                else:
-                    st.info("No proficient cadets.")
+                max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
 
+                with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("**✅ Proficient Cadets**")
+                        if not prof.empty:
+                            st.dataframe(prof, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No proficient cadets.")
 
                     with col2:
                         st.markdown("**🚫 Deficient Cadets**")
@@ -322,15 +327,7 @@ if st.session_state.view == "summary":
             if not top_female.empty:
                 st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
             else:
-                st.warning("No female cadet data available.")  max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
-
-                with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.markdown("**✅ Proficient Cadets**")
-                        if not prof.empty:
-                            st.dataframe(prof, use_container_width=True, hide_index=True)
+                st.warning("No female cadet data available.")
                             
     with mil_tab:
         st.subheader("🫦 Military Summary")
