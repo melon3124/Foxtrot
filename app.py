@@ -327,7 +327,6 @@ if st.session_state.view == "summary":
                         st.markdown("**✅ Proficient Cadets**")
                         if not prof.empty:
                             st.dataframe(prof, use_container_width=True, hide_index=True)
-             
 
     with mil_tab:
         st.subheader("🫦 Military Summary")
