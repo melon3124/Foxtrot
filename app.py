@@ -969,6 +969,6 @@ if name_clean:
                         except Exception as e:
                             st.error(f"❌ Error submitting to 'REPORTS' sheet: {e}")
         
-            except Exception as e:
-                st.error(f"❌ Unexpected error in Conduct tab: {e}")
+        except Exception as e:
+            st.error(f"❌ Unexpected error in Conduct tab: {e}")
 
