@@ -219,12 +219,12 @@ for cls, (start, end) in classes.items():
     demo_df.iloc[start-1:end, demo_df.columns.get_loc("CLASS")] = cls
     
 # --- SUMMARY DASHBOARD ---
-# --- SUMMARY DASHBOARD FIXED VERSION ---
 if st.session_state.view == "summary":
     st.set_page_config(layout="wide")
     st.title("📊 Summary Dashboard")
 
     term = st.selectbox("Select Term", ["1st Term", "2nd Term"], key="summary_term")
+    selected_class = st.selectbox("Select Class", ["1CL", "2CL", "3CL"], key="summary_class")
 
     acad_hist_map = {
         "1CL": {"1st Term": "1CL ACAD HISTORY", "2nd Term": "1CL ACAD HISTORY 2"},
@@ -265,139 +265,113 @@ if st.session_state.view == "summary":
 
     with acad_tab:
         st.subheader("📚 Academic Summary")
-        for cls in classes:
-            sheet_name = acad_hist_map[cls][term]
-            acad_df = sheet_df(sheet_name)
-            if acad_df.empty:
-                continue
-    
-            st.markdown(f"## 🎓 {cls} Academic Performance")
+        sheet_name = acad_hist_map[selected_class][term]
+        acad_df = sheet_df(sheet_name)
+        if not acad_df.empty:
+            st.markdown(f"## 🎓 {selected_class} Academic Performance")
             subject_cols = [col for col in acad_df.columns if col not in ["NAME", "NAME_CLEANED"]]
-    
+
             for subject in subject_cols:
                 acad_df[subject] = pd.to_numeric(acad_df[subject], errors='coerce')
                 prof = acad_df[acad_df[subject] >= 7][["NAME", subject]].dropna().sort_values(by=subject, ascending=False)
                 defn = acad_df[acad_df[subject] < 7][["NAME", subject]].dropna().sort_values(by=subject)
                 max_def = defn.sort_values(by=subject).head(1) if not defn.empty else pd.DataFrame()
-    
+
                 with st.expander(f"📘 Subject: **{subject}** ({len(prof)} ✅ / {len(defn)} 🚫)"):
                     col1, col2 = st.columns(2)
-    
+
                     with col1:
                         st.markdown("**✅ Proficient Cadets**")
-                        if not prof.empty:
-                            st.dataframe(prof, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("No proficient cadets.")
-    
+                        st.dataframe(prof, use_container_width=True, hide_index=True) if not prof.empty else st.info("No proficient cadets.")
+
                     with col2:
                         st.markdown("**🚫 Deficient Cadets**")
-                        if not defn.empty:
-                            st.dataframe(defn, use_container_width=True, hide_index=True)
-                        else:
-                            st.success("No deficiencies recorded.")
-    
+                        st.dataframe(defn, use_container_width=True, hide_index=True) if not defn.empty else st.success("No deficiencies recorded.")
+
                     if not max_def.empty:
                         st.markdown("⬇️ **Cadet with Highest Deficiency**")
                         st.dataframe(max_def, use_container_width=True, hide_index=True)
-    
-    
-        with pft_tab:
-            st.subheader("🏃 PFT Summary")
-            for cls in classes:
-                sheet_name = pft_sheet_map[cls][term]
-                pft_df = sheet_df(sheet_name)
-                if pft_df.empty:
-                    continue
-    
-                st.markdown(f"### {cls} PFT Summary")
-                for col in ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]:
-                    pft_df[col] = pd.to_numeric(pft_df[col], errors='coerce')
-                pft_df["AVG_GRADE"] = pft_df[["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]].mean(axis=1)
-                pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-    
-                pft_df["GENDER"] = pft_df["GENDER"].astype(str).str.upper().str.strip()
-    
-                smc = pft_df[pft_df["AVG_GRADE"] < 7]
-                st.write("🚫 SMC Cadets (Failed)")
-                st.dataframe(smc[["NAME", "AVG_GRADE"]], use_container_width=True)
-    
-                top_male = pft_df[pft_df["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
-                top_female = pft_df[pft_df["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
-    
-                st.write("💪 Strongest Male Cadet")
-                if not top_male.empty and all(col in top_male.columns for col in ["NAME", "AVG_GRADE"]):
-                    st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True)
-                else:
-                    st.warning("No male cadet data available.")
-    
-                st.write("💪 Strongest Female Cadet")
-                if not top_female.empty and all(col in top_female.columns for col in ["NAME", "AVG_GRADE"]):
-                    st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True)
-                else:
-                    st.warning("No female cadet data available.")
-    
-        with mil_tab:
-            st.subheader("🫦 Military Summary")
-            for cls in classes:
-                sheet_name = mil_sheet_map[cls][term]
-                mil_df = sheet_df(sheet_name)
-                if mil_df.empty:
-                    continue
-    
-                st.markdown(f"### {cls} Military Grades")
-                if cls == "1CL":
-                    mil_df["GRADE"] = pd.to_numeric(mil_df["GRADE"], errors="coerce")
-                    prof = mil_df[mil_df["GRADE"] >= 7]
-                    defn = mil_df[mil_df["GRADE"] < 7]
-                elif cls == "2CL":
-                    for col in ["AS", "NS", "AFS"]:
-                        mil_df[col] = pd.to_numeric(mil_df[col], errors="coerce")
-                    prof = mil_df[(mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)]
-                    defn = mil_df[(mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)]
-                elif cls == "3CL":
-                    mil_df["MS231"] = pd.to_numeric(mil_df["MS231"], errors="coerce")
-                    prof = mil_df[mil_df["MS231"] >= 7]
-                    defn = mil_df[mil_df["MS231"] < 7]
-    
-                st.write("✅ Proficient Cadets")
-                st.dataframe(prof[["NAME"]], use_container_width=True)
-                st.write("🚫 Deficient Cadets")
-                st.dataframe(defn[["NAME"]], use_container_width=True)
-    
-        with conduct_tab:
-            st.subheader("⚖ Conduct Summary")
-            for cls in classes:
-                sheet_name = conduct_sheet_map[cls][term]
-                conduct_df = sheet_df(sheet_name)
-                if conduct_df.empty:
-                    continue
-    
-                st.markdown(f"### {cls} Conduct")
-                if "MERITS" in conduct_df.columns:
-                    conduct_df["DEMERITS"] = pd.to_numeric(conduct_df["MERITS"], errors="coerce")
-                else:
-                    st.warning("⚠️ 'MERITS' column not found in conduct data.")
-                    conduct_df["DEMERITS"] = 0
-    
-                touring_df = sheet_df("REPORTS")
-                touring_df["NAME_CLEANED"] = touring_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                if "CLASS" in conduct_df.columns:
-                    class_cadets = conduct_df[conduct_df["CLASS"] == cls]["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
-                else:
-                    st.warning("⚠️ 'CLASS' column not found in conduct data.")
-                    class_cadets = pd.Series(dtype=str)
-                touring_filtered = touring_df[touring_df["NAME_CLEANED"].isin(class_cadets)]
-    
-                st.write("🎒 Touring Cadets")
-                st.dataframe(touring_filtered[["NAME", "DATE OF REPORT", "NATURE", "DEMERITS"]], use_container_width=True)
-    
-                flagged = conduct_df[conduct_df["DEMERITS"] < 20]
-                st.write("🔴 Cadets with < 20 Demerits")
-                st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
-    
-        st.stop()
-    
+
+    with pft_tab:
+        st.subheader("🏃 PFT Summary")
+        sheet_name = pft_sheet_map[selected_class][term]
+        pft_df = sheet_df(sheet_name)
+        if not pft_df.empty:
+            st.markdown(f"### {selected_class} PFT Summary")
+            for col in ["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]:
+                pft_df[col] = pd.to_numeric(pft_df[col], errors='coerce')
+            pft_df["AVG_GRADE"] = pft_df[["PUSHUPS_GRADES", "SITUPS_GRADES", "PULLUPS_GRADES", "RUN_GRADES"]].mean(axis=1)
+            pft_df["NAME_CLEANED"] = pft_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            pft_df["GENDER"] = pft_df["GENDER"].astype(str).str.upper().str.strip()
+
+            smc = pft_df[pft_df["AVG_GRADE"] < 7]
+            st.write("🚫 SMC Cadets (Failed)")
+            st.dataframe(smc[["NAME", "AVG_GRADE"]], use_container_width=True)
+
+            top_male = pft_df[pft_df["GENDER"] == "M"].sort_values("AVG_GRADE", ascending=False).head(1)
+            top_female = pft_df[pft_df["GENDER"] == "F"].sort_values("AVG_GRADE", ascending=False).head(1)
+
+            st.write("💪 Strongest Male Cadet")
+            st.dataframe(top_male[["NAME", "AVG_GRADE"]], use_container_width=True) if not top_male.empty else st.warning("No male cadet data available.")
+
+            st.write("💪 Strongest Female Cadet")
+            st.dataframe(top_female[["NAME", "AVG_GRADE"]], use_container_width=True) if not top_female.empty else st.warning("No female cadet data available.")
+
+    with mil_tab:
+        st.subheader("🫦 Military Summary")
+        sheet_name = mil_sheet_map[selected_class][term]
+        mil_df = sheet_df(sheet_name)
+        if not mil_df.empty:
+            st.markdown(f"### {selected_class} Military Grades")
+            if selected_class == "1CL":
+                mil_df["GRADE"] = pd.to_numeric(mil_df["GRADE"], errors="coerce")
+                prof = mil_df[mil_df["GRADE"] >= 7]
+                defn = mil_df[mil_df["GRADE"] < 7]
+            elif selected_class == "2CL":
+                for col in ["AS", "NS", "AFS"]:
+                    mil_df[col] = pd.to_numeric(mil_df[col], errors="coerce")
+                prof = mil_df[(mil_df["AS"] >= 7) & (mil_df["NS"] >= 7) & (mil_df["AFS"] >= 7)]
+                defn = mil_df[(mil_df["AS"] < 7) | (mil_df["NS"] < 7) | (mil_df["AFS"] < 7)]
+            elif selected_class == "3CL":
+                mil_df["MS231"] = pd.to_numeric(mil_df["MS231"], errors="coerce")
+                prof = mil_df[mil_df["MS231"] >= 7]
+                defn = mil_df[mil_df["MS231"] < 7]
+
+            st.write("✅ Proficient Cadets")
+            st.dataframe(prof[["NAME"]], use_container_width=True)
+            st.write("🚫 Deficient Cadets")
+            st.dataframe(defn[["NAME"]], use_container_width=True)
+
+    with conduct_tab:
+        st.subheader("⚖ Conduct Summary")
+        sheet_name = conduct_sheet_map[selected_class][term]
+        conduct_df = sheet_df(sheet_name)
+        if not conduct_df.empty:
+            st.markdown(f"### {selected_class} Conduct")
+            if "MERITS" in conduct_df.columns:
+                conduct_df["DEMERITS"] = pd.to_numeric(conduct_df["MERITS"], errors="coerce")
+            else:
+                st.warning("⚠️ 'MERITS' column not found in conduct data.")
+                conduct_df["DEMERITS"] = 0
+
+            touring_df = sheet_df("REPORTS")
+            touring_df["NAME_CLEANED"] = touring_df["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            if "CLASS" in conduct_df.columns:
+                class_cadets = conduct_df[conduct_df["CLASS"] == selected_class]["NAME"].astype(str).apply(clean_cadet_name_for_comparison)
+            else:
+                st.warning("⚠️ 'CLASS' column not found in conduct data.")
+                class_cadets = pd.Series(dtype=str)
+            touring_filtered = touring_df[touring_df["NAME_CLEANED"].isin(class_cadets)]
+
+            st.write("🎒 Touring Cadets")
+            st.dataframe(touring_filtered[["NAME", "DATE OF REPORT", "NATURE", "DEMERITS"]], use_container_width=True)
+
+            flagged = conduct_df[conduct_df["DEMERITS"] < 20]
+            st.write("🔴 Cadets with < 20 Demerits")
+            st.dataframe(flagged[["NAME", "DEMERITS"]], use_container_width=True)
+
+    st.stop()
+
     
         # -------------------- SESSION STATE --------------------
     for key in ["mode", "selected_class", "selected_cadet_display_name", "selected_cadet_cleaned_name"]:
