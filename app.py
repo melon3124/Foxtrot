@@ -263,7 +263,7 @@ if st.session_state.view == "summary":
 
     acad_tab, pft_tab, mil_tab, conduct_tab = st.tabs(["📚 Academics", "🏃 PFT", "🪦 Military", "⚖ Conduct"])
 
-   with acad_tab:
+    with acad_tab:
         st.subheader("📚 Academic Summary")
         sheet_name = acad_hist_map[selected_class][term]
         acad_df = sheet_df(sheet_name)
