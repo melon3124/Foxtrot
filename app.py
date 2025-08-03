@@ -543,22 +543,22 @@ if st.session_state.mode == "class" and cls:
                     # ❌ Remove unwanted rows
                     df = df[~df["SUBJECT"].str.upper().isin(["PREVIOUS GRADE", "DEF/PROF POINTS"])]
     
-                    # ✅ Add Status Column
+                    # ✅ Add status label
                     def grade_status(g):
                         if pd.isna(g):
-                            return "❌"
+                            return "⚪️ NO GRADE"
                         elif g < 7.00:
-                            return "⬇️"
+                            return "🔴 DEFICIENT"
                         else:
-                            return "✅"
+                            return "🟢 PROFICIENT"
     
                     df["STATUS"] = df["CURRENT GRADE"].apply(grade_status)
     
-                    # 📋 Display current grades
+                    # 📋 Display current grades with status
                     st.subheader("📋 Current Grades")
                     st.dataframe(df[["SUBJECT", "CURRENT GRADE", "STATUS"]], use_container_width=True, hide_index=True)
     
-                    # 📝 Edit grades with free input field (not dropdown)
+                    # 📝 Edit grades with text input (not dropdown)
                     st.subheader("📝 Edit Grades (Type Grades Directly)")
     
                     df_editor = df.copy()
@@ -634,7 +634,6 @@ if st.session_state.mode == "class" and cls:
     
         except Exception as e:
             st.error(f"❌ Unexpected academic error: {e}")
-
 
 
         with t3:
